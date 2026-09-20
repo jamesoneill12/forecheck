@@ -1,0 +1,36 @@
+# NOT LAUNCHED: consumes a shared B200 node for ~1-2 h; needs explicit approval.
+# Submission command and prerequisites: configs/eks/README.md
+trainer:
+  runtime_name: "torch-runtime"
+  project_name: "forecheck"
+  experiment_name: "train-1b-lora-synthetic-v1"
+
+  ecr_image: "nvcr.io/nvidia/pytorch:25.06-py3"
+
+  command: >-
+    bash -c 'set -euo pipefail &&
+    cd /opt/ml/code &&
+    pip install -q --no-cache-dir -e ".[train]" &&
+    forecheck data generate --offline --config configs/data/train_medium.yaml --out /opt/ml/fsx/forecheck/data/v1 &&
+    forecheck data split /opt/ml/fsx/forecheck/data/v1 &&
+    forecheck train --config configs/training/1b.yaml
+      data.dir=/opt/ml/fsx/forecheck/data/v1
+      output.dir=/opt/ml/fsx/forecheck/runs/1b-synthetic-v1
+      tracking.backend=local &&
+    forecheck calibrate --run /opt/ml/fsx/forecheck/runs/1b-synthetic-v1 --split calibration &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/1b-synthetic-v1 --split test --class synthetic_in_distribution &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/1b-synthetic-v1 --split heldout_family --class synthetic_heldout_adversarial'
+
+  env_vars:
+    FORECHECK_TRACKING_BACKEND: "local"
+    HF_HOME: "/opt/ml/fsx/forecheck/hf_cache"
+    TOKENIZERS_PARALLELISM: "false"
+    PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+
+  nnodes: 1
+
+  resources:
+    worker:
+      instance_type: p6-b200.48xlarge
+      gpus_per_pod: 8
+      cpus_per_pod: 96

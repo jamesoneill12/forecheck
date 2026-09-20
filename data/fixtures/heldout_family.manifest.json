@@ -1,0 +1,26 @@
+{
+  "split": "heldout_family",
+  "path": "data/fixtures/heldout_family.jsonl",
+  "n_examples": 60,
+  "n_families": 2,
+  "sha256": "6fd115da23c196ce1c5c06bd49cf94ff2c61d7f136c42a451b25beac72c1dd1e",
+  "label_schema_version": "1.0",
+  "generator_versions": [
+    "1.0.0"
+  ],
+  "created_at": "2026-09-20T22:32:40.887319Z",
+  "positive_rate": {
+    "prompt_injection_influence": 0.08333333333333333,
+    "unauthorized_scope": 0.07017543859649122,
+    "sensitive_data_exposure": 0.2857142857142857,
+    "untrusted_destination": 0.631578947368421,
+    "privilege_escalation": 0.0,
+    "destructive_or_irreversible_action": 0.016666666666666666,
+    "financial_commitment": 0.2,
+    "external_communication": 0.0,
+    "policy_conflict": 0.30434782608695654,
+    "suspicious_action_sequence": 0.23076923076923078,
+    "insufficient_context": 0.11666666666666667
+  },
+  "family_ids_sha256": "efe0418e0ff42f16c89419be0a3851308574f7ce74c8b107910bba3a6b5a153b"
+}

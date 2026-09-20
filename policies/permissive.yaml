@@ -1,0 +1,133 @@
+# permissive: development only; see policies/README.md for rationale and warning.
+bundle_id: permissive
+version: 1
+dsl_version: "1.0"
+description: >
+  Default-ALLOW bundle for development environments. Denies only the genuinely
+  unambiguous cases: injection-driven irreversible or financial action, exfiltration of
+  SECRET data, and unambiguous privilege escalation. Not for staging or production use.
+default_decision: allow
+uncalibrated_decision: review
+allow_uncalibrated: false
+unknown_as: worst_case
+rules:
+  - id: injection_drives_irreversible_action
+    description: >
+      An action influenced by untrusted content that is also destructive or
+      irreversible.
+    decision: deny
+    hard: true
+    when:
+      all:
+        - score: prompt_injection_influence
+          gte: 0.75
+        - score: destructive_or_irreversible_action
+          gte: 0.75
+    obligations: [log_to_audit_sink, require_human_approval]
+
+  - id: injection_drives_financial_action
+    description: >
+      An action influenced by untrusted content that also creates a financial
+      commitment.
+    decision: deny
+    hard: true
+    when:
+      all:
+        - score: prompt_injection_influence
+          gte: 0.75
+        - score: financial_commitment
+          gte: 0.75
+    obligations: [log_to_audit_sink, require_human_approval]
+
+  - id: exfiltration_of_secret_data
+    description: "Exposure of SECRET-classified data."
+    decision: deny
+    hard: true
+    when:
+      all:
+        - score: sensitive_data_exposure
+          gte: 0.75
+        - fact: max_sensitivity
+          is: secret
+    obligations: [log_to_audit_sink, notify_resource_owner]
+
+  - id: privilege_escalation_unambiguous
+    description: >
+      Unambiguous, unauthorized privilege escalation.
+    decision: deny
+    hard: true
+    when:
+      all:
+        - score: privilege_escalation
+          gte: 0.8
+        - fact: authorization_explicit
+          is: false
+    obligations: [log_to_audit_sink, require_step_up_auth]
+
+  - id: review_injection_high
+    description: "High injection influence, below the deny threshold."
+    decision: review
+    when:
+      score: prompt_injection_influence
+      gte: 0.6
+    obligations: [log_to_audit_sink]
+
+  - id: review_sensitive_exposure_high
+    description: "High sensitive data exposure risk, below the deny threshold."
+    decision: review
+    when:
+      score: sensitive_data_exposure
+      gte: 0.6
+    obligations: [log_to_audit_sink]
+
+  - id: review_privilege_escalation_high
+    description: "High privilege escalation risk, below the deny threshold."
+    decision: review
+    when:
+      score: privilege_escalation
+      gte: 0.55
+    obligations: [log_to_audit_sink]
+
+  - id: review_destructive_action_high
+    description: "High destructive/irreversible risk, below the deny threshold."
+    decision: review
+    when:
+      score: destructive_or_irreversible_action
+      gte: 0.7
+    obligations: [log_to_audit_sink]
+
+  - id: review_financial_commitment_high
+    description: "High financial commitment risk, below the deny threshold."
+    decision: review
+    when:
+      score: financial_commitment
+      gte: 0.7
+    obligations: [log_to_audit_sink]
+
+  - id: review_attack_shaped_sequence
+    description: "The trajectory resembles a recognisable attack shape."
+    decision: review
+    when:
+      score: suspicious_action_sequence
+      gte: 0.8
+    obligations: [log_to_audit_sink]
+
+  - id: review_insufficient_context
+    description: >
+      The model could not determine the other dimensions from the supplied context.
+    decision: review
+    when:
+      score: insufficient_context
+      gte: 0.7
+    obligations: [log_to_audit_sink]
+
+  - id: allow_development_stage_action
+    description: >
+      Development-stage actions allow freely; still subject to the four unambiguous
+      deny rules above, which this override cannot beat.
+    decision: allow
+    kind: allow_override
+    when:
+      fact: stage
+      is: development
+    obligations: [log_to_audit_sink]

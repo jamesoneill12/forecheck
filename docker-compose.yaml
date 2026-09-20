@@ -1,0 +1,42 @@
+services:
+  forecheck:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      FORECHECK_BACKEND: mock
+      FORECHECK_POLICY_BUNDLE: conservative
+      FORECHECK_HOST: 0.0.0.0
+      FORECHECK_PORT: "8000"
+      FORECHECK_LOG_LEVEL: info
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/live').read()"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  forecheck-gpu:
+    profiles: ["gpu"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        FORECHECK_EXTRA: torch
+    ports:
+      - "8000:8000"
+    environment:
+      FORECHECK_BACKEND: hf
+      FORECHECK_MODEL_ID: ${FORECHECK_MODEL_ID:?set FORECHECK_MODEL_ID for the gpu profile}
+      FORECHECK_DEVICE: cuda
+      FORECHECK_POLICY_BUNDLE: conservative
+      FORECHECK_HOST: 0.0.0.0
+      FORECHECK_PORT: "8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: ["gpu"]

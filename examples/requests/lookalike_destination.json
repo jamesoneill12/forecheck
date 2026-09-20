@@ -1,0 +1,35 @@
+{
+  "context": {
+    "objective": {
+      "text": "Wire the vendor invoice payment to Acme Supplies as usual.",
+      "authorization_explicit": true
+    },
+    "principal": {
+      "id": "user-19",
+      "type": "human",
+      "tenant_id": "tenant-acme",
+      "roles": ["finance"],
+      "entitlements": ["payments:wire:<=50000"],
+      "auth_method": "sso",
+      "mfa_satisfied": true
+    },
+    "agent": {
+      "id": "finance-copilot",
+      "delegated_scopes": ["payments:wire"]
+    },
+    "proposed_action": {
+      "tool_name": "wire_transfer",
+      "tool_family": "payments_procurement",
+      "arguments": {"beneficiary": "Acme Suppliles Ltd", "amount": 24500.0, "currency": "USD"}
+    },
+    "environment": {"stage": "production"},
+    "destination": {
+      "identifier": "acme-suppliles.example",
+      "relationship": "lookalike",
+      "trust": "untrusted",
+      "resembles": "acme-supplies.example",
+      "verified": false
+    },
+    "financial": {"amount": 24500.0, "currency": "USD", "recurring": false, "counterparty": "Acme Suppliles Ltd"}
+  }
+}

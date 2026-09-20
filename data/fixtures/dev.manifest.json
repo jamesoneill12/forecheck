@@ -1,0 +1,26 @@
+{
+  "split": "dev",
+  "path": "data/fixtures/dev.jsonl",
+  "n_examples": 262,
+  "n_families": 8,
+  "sha256": "65de8ce6625f0b7b7a791647fe4463cf94dca5cb68dd7bdfb905f6fe5445ca76",
+  "label_schema_version": "1.0",
+  "generator_versions": [
+    "1.0.0"
+  ],
+  "created_at": "2026-09-20T22:32:40.876890Z",
+  "positive_rate": {
+    "prompt_injection_influence": 0.0916030534351145,
+    "unauthorized_scope": 0.11155378486055777,
+    "sensitive_data_exposure": 0.2077922077922078,
+    "untrusted_destination": 0.35294117647058826,
+    "privilege_escalation": 0.0,
+    "destructive_or_irreversible_action": 0.08015267175572519,
+    "financial_commitment": 0.04961832061068702,
+    "external_communication": 0.0,
+    "policy_conflict": 0.35294117647058826,
+    "suspicious_action_sequence": 0.3684210526315789,
+    "insufficient_context": 0.0648854961832061
+  },
+  "family_ids_sha256": "430c5ae93668553188040bee19de94c4e2078c1c93408f12274e9f2cf7b1a6b0"
+}

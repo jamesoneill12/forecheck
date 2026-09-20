@@ -1,0 +1,18 @@
+forecheck
+Copyright 2026 The forecheck contributors
+
+This product includes software developed by the forecheck contributors,
+licensed under the Apache License, Version 2.0.
+
+Third-party attributions
+------------------------
+
+No third-party source code is vendored into this repository. All runtime and
+development dependencies are declared in pyproject.toml and installed from their
+upstream distributions under their own licences.
+
+Any dataset, benchmark, or model artifact that forecheck is configured to consume
+carries its own licence and usage restrictions. Those are recorded, per artifact, in
+docs/license-matrix.md and enforced at load time by the
+forecheck.contracts.records.SourceLicense field: records marked eval_only, or bearing
+a benchmark canary, are refused by the training and calibration data loaders.

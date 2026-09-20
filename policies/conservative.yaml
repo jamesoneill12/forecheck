@@ -1,0 +1,217 @@
+# conservative: default REVIEW; see policies/README.md for full rationale.
+bundle_id: conservative
+version: 1
+dsl_version: "1.0"
+description: >
+  Default-REVIEW bundle for tenants without established calibration confidence. Fails
+  closed on every dimension; only a narrow, audited allow_override escapes REVIEW for
+  known-safe development actions.
+default_decision: review
+uncalibrated_decision: review
+allow_uncalibrated: false
+unknown_as: worst_case
+rules:
+  - id: injection_drives_mutation
+    description: >
+      An action influenced by untrusted content that also mutates state.
+    decision: deny
+    hard: true
+    when:
+      all:
+        - score: prompt_injection_influence
+          gte: 0.5
+        - fact: operation_is_mutating
+          is: true
+    obligations: [log_to_audit_sink, require_human_approval]
+
+  - id: injection_drives_external_communication
+    description: >
+      An action influenced by untrusted content that also communicates externally,
+      e.g. an injected instruction causing an exfiltration email.
+    decision: deny
+    hard: true
+    when:
+      all:
+        - score: prompt_injection_influence
+          gte: 0.5
+        - score: external_communication
+          gte: 0.5
+    obligations: [log_to_audit_sink, require_human_approval]
+
+  - id: exfiltration_confidential_to_untrusted_destination
+    description: >
+      Confidential-or-above data moving to an external or lookalike destination.
+    decision: deny
+    hard: true
+    when:
+      all:
+        - score: sensitive_data_exposure
+          gte: 0.4
+        - fact: max_sensitivity
+          in: [confidential, restricted, secret]
+        - fact: destination_relationship
+          in: [unknown_external, lookalike]
+    obligations: [log_to_audit_sink, notify_resource_owner]
+
+  - id: privilege_escalation_without_authorization
+    description: >
+      An action that grants or acquires authority without explicit authorization.
+    decision: deny
+    hard: true
+    when:
+      all:
+        - score: privilege_escalation
+          gte: 0.4
+        - fact: authorization_explicit
+          is: false
+    obligations: [log_to_audit_sink, require_step_up_auth]
+
+  - id: destructive_production_change_freeze
+    description: >
+      A destructive or irreversible production action while a change freeze is active.
+    decision: deny
+    hard: true
+    when:
+      all:
+        - score: destructive_or_irreversible_action
+          gte: 0.4
+        - fact: stage
+          is: production
+        - fact: change_freeze
+          is: true
+    obligations: [log_to_audit_sink]
+
+  - id: unauthorized_scope_and_no_delegated_scope
+    description: >
+      A meaningfully unauthorized-scope action by an agent with no delegated scope at
+      all for this class of tool.
+    decision: deny
+    hard: true
+    when:
+      all:
+        - score: unauthorized_scope
+          gte: 0.35
+        - fact: agent_has_scope_for_tool
+          is: false
+    obligations: [log_to_audit_sink, require_step_up_auth]
+
+  - id: financial_commitment_unauthorized
+    description: >
+      A modest-or-larger financial commitment with no explicit authorization.
+    decision: deny
+    hard: true
+    when:
+      all:
+        - score: financial_commitment
+          gte: 0.3
+        - fact: financial_amount
+          gte: 100
+        - fact: authorization_explicit
+          is: false
+    obligations: [log_to_audit_sink, require_human_approval]
+
+  - id: attack_shaped_sequence
+    description: >
+      The trajectory as a whole forms a recognisable attack shape.
+    decision: deny
+    hard: true
+    when:
+      score: suspicious_action_sequence
+      gte: 0.5
+    obligations: [log_to_audit_sink, require_human_approval]
+
+  - id: review_injection_present
+    description: "Some injection influence present, below the deny threshold."
+    decision: review
+    when:
+      score: prompt_injection_influence
+      gte: 0.2
+    obligations: [log_to_audit_sink]
+
+  - id: review_sensitive_exposure
+    description: "Some sensitive data exposure risk present."
+    decision: review
+    when:
+      score: sensitive_data_exposure
+      gte: 0.2
+    obligations: [log_to_audit_sink]
+
+  - id: review_untrusted_destination
+    description: "Destination trust is questionable."
+    decision: review
+    when:
+      score: untrusted_destination
+      gte: 0.3
+    obligations: [log_to_audit_sink]
+
+  - id: review_privilege_escalation_present
+    description: "Some privilege escalation risk present, below the deny threshold."
+    decision: review
+    when:
+      score: privilege_escalation
+      gte: 0.2
+    obligations: [log_to_audit_sink]
+
+  - id: review_destructive_action_present
+    description: "Some destructive/irreversible risk present, below the deny threshold."
+    decision: review
+    when:
+      score: destructive_or_irreversible_action
+      gte: 0.2
+    obligations: [log_to_audit_sink]
+
+  - id: review_financial_commitment_present
+    description: "Some financial commitment risk present, below the deny threshold."
+    decision: review
+    when:
+      score: financial_commitment
+      gte: 0.15
+    obligations: [log_to_audit_sink]
+
+  - id: review_policy_conflict
+    description: "The action conflicts with a supplied organizational policy."
+    decision: review
+    when:
+      score: policy_conflict
+      gte: 0.3
+    obligations: [log_to_audit_sink]
+
+  - id: review_insufficient_context
+    description: >
+      The model could not determine the other dimensions from the supplied context.
+      A meta-dimension signal, never a DENY driver on its own.
+    decision: review
+    when:
+      score: insufficient_context
+      gte: 0.5
+    obligations: [log_to_audit_sink]
+
+  - id: review_missing_mfa_for_sensitive_resource
+    description: >
+      A restricted-or-secret resource is touched without a satisfied MFA challenge.
+    decision: review
+    when:
+      all:
+        - fact: max_sensitivity
+          in: [restricted, secret]
+        - fact: mfa_satisfied
+          is: false
+    obligations: [log_to_audit_sink, require_step_up_auth]
+
+  - id: allow_authorized_reversible_dev_action
+    description: >
+      A narrow, fully-audited escape hatch: an explicitly authorized, non-mutating
+      action in development with no untrusted content in play.
+    decision: allow
+    kind: allow_override
+    when:
+      all:
+        - fact: stage
+          is: development
+        - fact: operation_is_mutating
+          is: false
+        - fact: has_untrusted_content
+          is: false
+        - fact: authorization_explicit
+          is: true
+    obligations: [log_to_audit_sink]

@@ -1,0 +1,19 @@
+{
+  "context": {
+    "objective": {
+      "text": "Do it.",
+      "authorization_explicit": false
+    },
+    "principal": {
+      "id": "user-3",
+      "type": "agent"
+    },
+    "agent": {
+      "id": "generic-agent"
+    },
+    "proposed_action": {
+      "tool_name": "run_workflow",
+      "arguments": {}
+    }
+  }
+}

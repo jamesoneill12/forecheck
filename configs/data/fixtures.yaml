@@ -1,0 +1,4 @@
+# Reproduces data/fixtures/: uv run forecheck data generate --offline --config configs/data/fixtures.yaml --out data/fixtures && uv run forecheck data split data/fixtures
+seed: 20260920
+n_per_family: 150
+pairs_per_axis: 4

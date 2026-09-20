@@ -1,0 +1,43 @@
+model:
+  base_id: hf-internal-testing/tiny-random-LlamaForCausalLM
+  dtype: fp32
+  attn_implementation: eager
+
+lora:
+  r: 4
+  alpha: 8
+  dropout: 0.0
+  target_modules: [q_proj, v_proj]
+  qlora: false
+
+data:
+  dir: data/fixtures
+  train_split: train
+  dev_split: dev
+  max_prompt_tokens: 512
+  dimension_weights: {}
+
+optim:
+  lr: 0.001
+  weight_decay: 0.0
+  warmup_ratio: 0.0
+  epochs: 20
+  max_steps: 20
+  micro_batch_size: 2
+  grad_accum: 1
+  grad_clip: 1.0
+  scheduler: constant
+
+train:
+  seed: 0
+  eval_every: 10
+  save_every: 10
+  early_stop_patience: 100
+  shared_prefill: true
+
+tracking:
+  backend: local
+  run_name: smoke
+
+output:
+  dir: output/runs/smoke

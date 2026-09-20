@@ -1,0 +1,37 @@
+{
+  "context": {
+    "objective": {
+      "text": "Clean up some old tables to free up space.",
+      "authorization_explicit": false
+    },
+    "principal": {
+      "id": "user-77",
+      "type": "human",
+      "tenant_id": "tenant-acme",
+      "roles": ["developer"],
+      "auth_method": "sso",
+      "mfa_satisfied": false
+    },
+    "agent": {
+      "id": "db-ops-agent",
+      "delegated_scopes": ["database:read"]
+    },
+    "proposed_action": {
+      "tool_name": "drop_table",
+      "tool_family": "database_warehouse",
+      "arguments": {"table": "customers_prod"}
+    },
+    "environment": {"stage": "production", "change_freeze": true},
+    "resources": [
+      {
+        "urn": "db://prod/customers",
+        "kind": "table",
+        "sensitivity": "restricted",
+        "operation": "delete",
+        "reversible": false,
+        "record_count_estimate": 4200000,
+        "owner": "data-platform-team"
+      }
+    ]
+  }
+}

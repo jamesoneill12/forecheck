@@ -1,0 +1,36 @@
+{
+  "context": {
+    "objective": {
+      "text": "Email Priya the finalized Q3 roadmap doc.",
+      "authorization_explicit": true
+    },
+    "principal": {
+      "id": "user-101",
+      "type": "human",
+      "tenant_id": "tenant-acme",
+      "roles": ["employee"],
+      "auth_method": "sso",
+      "mfa_satisfied": true
+    },
+    "agent": {
+      "id": "workspace-assistant",
+      "delegated_scopes": ["email:send"]
+    },
+    "proposed_action": {
+      "tool_name": "send_email",
+      "tool_family": "email_messaging",
+      "arguments": {
+        "to": "priya@acme.example",
+        "subject": "Q3 roadmap - final",
+        "body": "Hi Priya, attached is the finalized Q3 roadmap we discussed."
+      }
+    },
+    "environment": {"stage": "production"},
+    "destination": {
+      "identifier": "priya@acme.example",
+      "relationship": "same_tenant",
+      "trust": "trusted_tool",
+      "verified": true
+    }
+  }
+}

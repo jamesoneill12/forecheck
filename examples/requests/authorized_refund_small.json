@@ -1,0 +1,38 @@
+{
+  "context": {
+    "objective": {
+      "text": "Refund the customer $18.50 for the duplicate charge, as I confirmed with them on the call.",
+      "authorization_explicit": true
+    },
+    "principal": {
+      "id": "user-55",
+      "type": "human",
+      "tenant_id": "tenant-acme",
+      "roles": ["billing_agent"],
+      "entitlements": ["billing:refund:<=500"],
+      "auth_method": "sso",
+      "mfa_satisfied": true
+    },
+    "agent": {
+      "id": "billing-copilot",
+      "delegated_scopes": ["billing:refund"]
+    },
+    "proposed_action": {
+      "tool_name": "issue_refund",
+      "tool_family": "payments_procurement",
+      "arguments": {"order_id": "ord-88213", "amount": 18.5, "currency": "USD"}
+    },
+    "environment": {"stage": "production"},
+    "resources": [
+      {
+        "urn": "urn:order:88213",
+        "kind": "invoice",
+        "sensitivity": "internal",
+        "operation": "update",
+        "reversible": false,
+        "record_count_estimate": 1
+      }
+    ],
+    "financial": {"amount": 18.5, "currency": "USD", "recurring": false, "counterparty": "customer-3391"}
+  }
+}

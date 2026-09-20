@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Environments
+.venv/
+venv/
+env/
+.python-version
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Generation cache and generated artifacts (fixtures under data/fixtures ARE committed)
+.cache/
+data/generated/
+data/external/
+outputs/
+runs/
+checkpoints/
+*.safetensors
+*.bin
+*.pt
+
+# Experiment tracking (local-only backend)
+mlruns/
+wandb/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+data/fixtures/raw.jsonl
