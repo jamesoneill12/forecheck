@@ -27,8 +27,9 @@ call. Labels are derived deterministically from the latent scenario by
   pairs, four per `ContrastiveAxis` member (112 rows).
 - All 12 `ToolFamily` members and all 14 `ContrastiveAxis` members are represented.
 - 43.4% of rows have an all-`NO`/`NOT_APPLICABLE` label set (benign hard negatives).
-- Split sizes: train 1108, calibration 198, dev 218, test 207, heldout_family 88,
-  adversarial 93. Contrastive pairs route through their own eval-heavy ratio table
+- Split sizes: train 1016, calibration 184, dev 199, test 189, heldout_family 237,
+  adversarial 87. The heldout tier withholds 10 of the 72 catalogue tools, at least one
+  per operation kind (`data/splitting.py::is_heldout_family`). Contrastive pairs route through their own eval-heavy ratio table
   (`data/splitting.py::PAIR_SPLIT_RATIOS`) so eval splits get more pair coverage than
   the base scenario ratios would give; at this small `pairs_per_axis=4` scale that still
   leaves a handful of axes with zero pairs in one particular eval split (see

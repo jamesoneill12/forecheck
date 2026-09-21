@@ -121,23 +121,23 @@ carry the same `contrastive_pair_id`).
 
 | Split | Examples | Families | sha256 |
 | --- | --- | --- | --- |
-| `adversarial` | 93 | 47 | `2c3c171a2bc0ab71...` |
-| `calibration` | 198 | 57 | `ef326b95b9d1011e...` |
-| `dev` | 218 | 57 | `03f5bcccaab5f2ec...` |
-| `heldout_family` | 88 | 3 | `b4d5abb3f62a3cc9...` |
-| `test` | 207 | 54 | `24f9e953449c98ba...` |
-| `train` | 1108 | 69 | `c95f8c1d7c2b7534...` |
+| `adversarial` | 87 | 42 | `4b1bbbf077777d2e...` |
+| `calibration` | 184 | 51 | `e40411e571a28904...` |
+| `dev` | 199 | 50 | `0e211622c287d1da...` |
+| `heldout_family` | 237 | 10 | `8888bf54f0cc74a4...` |
+| `test` | 189 | 50 | `a1535d6d074b1f6f...` |
+| `train` | 1016 | 62 | `9704a5985e14dbde...` |
 
 Per-dimension positive rate by split:
 
 | Split | prompt_injection_influence | unauthorized_scope | sensitive_data_exposure | untrusted_destination | privilege_escalation | destructive_or_irreversible_action | financial_commitment | external_communication | policy_conflict | suspicious_action_sequence | insufficient_context |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `adversarial` | 0.097 | 0.122 | 0.462 | 0.526 | 0.043 | 0.118 | 0.065 | 1.000 | 0.290 | 0.348 | 0.075 |
-| `calibration` | 0.096 | 0.184 | 0.135 | 0.368 | 0.020 | 0.126 | 0.056 | 0.125 | 0.364 | 0.304 | 0.116 |
-| `dev` | 0.069 | 0.099 | 0.367 | 0.354 | 0.028 | 0.087 | 0.101 | 0.583 | 0.379 | 0.302 | 0.064 |
-| `heldout_family` | 0.091 | 0.037 | 0.261 | 0.286 | 0.000 | 0.057 | 0.170 | 0.000 | 0.375 | 0.353 | 0.102 |
-| `test` | 0.082 | 0.086 | 0.116 | 0.333 | 0.010 | 0.121 | 0.043 | 1.000 | 0.286 | 0.214 | 0.087 |
-| `train` | 0.084 | 0.119 | 0.193 | 0.363 | 0.028 | 0.103 | 0.067 | 0.452 | 0.312 | 0.272 | 0.082 |
+| `adversarial` | 0.103 | 0.131 | 0.462 | 0.526 | 0.034 | 0.115 | 0.057 | 1.000 | 0.276 | 0.348 | 0.080 |
+| `calibration` | 0.103 | 0.187 | 0.137 | 0.379 | 0.011 | 0.114 | 0.065 | 0.167 | 0.375 | 0.279 | 0.125 |
+| `dev` | 0.070 | 0.109 | 0.382 | 0.352 | 0.015 | 0.085 | 0.131 | 0.500 | 0.410 | 0.244 | 0.065 |
+| `heldout_family` | 0.101 | 0.067 | 0.196 | 0.317 | 0.076 | 0.131 | 0.059 | 0.500 | 0.342 | 0.380 | 0.084 |
+| `test` | 0.074 | 0.083 | 0.125 | 0.340 | 0.000 | 0.101 | 0.042 | 1.000 | 0.288 | 0.231 | 0.079 |
+| `train` | 0.080 | 0.121 | 0.196 | 0.362 | 0.021 | 0.099 | 0.071 | 0.429 | 0.305 | 0.267 | 0.083 |
 
 ## Licence
 

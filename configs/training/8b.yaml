@@ -12,7 +12,7 @@ lora:
   qlora: false
 
 data:
-  dir: /opt/ml/fsx/forecheck/data/v1
+  dir: /opt/ml/fsx/forecheck/data/v2
   train_split: train
   dev_split: dev
   max_prompt_tokens: 8192
@@ -41,4 +41,4 @@ tracking:
   run_name: train-8b
 
 output:
-  dir: /opt/ml/fsx/forecheck/runs/8b-synthetic-v1
+  dir: /opt/ml/fsx/forecheck/runs/8b-synthetic-v2

@@ -1,26 +1,26 @@
 {
   "split": "dev",
   "path": "data/fixtures/dev.jsonl",
-  "n_examples": 218,
-  "n_families": 57,
-  "sha256": "03f5bcccaab5f2ecc07b1e65b20d3b22cc7ad360e219d27405ebc2d14cec226d",
+  "n_examples": 199,
+  "n_families": 50,
+  "sha256": "0e211622c287d1da2cc58084691329acf26e4816d6888956369f36c1b587bd94",
   "label_schema_version": "1.0",
   "generator_versions": [
     "1.0.0"
   ],
-  "created_at": "2026-09-21T17:58:08.658196Z",
+  "created_at": "2026-09-21T18:02:27.083353Z",
   "positive_rate": {
-    "prompt_injection_influence": 0.06880733944954129,
-    "unauthorized_scope": 0.09905660377358491,
-    "sensitive_data_exposure": 0.36666666666666664,
-    "untrusted_destination": 0.35365853658536583,
-    "privilege_escalation": 0.027522935779816515,
-    "destructive_or_irreversible_action": 0.0871559633027523,
-    "financial_commitment": 0.10091743119266056,
-    "external_communication": 0.5833333333333334,
-    "policy_conflict": 0.3787878787878788,
-    "suspicious_action_sequence": 0.3023255813953488,
-    "insufficient_context": 0.06422018348623854
+    "prompt_injection_influence": 0.07035175879396985,
+    "unauthorized_scope": 0.109375,
+    "sensitive_data_exposure": 0.38181818181818183,
+    "untrusted_destination": 0.352112676056338,
+    "privilege_escalation": 0.01507537688442211,
+    "destructive_or_irreversible_action": 0.08542713567839195,
+    "financial_commitment": 0.1306532663316583,
+    "external_communication": 0.5,
+    "policy_conflict": 0.4098360655737705,
+    "suspicious_action_sequence": 0.24390243902439024,
+    "insufficient_context": 0.06532663316582915
   },
-  "family_ids_sha256": "e77b1f59cccc9a35a38aaab21013233bfa6e1c429747b607c583ed47073c3f69"
+  "family_ids_sha256": "cd9080619ecb697859eac28aa24107c286db61819f1e24d21b6e41ac45a8a4b8"
 }

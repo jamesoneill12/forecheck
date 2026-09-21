@@ -57,8 +57,15 @@ def evaluate_command(
     calibrators = None
     bundle_path = run / "calibration" / "bundle.json"
     if bundle_path.exists():
-        calibrator_bundle = load_bundle(bundle_path)
-        calibrators = calibrators_from_bundle(calibrator_bundle)
+        loaded = load_bundle(bundle_path)
+        if loaded.backend_model_id == backend_instance.model_info.model_id:
+            calibrator_bundle = loaded
+            calibrators = calibrators_from_bundle(loaded)
+        else:
+            typer.echo(
+                f"skipping calibration bundle fitted for {loaded.backend_model_id!r}; "
+                f"backend is {backend_instance.model_info.model_id!r}"
+            )
     engine = load_policy_engine_by_name_or_path(bundle) if bundle is not None else None
 
     try:

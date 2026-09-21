@@ -2,11 +2,13 @@
 
 Splitting has two independent tiers:
 
-1. **Heldout-family tier.** A deterministic hash of each example's ``family_id``
-   (a whole tool, e.g. ``email.send_message``) decides whether *every* row for that
-   family goes to :attr:`Split.HELDOUT_FAMILY`, at ``HELDOUT_FAMILY_RATIO`` of
-   families. This guarantees some tools are entirely unseen in training and
-   evaluated as a block.
+1. **Heldout-family tier.** Whole tools (``family_id``, e.g. ``email.send_message``)
+   are withheld so *every* row for them goes to :attr:`Split.HELDOUT_FAMILY`.
+   Selection is stratified by operation kind at ``HELDOUT_FAMILY_RATIO``, ranking
+   tools by a deterministic hash within each kind, so each operation (and the label
+   dimensions it drives, e.g. grant -> privilege_escalation) has at least one tool
+   entirely unseen in training. The first GPU run withheld three tools by plain
+   hash and had zero privilege_escalation positives to evaluate on.
 2. **Group tier.** Everything not pulled into the heldout-family tier is split at
    finer grain, by the root of ``template_lineage`` (one base scenario and its
    contrastive derivatives) via :func:`assign_split`, over train / calibration /
@@ -19,10 +21,13 @@ without keeping any state around.
 
 from __future__ import annotations
 
+import functools
 import hashlib
+from collections import defaultdict
 from collections.abc import Sequence
 
-from forecheck.contracts import Example, LatentScenario, Split, UsageRestriction
+from forecheck.contracts import Example, LatentScenario, OperationKind, Split, UsageRestriction
+from forecheck.data.tools import TOOL_CATALOGUE
 
 __all__ = [
     "DEFAULT_SALT",
@@ -42,7 +47,7 @@ __all__ = [
 DEFAULT_SALT = "forecheck-split-v1"
 
 """Fraction of families (whole tools) withheld via :func:`is_heldout_family`."""
-HELDOUT_FAMILY_RATIO = 0.05
+HELDOUT_FAMILY_RATIO = 0.12
 
 _BASE_RATIOS: dict[Split, float] = {
     Split.TRAIN: 0.60,
@@ -92,11 +97,45 @@ def compute_group_key(latent: LatentScenario) -> str:
     return latent.family_id
 
 
-def is_heldout_family(family_id: str, *, salt: str = DEFAULT_SALT) -> bool:
-    """Whether every example of ``family_id`` is withheld as :attr:`Split.HELDOUT_FAMILY`."""
+def _heldout_fraction(family_id: str, salt: str) -> float:
     digest = hashlib.sha256(f"{salt}:heldout:{family_id}".encode()).hexdigest()
-    fraction = int(digest[:16], 16) / float(0xFFFFFFFFFFFFFFFF)
-    return fraction < HELDOUT_FAMILY_RATIO
+    return int(digest[:16], 16) / float(0xFFFFFFFFFFFFFFFF)
+
+
+@functools.lru_cache(maxsize=8)
+def _heldout_catalogue_families(salt: str) -> frozenset[str]:
+    """Catalogue tools withheld under ``salt``: within each operation kind, the
+    ``max(1, round(HELDOUT_FAMILY_RATIO * n))`` lowest-hashing tools, so every
+    operation (and hence every label dimension it drives) has an unseen tool."""
+    by_operation: dict[OperationKind, list[str]] = defaultdict(list)
+    for tool in TOOL_CATALOGUE:
+        by_operation[tool.operation].append(f"{tool.family.value}:{tool.name}")
+    withheld: set[str] = set()
+    for family_ids in by_operation.values():
+        k = max(1, round(HELDOUT_FAMILY_RATIO * len(family_ids)))
+        ranked = sorted(family_ids, key=lambda fid: _heldout_fraction(fid, salt))
+        withheld.update(ranked[:k])
+    return frozenset(withheld)
+
+
+def is_heldout_family(family_id: str, *, salt: str = DEFAULT_SALT) -> bool:
+    """Whether every example of ``family_id`` is withheld as :attr:`Split.HELDOUT_FAMILY`.
+
+    Catalogue tools are selected per operation kind (see
+    :func:`_heldout_catalogue_families`); family ids outside the catalogue fall back
+    to a plain hash threshold at :data:`HELDOUT_FAMILY_RATIO`.
+    """
+    catalogue = _heldout_catalogue_families(salt)
+    if family_id in catalogue:
+        return True
+    if family_id in _CATALOGUE_FAMILY_IDS:
+        return False
+    return _heldout_fraction(family_id, salt) < HELDOUT_FAMILY_RATIO
+
+
+_CATALOGUE_FAMILY_IDS: frozenset[str] = frozenset(
+    f"{tool.family.value}:{tool.name}" for tool in TOOL_CATALOGUE
+)
 
 
 def assign_split(group_key: str, *, salt: str = DEFAULT_SALT) -> Split:
