@@ -136,7 +136,7 @@ def _forward(torch: Any, backbone: Any, head: Any, batch: dict[str, Any], poolin
     model_inputs = {k: v for k, v in batch.items() if k in ("input_ids", "attention_mask")}
     outputs = backbone(**model_inputs)
     pooled = pool_hidden_states(torch, outputs.last_hidden_state, batch["attention_mask"], pooling)
-    return head(pooled)
+    return head(pooled.to(head.weight.dtype))
 
 
 def _evaluate(

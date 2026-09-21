@@ -208,3 +208,30 @@ def test_encoder_backend_score_single_matches_score_batch() -> None:
 
     for dim in dims:
         assert single.scores[dim] == pytest.approx(batch.scores[dim], abs=1e-5)
+
+
+@requires_torch
+def test_training_forward_casts_bf16_pooled_output_to_head_dtype() -> None:
+    import torch
+
+    from forecheck.training.encoder_loop import _forward
+
+    class _Backbone:
+        def __call__(self, input_ids, attention_mask):
+            class _Out:
+                last_hidden_state = torch.ones(
+                    (input_ids.shape[0], input_ids.shape[1], 4), dtype=torch.bfloat16
+                )
+
+            return _Out()
+
+    head = torch.nn.Linear(4, 11)
+    batch = {
+        "input_ids": torch.ones((2, 3), dtype=torch.long),
+        "attention_mask": torch.ones((2, 3)),
+    }
+
+    logits = _forward(torch, _Backbone(), head, batch, "mean")
+
+    assert logits.shape == (2, 11)
+    assert logits.dtype == torch.float32
