@@ -18,10 +18,16 @@ approval.
 
 ## Submit
 
-From the forecheck repo root:
+Stage only what the job needs (the upload is scanned, and `docs/`/`tests/` are not required on the node):
 
 ```bash
-ai-infra eks submit-job scripts --recipe configs/eks/train-2b-b200-recipe.yaml --name forecheck-train-2b --gpu-type B200 --instance-type ml.p6-b200.48xlarge --az us-east-2a --custom-label pretraining-tests --region us-east-2 --cluster eks-fsdp-cluster --use-fsx --follow-logs
+rm -rf /tmp/forecheck-job && mkdir -p /tmp/forecheck-job && cp -R pyproject.toml uv.lock README.md LICENSE NOTICE src configs policies scripts /tmp/forecheck-job/
+```
+
+Then submit. The 2B recipe trains on a single GPU, so it requests 1 GPU / 16 CPU / 200 Gi and, with no `--custom-label`, schedules onto any unlabelled B200 node in us-east-2a that has a spare GPU (labelled pools such as `pretraining-tests` are excluded by ai-infra when no label is given):
+
+```bash
+ai-infra eks submit-job /tmp/forecheck-job --recipe configs/eks/train-2b-b200-recipe.yaml --name forecheck-train-2b --gpu-type B200 --instance-type ml.p6-b200.48xlarge --az us-east-2a --gpus-per-pod 1 --cpus-per-pod 16 --memory-per-pod 200 --efas 0 --region us-east-2 --cluster eks-fsdp-cluster --fsx-id fs-0979a8395b825c774 --follow-logs
 ```
 
 Swap the recipe/name for `configs/eks/train-8b-b200-recipe.yaml` /
