@@ -112,6 +112,29 @@ forcing the corresponding label(s) to `NOT_APPLICABLE` rather than a guess:
 - `missing_reversibility`
 - `missing_objective`
 
+## Policy predicate kinds
+
+Each `PolicyPredicate` is evaluated against the latent scenario alone
+(`forecheck.data.labeling.evaluate_predicate`), never against rendered text:
+
+- `forbid_tool`
+- `forbid_operation_on_sensitivity`
+- `forbid_external_destination`
+- `forbid_in_stage`
+- `require_explicit_authorization`
+- `max_financial_amount`
+- `forbid_role`
+- `require_change_window`
+- `forbid_bulk_above_n`
+- `require_ticket_reference`
+- `forbid_outside_business_hours`
+- `forbid_recipient_domain`
+- `require_dry_run_first`
+- `data_residency_region`
+- `forbid_pii_field_export`
+
+`heldout_policy_kind` withholds `data_residency_region`, `forbid_recipient_domain` entirely from train/calibration/dev/test. `heldout_policy_phrasing` withholds clause paraphrase index {3} for every other (trained) kind from train. See ADR 0010.
+
 ## Fixture splits
 
 `data/fixtures/` contains 1912 examples split leakage-safely by
@@ -121,23 +144,27 @@ carry the same `contrastive_pair_id`).
 
 | Split | Examples | Families | sha256 |
 | --- | --- | --- | --- |
-| `adversarial` | 87 | 42 | `4b1bbbf077777d2e...` |
-| `calibration` | 184 | 51 | `e40411e571a28904...` |
-| `dev` | 199 | 50 | `0e211622c287d1da...` |
-| `heldout_family` | 237 | 10 | `8888bf54f0cc74a4...` |
-| `test` | 189 | 50 | `a1535d6d074b1f6f...` |
-| `train` | 1016 | 62 | `9704a5985e14dbde...` |
+| `adversarial` | 82 | 43 | `aef671db5a264fd9...` |
+| `calibration` | 171 | 49 | `4adb96fd29dc1f70...` |
+| `dev` | 157 | 49 | `ac2b325b3d73481a...` |
+| `heldout_family` | 252 | 10 | `2d52a76ce9fb3629...` |
+| `heldout_policy_kind` | 91 | 39 | `452da75afa7a3b46...` |
+| `heldout_policy_phrasing` | 156 | 52 | `18657c5167b7d809...` |
+| `test` | 168 | 50 | `280ba2bd1338ff1f...` |
+| `train` | 835 | 62 | `19dff7613b03d174...` |
 
 Per-dimension positive rate by split:
 
 | Split | prompt_injection_influence | unauthorized_scope | sensitive_data_exposure | untrusted_destination | privilege_escalation | destructive_or_irreversible_action | financial_commitment | external_communication | policy_conflict | suspicious_action_sequence | insufficient_context |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `adversarial` | 0.103 | 0.131 | 0.462 | 0.526 | 0.034 | 0.115 | 0.057 | 1.000 | 0.276 | 0.348 | 0.080 |
-| `calibration` | 0.103 | 0.187 | 0.137 | 0.379 | 0.011 | 0.114 | 0.065 | 0.167 | 0.375 | 0.279 | 0.125 |
-| `dev` | 0.070 | 0.109 | 0.382 | 0.352 | 0.015 | 0.085 | 0.131 | 0.500 | 0.410 | 0.244 | 0.065 |
-| `heldout_family` | 0.101 | 0.067 | 0.196 | 0.317 | 0.076 | 0.131 | 0.059 | 0.500 | 0.342 | 0.380 | 0.084 |
-| `test` | 0.074 | 0.083 | 0.125 | 0.340 | 0.000 | 0.101 | 0.042 | 1.000 | 0.288 | 0.231 | 0.079 |
-| `train` | 0.080 | 0.121 | 0.196 | 0.362 | 0.021 | 0.099 | 0.071 | 0.429 | 0.305 | 0.267 | 0.083 |
+| `adversarial` | 0.085 | 0.127 | 0.214 | 0.333 | 0.024 | 0.159 | 0.122 | 0.333 | 0.364 | 0.250 | 0.085 |
+| `calibration` | 0.076 | 0.123 | 0.125 | 0.370 | 0.006 | 0.099 | 0.082 | 0.556 | 0.400 | 0.375 | 0.076 |
+| `dev` | 0.045 | 0.117 | 0.263 | 0.310 | 0.006 | 0.108 | 0.076 | 0.000 | 0.300 | 0.381 | 0.089 |
+| `heldout_family` | 0.095 | 0.136 | 0.288 | 0.372 | 0.067 | 0.056 | 0.075 | 0.467 | 0.362 | 0.356 | 0.071 |
+| `heldout_policy_kind` | 0.077 | 0.082 | 0.136 | 0.417 | 0.011 | 0.143 | 0.110 | 0.000 | 0.352 | 0.261 | 0.077 |
+| `heldout_policy_phrasing` | 0.090 | 0.171 | 0.162 | 0.240 | 0.006 | 0.090 | 0.071 | 0.500 | 0.406 | 0.290 | 0.038 |
+| `test` | 0.101 | 0.094 | 0.225 | 0.405 | 0.012 | 0.119 | 0.071 | 1.000 | 0.367 | 0.364 | 0.107 |
+| `train` | 0.090 | 0.114 | 0.233 | 0.311 | 0.016 | 0.101 | 0.073 | 0.529 | 0.343 | 0.320 | 0.095 |
 
 ## Licence
 

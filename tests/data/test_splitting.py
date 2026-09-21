@@ -11,6 +11,8 @@ from forecheck.contracts import (
     Example,
     LabelSet,
     LabelValue,
+    PolicyPredicate,
+    PolicyPredicateKind,
     Provenance,
     RiskDimension,
     SourceLicense,
@@ -21,6 +23,8 @@ from forecheck.contracts import (
 from forecheck.data.contrastive import contrastive_pair_id, make_pair
 from forecheck.data.rendering import OfflineTemplateRenderer
 from forecheck.data.splitting import (
+    HELDOUT_PARAPHRASE_INDICES,
+    HELDOUT_POLICY_KINDS,
     IneligibleForSplitError,
     LeakageError,
     assert_no_leakage,
@@ -72,7 +76,13 @@ def test_assign_split_is_deterministic() -> None:
 
 def test_assign_split_covers_every_split_over_many_groups() -> None:
     seen = {assign_split(f"group-{i}") for i in range(500)}
-    assert seen == set(Split) - {Split.HELDOUT_FAMILY}
+    assert seen == {
+        Split.TRAIN,
+        Split.CALIBRATION,
+        Split.DEV,
+        Split.TEST,
+        Split.ADVERSARIAL,
+    }
 
 
 def test_split_examples_keeps_contrastive_pairs_together() -> None:
@@ -254,3 +264,112 @@ def test_contrastive_pair_still_lands_together_with_heldout_tier() -> None:
     assert_no_leakage(splits)
     found = [split for split, rows in splits.items() if rows]
     assert len(found) == 1
+
+
+def _heldout_kind() -> PolicyPredicateKind:
+    return next(iter(HELDOUT_POLICY_KINDS))
+
+
+def test_heldout_policy_kind_examples_never_land_in_train_or_eval() -> None:
+    kind = _heldout_kind()
+    examples = [
+        _example_for(
+            make_latent(
+                scenario_id=f"scenario-{i}",
+                family_id=f"fam-kind-{i}",
+                template_lineage=[f"fam-kind-{i}#scenario-{i}"],
+                policy_supplied=True,
+                policy_predicates=[PolicyPredicate(id="p", kind=kind)],
+            ),
+            example_id=f"ex-{i}",
+        )
+        for i in range(30)
+    ]
+    splits = split_examples(examples)
+    assert_no_leakage(splits)
+    assert len(splits[Split.HELDOUT_POLICY_KIND]) > 0
+    assert len(splits[Split.HELDOUT_POLICY_KIND]) + len(splits[Split.HELDOUT_FAMILY]) == 30
+    for split in (Split.TRAIN, Split.CALIBRATION, Split.DEV, Split.TEST):
+        assert splits[split] == []
+
+
+def test_heldout_policy_phrasing_examples_never_land_in_train_or_eval() -> None:
+    kind = next(k for k in PolicyPredicateKind if k not in HELDOUT_POLICY_KINDS)
+    paraphrase_index = next(iter(HELDOUT_PARAPHRASE_INDICES))
+    examples = [
+        _example_for(
+            make_latent(
+                scenario_id=f"scenario-{i}",
+                family_id=f"fam-phrasing-{i}",
+                template_lineage=[f"fam-phrasing-{i}#scenario-{i}"],
+                policy_supplied=True,
+                policy_predicates=[
+                    PolicyPredicate(id="p", kind=kind, paraphrase_index=paraphrase_index)
+                ],
+            ),
+            example_id=f"ex-{i}",
+        )
+        for i in range(30)
+    ]
+    splits = split_examples(examples)
+    assert_no_leakage(splits)
+    assert len(splits[Split.HELDOUT_POLICY_PHRASING]) > 0
+    assert len(splits[Split.HELDOUT_POLICY_PHRASING]) + len(splits[Split.HELDOUT_FAMILY]) == 30
+    for split in (Split.TRAIN, Split.CALIBRATION, Split.DEV, Split.TEST):
+        assert splits[split] == []
+
+
+def test_trained_kind_with_trained_paraphrase_can_reach_train() -> None:
+    kind = next(k for k in PolicyPredicateKind if k not in HELDOUT_POLICY_KINDS)
+    paraphrase_index = next(i for i in range(4) if i not in HELDOUT_PARAPHRASE_INDICES)
+    examples = [
+        _example_for(
+            make_latent(
+                scenario_id=f"scenario-{i}",
+                family_id=f"fam-trained-{i}",
+                template_lineage=[f"fam-trained-{i}#scenario-{i}"],
+                policy_supplied=True,
+                policy_predicates=[
+                    PolicyPredicate(id="p", kind=kind, paraphrase_index=paraphrase_index)
+                ],
+            ),
+            example_id=f"ex-{i}",
+        )
+        for i in range(200)
+    ]
+    splits = split_examples(examples)
+    assert_no_leakage(splits)
+    assert splits[Split.HELDOUT_POLICY_KIND] == []
+    assert splits[Split.HELDOUT_POLICY_PHRASING] == []
+    assert len(splits[Split.TRAIN]) > 0
+
+
+def test_heldout_policy_kind_pair_lands_together() -> None:
+    kind = _heldout_kind()
+    base = make_latent(
+        scenario_id="base-1",
+        policy_supplied=True,
+        policy_predicates=[PolicyPredicate(id="p", kind=kind)],
+    )
+    flipped = make_pair(base, ContrastiveAxis.RESOURCE_SENSITIVITY)
+    pair_id = contrastive_pair_id(base.scenario_id, ContrastiveAxis.RESOURCE_SENSITIVITY)
+    transformation = Transformation(
+        axis=ContrastiveAxis.RESOURCE_SENSITIVITY,
+        base_example_id="ex-base-1",
+        from_value="internal",
+        to_value="restricted",
+    )
+    examples = [
+        _example_for(base, example_id="ex-base-1"),
+        _example_for(
+            flipped,
+            example_id="ex-flip-1",
+            family_id=base.family_id,
+            contrastive_pair_id=pair_id,
+            transformation=transformation,
+        ),
+    ]
+    splits = split_examples(examples)
+    assert_no_leakage(splits)
+    found = [split for split, rows in splits.items() if rows]
+    assert found == [Split.HELDOUT_POLICY_KIND]

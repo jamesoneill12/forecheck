@@ -14,8 +14,9 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from forecheck.contracts import ContextGap, ContrastiveAxis, SequencePattern
+from forecheck.contracts import ContextGap, ContrastiveAxis, PolicyPredicateKind, SequencePattern
 from forecheck.data.labeling import LABEL_DERIVATION_RULES
+from forecheck.data.splitting import HELDOUT_PARAPHRASE_INDICES, HELDOUT_POLICY_KINDS
 from forecheck.data.tools import TOOL_CATALOGUE
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -40,6 +41,19 @@ def _tool_catalogue_section() -> str:
 
 def _enum_list(members: list[object]) -> str:
     return "\n".join(f"- `{member.value}`" for member in members)  # type: ignore[attr-defined]
+
+
+def _policy_generalisation_section() -> str:
+    kinds = "\n".join(f"- `{kind.value}`" for kind in PolicyPredicateKind)
+    heldout_kinds = ", ".join(f"`{k.value}`" for k in sorted(HELDOUT_POLICY_KINDS))
+    heldout_indices = ", ".join(str(i) for i in sorted(HELDOUT_PARAPHRASE_INDICES))
+    return (
+        f"{kinds}\n\n"
+        f"`heldout_policy_kind` withholds {heldout_kinds} entirely from "
+        "train/calibration/dev/test. `heldout_policy_phrasing` withholds clause "
+        f"paraphrase index {{{heldout_indices}}} for every other (trained) kind from "
+        "train. See ADR 0010."
+    )
 
 
 def _fixture_manifests() -> list[dict[str, Any]]:
@@ -138,6 +152,13 @@ A causally relevant fact can be deliberately withheld from the rendered example,
 forcing the corresponding label(s) to `NOT_APPLICABLE` rather than a guess:
 
 {_enum_list(list(ContextGap))}
+
+## Policy predicate kinds
+
+Each `PolicyPredicate` is evaluated against the latent scenario alone
+(`forecheck.data.labeling.evaluate_predicate`), never against rendered text:
+
+{_policy_generalisation_section()}
 
 ## Fixture splits
 

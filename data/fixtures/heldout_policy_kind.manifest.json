@@ -1,0 +1,26 @@
+{
+  "split": "heldout_policy_kind",
+  "path": "data/fixtures/heldout_policy_kind.jsonl",
+  "n_examples": 91,
+  "n_families": 39,
+  "sha256": "452da75afa7a3b4653541e631442d1a921250d473de2bfc0f653a23f91436e9f",
+  "label_schema_version": "1.0",
+  "generator_versions": [
+    "1.0.0"
+  ],
+  "created_at": "2026-09-21T21:06:59.850498Z",
+  "positive_rate": {
+    "prompt_injection_influence": 0.07692307692307693,
+    "unauthorized_scope": 0.08235294117647059,
+    "sensitive_data_exposure": 0.13636363636363635,
+    "untrusted_destination": 0.4166666666666667,
+    "privilege_escalation": 0.01098901098901099,
+    "destructive_or_irreversible_action": 0.14285714285714285,
+    "financial_commitment": 0.10989010989010989,
+    "external_communication": 0.0,
+    "policy_conflict": 0.3516483516483517,
+    "suspicious_action_sequence": 0.2608695652173913,
+    "insufficient_context": 0.07692307692307693
+  },
+  "family_ids_sha256": "3f945ed953f8ab0b255d833e6d05d9938c5350d58648183b7e1a4bec9b0b0cc0"
+}

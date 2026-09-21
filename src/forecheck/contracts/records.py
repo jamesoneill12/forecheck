@@ -41,6 +41,8 @@ class Split(StrEnum):
     TEST = "test"
     HELDOUT_FAMILY = "heldout_family"
     ADVERSARIAL = "adversarial"
+    HELDOUT_POLICY_KIND = "heldout_policy_kind"
+    HELDOUT_POLICY_PHRASING = "heldout_policy_phrasing"
 
 
 class ContrastiveAxis(StrEnum):

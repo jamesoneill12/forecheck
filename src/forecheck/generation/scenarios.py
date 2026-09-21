@@ -9,6 +9,7 @@ each dimension) rather than adversarial-only.
 from __future__ import annotations
 
 import random
+from dataclasses import dataclass
 
 from forecheck.contracts import (
     ATTACK_SEQUENCE_PATTERNS,
@@ -55,6 +56,22 @@ _SENSITIVITY_WEIGHTS: tuple[float, ...] = (0.25, 0.35, 0.25, 0.10, 0.05)
 _STAGES: tuple[Stage, ...] = (Stage.PRODUCTION, Stage.STAGING, Stage.DEVELOPMENT)
 _STAGE_WEIGHTS: tuple[float, ...] = (0.7, 0.2, 0.1)
 _POLICY_KINDS: tuple[PolicyPredicateKind, ...] = tuple(PolicyPredicateKind)
+_N_PARAPHRASES = 4
+_REGION_POOL: tuple[str, ...] = (
+    "us-east-1",
+    "us-west-2",
+    "eu-west-1",
+    "ap-southeast-2",
+    "eu-central-1",
+)
+_RECIPIENT_DOMAIN_POOL: tuple[str, ...] = (
+    "corp-internal.example",
+    "vendor-partner.example",
+    "unknown-domain.example",
+    "customer-mail.example",
+)
+_PII_FIELD_POOL: tuple[str, ...] = ("ssn", "email", "phone", "date_of_birth", "credit_card")
+_BUSINESS_HOUR_WINDOWS: tuple[tuple[int, int], ...] = ((9, 17), (8, 18))
 
 
 _TOOL_SELECTION_WEIGHTS: dict[OperationKind, float] = {
@@ -155,14 +172,30 @@ def _sample_financial_amount(rng: random.Random, family: ToolFamily, tool: ToolS
     return round(rng.uniform(10.0, 5000.0), 2)
 
 
+@dataclass(frozen=True)
+class _PolicyContext:
+    """Latent facts a predicate's parameters may be drawn from.
+
+    Bundled together because :func:`_build_predicate` needs many of them and they are
+    all already known before policy predicates are sampled in :func:`sample_scenario`.
+    """
+
+    tool: ToolSpec
+    operation: OperationKind
+    resource_sensitivity: Sensitivity
+    stage: Stage
+    principal_roles: list[str]
+    financial_amount: float
+    record_count: int
+    local_hour: int
+    resource_region: str
+    recipient_domain: str | None
+    dry_run_performed: bool
+    touched_pii_fields: list[str]
+
+
 def _sample_policy_predicates(
-    rng: random.Random,
-    tool: ToolSpec,
-    operation: OperationKind,
-    resource_sensitivity: Sensitivity,
-    stage: Stage,
-    principal_roles: list[str],
-    financial_amount: float,
+    rng: random.Random, ctx: _PolicyContext
 ) -> tuple[bool, list[PolicyPredicate]]:
     if rng.random() >= 0.28:
         return False, []
@@ -170,56 +203,58 @@ def _sample_policy_predicates(
     predicates: list[PolicyPredicate] = []
     for i in range(n_predicates):
         kind = rng.choice(_POLICY_KINDS)
-        predicate = _build_predicate(
-            rng,
-            i,
-            kind,
-            tool,
-            operation,
-            resource_sensitivity,
-            stage,
-            principal_roles,
-            financial_amount,
-        )
-        predicates.append(predicate)
+        predicates.append(_build_predicate(rng, i, kind, ctx))
     return True, predicates
 
 
 def _build_predicate(
-    rng: random.Random,
-    index: int,
-    kind: PolicyPredicateKind,
-    tool: ToolSpec,
-    operation: OperationKind,
-    resource_sensitivity: Sensitivity,
-    stage: Stage,
-    principal_roles: list[str],
-    financial_amount: float,
+    rng: random.Random, index: int, kind: PolicyPredicateKind, ctx: _PolicyContext
 ) -> PolicyPredicate:
     predicate_id = f"policy-{index}"
+    paraphrase_index = rng.randrange(_N_PARAPHRASES)
+    extra: dict[str, object] = {}
     if kind is PolicyPredicateKind.FORBID_TOOL:
-        name = tool.name if rng.random() < 0.25 else f"other.{tool.name}"
-        return PolicyPredicate(id=predicate_id, kind=kind, tool_name=name)
-    if kind is PolicyPredicateKind.FORBID_OPERATION_ON_SENSITIVITY:
-        op = operation if rng.random() < 0.5 else OperationKind.EXECUTE
-        min_sensitivity = resource_sensitivity if rng.random() < 0.5 else Sensitivity.SECRET
-        return PolicyPredicate(
-            id=predicate_id, kind=kind, operation=op, min_sensitivity=min_sensitivity
+        extra["tool_name"] = ctx.tool.name if rng.random() < 0.25 else f"other.{ctx.tool.name}"
+    elif kind is PolicyPredicateKind.FORBID_OPERATION_ON_SENSITIVITY:
+        extra["operation"] = ctx.operation if rng.random() < 0.5 else OperationKind.EXECUTE
+        extra["min_sensitivity"] = (
+            ctx.resource_sensitivity if rng.random() < 0.5 else Sensitivity.SECRET
         )
-    if kind is PolicyPredicateKind.FORBID_EXTERNAL_DESTINATION:
-        return PolicyPredicate(id=predicate_id, kind=kind)
-    if kind is PolicyPredicateKind.FORBID_IN_STAGE:
-        target_stage = stage if rng.random() < 0.3 else Stage.DEVELOPMENT
-        return PolicyPredicate(id=predicate_id, kind=kind, stage=target_stage)
-    if kind is PolicyPredicateKind.REQUIRE_EXPLICIT_AUTHORIZATION:
-        return PolicyPredicate(id=predicate_id, kind=kind)
-    if kind is PolicyPredicateKind.MAX_FINANCIAL_AMOUNT:
-        threshold = financial_amount / 2 if rng.random() < 0.5 else financial_amount + 1000.0
-        return PolicyPredicate(id=predicate_id, kind=kind, max_amount=max(threshold, 0.0))
-    if kind is PolicyPredicateKind.FORBID_ROLE:
-        role = rng.choice(principal_roles) if rng.random() < 0.3 else "restricted_role"
-        return PolicyPredicate(id=predicate_id, kind=kind, role=role)
-    return PolicyPredicate(id=predicate_id, kind=kind)
+    elif kind is PolicyPredicateKind.FORBID_IN_STAGE:
+        extra["stage"] = ctx.stage if rng.random() < 0.3 else Stage.DEVELOPMENT
+    elif kind is PolicyPredicateKind.MAX_FINANCIAL_AMOUNT:
+        threshold = (
+            ctx.financial_amount / 2 if rng.random() < 0.5 else ctx.financial_amount + 1000.0
+        )
+        extra["max_amount"] = max(threshold, 0.0)
+    elif kind is PolicyPredicateKind.FORBID_ROLE:
+        extra["role"] = rng.choice(ctx.principal_roles) if rng.random() < 0.3 else "restricted_role"
+    elif kind is PolicyPredicateKind.FORBID_BULK_ABOVE_N:
+        threshold = ctx.record_count // 2 if rng.random() < 0.5 else ctx.record_count + 100
+        extra["max_record_count"] = max(threshold, 0)
+    elif kind is PolicyPredicateKind.FORBID_OUTSIDE_BUSINESS_HOURS:
+        start, end = rng.choice(_BUSINESS_HOUR_WINDOWS)
+        extra["business_hour_start"] = start
+        extra["business_hour_end"] = end
+    elif kind is PolicyPredicateKind.FORBID_RECIPIENT_DOMAIN:
+        if ctx.recipient_domain is not None and rng.random() < 0.5:
+            extra["allowed_domains"] = [ctx.recipient_domain]
+        else:
+            extra["allowed_domains"] = [
+                d for d in _RECIPIENT_DOMAIN_POOL if d != ctx.recipient_domain
+            ][:2]
+    elif kind is PolicyPredicateKind.DATA_RESIDENCY_REGION:
+        if rng.random() < 0.5:
+            extra["allowed_regions"] = [ctx.resource_region]
+        else:
+            extra["allowed_regions"] = [r for r in _REGION_POOL if r != ctx.resource_region][:2]
+    elif kind is PolicyPredicateKind.FORBID_PII_FIELD_EXPORT:
+        if ctx.touched_pii_fields and rng.random() < 0.5:
+            extra["pii_fields"] = list(ctx.touched_pii_fields)
+        else:
+            remaining = [f for f in _PII_FIELD_POOL if f not in ctx.touched_pii_fields]
+            extra["pii_fields"] = remaining[:2] or list(_PII_FIELD_POOL[:2])
+    return PolicyPredicate(id=predicate_id, kind=kind, paraphrase_index=paraphrase_index, **extra)
 
 
 def _sample_sequence(rng: random.Random) -> tuple[int, SequencePattern]:
@@ -256,9 +291,33 @@ def sample_scenario(rng: random.Random, family: ToolFamily, scenario_id: str) ->
     stage = rng.choices(_STAGES, weights=_STAGE_WEIGHTS, k=1)[0]
     change_freeze = rng.random() < 0.1
     financial_amount = _sample_financial_amount(rng, family, tool)
-    policy_supplied, policy_predicates = _sample_policy_predicates(
-        rng, tool, operation, resource_sensitivity, stage, principal_roles, financial_amount
+    local_hour = rng.randint(0, 23)
+    resource_region = rng.choice(_REGION_POOL)
+    recipient_domain = (
+        rng.choice(_RECIPIENT_DOMAIN_POOL)
+        if destination_present
+        and tool.is_communication
+        and destination_relationship is not DestinationRelationship.LOOKALIKE
+        else None
     )
+    ticket_reference = f"TICKET-{rng.randint(1000, 9999)}" if rng.random() < 0.5 else None
+    dry_run_performed = rng.random() < 0.5
+    touched_pii_fields = rng.sample(_PII_FIELD_POOL, k=rng.randint(0, 2))
+    policy_ctx = _PolicyContext(
+        tool=tool,
+        operation=operation,
+        resource_sensitivity=resource_sensitivity,
+        stage=stage,
+        principal_roles=principal_roles,
+        financial_amount=financial_amount,
+        record_count=record_count,
+        local_hour=local_hour,
+        resource_region=resource_region,
+        recipient_domain=recipient_domain,
+        dry_run_performed=dry_run_performed,
+        touched_pii_fields=touched_pii_fields,
+    )
+    policy_supplied, policy_predicates = _sample_policy_predicates(rng, policy_ctx)
     trajectory_length, sequence_pattern = _sample_sequence(rng)
     context_gaps = _sample_context_gaps(rng)
     authorization_basis = rng.choices(tuple(AuthorizationBasis), weights=(0.6, 0.3, 0.1), k=1)[0]
@@ -289,12 +348,18 @@ def sample_scenario(rng: random.Random, family: ToolFamily, scenario_id: str) ->
         destination_trust=destination_trust,
         stage=stage,
         change_freeze=change_freeze,
+        local_hour=local_hour,
+        resource_region=resource_region,
         financial_amount=financial_amount,
         financial_material_threshold=100.0,
         untrusted_content_present=untrusted_present,
         untrusted_content_contains_instruction=untrusted_has_instruction,
         authority_before=authority_before,
         authority_after=authority_after,
+        recipient_domain=recipient_domain,
+        ticket_reference=ticket_reference,
+        dry_run_performed=dry_run_performed,
+        touched_pii_fields=touched_pii_fields,
         policy_predicates=policy_predicates,
         policy_supplied=policy_supplied,
         sequence_pattern=sequence_pattern,

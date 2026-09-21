@@ -8,8 +8,10 @@ Splitting has two independent tiers:
    tools by a deterministic hash within each kind, so each operation (and the label
    dimensions it drives, e.g. grant -> privilege_escalation) has at least one tool
    entirely unseen in training. The first GPU run withheld three tools by plain
-   hash and had zero privilege_escalation positives to evaluate on.
-2. **Group tier.** Everything not pulled into the heldout-family tier is split at
+   hash and had zero privilege_escalation positives to evaluate on. Two policy
+   heldout tiers (kind, phrasing; see ADR 0010) sit above this one; see
+   :func:`split_examples`.
+2. **Group tier.** Everything not pulled into an earlier tier is split at
    finer grain, by the root of ``template_lineage`` (one base scenario and its
    contrastive derivatives) via :func:`assign_split`, over train / calibration /
    dev / test / adversarial. This keeps individual scenarios, not just whole
@@ -26,12 +28,22 @@ import hashlib
 from collections import defaultdict
 from collections.abc import Sequence
 
-from forecheck.contracts import Example, LatentScenario, OperationKind, Split, UsageRestriction
+from forecheck.contracts import (
+    Example,
+    LatentScenario,
+    OperationKind,
+    PolicyPredicate,
+    PolicyPredicateKind,
+    Split,
+    UsageRestriction,
+)
 from forecheck.data.tools import TOOL_CATALOGUE
 
 __all__ = [
     "DEFAULT_SALT",
     "HELDOUT_FAMILY_RATIO",
+    "HELDOUT_PARAPHRASE_INDICES",
+    "HELDOUT_POLICY_KINDS",
     "PAIR_SPLIT_RATIOS",
     "SPLIT_RATIOS",
     "IneligibleForSplitError",
@@ -45,6 +57,18 @@ __all__ = [
 ]
 
 DEFAULT_SALT = "forecheck-split-v1"
+
+"""Two of the new policy-predicate kinds withheld entirely from train/calibration/dev/
+test, so `heldout_policy_kind` measures generalisation to a policy *kind* never seen in
+training (see ADR 0010)."""
+HELDOUT_POLICY_KINDS: frozenset[PolicyPredicateKind] = frozenset(
+    {PolicyPredicateKind.FORBID_RECIPIENT_DOMAIN, PolicyPredicateKind.DATA_RESIDENCY_REGION}
+)
+
+"""Clause paraphrase indices withheld from train for kinds that ARE trained, so
+`heldout_policy_phrasing` measures generalisation to unseen *wording* of a familiar
+policy kind (see ADR 0010)."""
+HELDOUT_PARAPHRASE_INDICES: frozenset[int] = frozenset({3})
 
 """Fraction of families (whole tools) withheld via :func:`is_heldout_family`."""
 HELDOUT_FAMILY_RATIO = 0.12
@@ -150,6 +174,16 @@ def assign_split(group_key: str, *, salt: str = DEFAULT_SALT) -> Split:
     return _SPLIT_ORDER[-1]
 
 
+def _predicate_kind_is_heldout(pred: PolicyPredicate) -> bool:
+    return pred.kind in HELDOUT_POLICY_KINDS
+
+
+def _predicate_phrasing_is_heldout(pred: PolicyPredicate) -> bool:
+    return pred.kind not in HELDOUT_POLICY_KINDS and pred.paraphrase_index in (
+        HELDOUT_PARAPHRASE_INDICES
+    )
+
+
 def assign_pair_split(group_key: str, *, salt: str = DEFAULT_SALT) -> Split:
     """Deterministically assign a contrastive pair's ``group_key`` using
     :data:`PAIR_SPLIT_RATIOS`, so eval splits reliably get pair coverage per axis."""
@@ -182,19 +216,34 @@ def split_examples(
     """Assign every example to a split, family- then group-wise, refusing ineligible rows.
 
     Every row of a family pulled into :attr:`Split.HELDOUT_FAMILY` by
-    :func:`is_heldout_family` lands there. A row whose group is one of a contrastive
-    pair (i.e. some row sharing its group key carries a ``contrastive_pair_id``,
-    whether or not this particular row does) is assigned by :func:`assign_pair_split`;
-    every other row is assigned by :func:`assign_split`. Both halves of a contrastive
-    pair always land in the same split: only ``make_pair`` derived rows are required to
-    carry ``contrastive_pair_id`` (see :class:`Example`), but base and derived rows
-    always share a group key, so routing on the group key -- not the per-row flag --
-    keeps them together even when only one of the two rows is tagged.
+    :func:`is_heldout_family` lands there. Otherwise, a group carrying a predicate
+    whose kind is in :data:`HELDOUT_POLICY_KINDS` lands entirely in
+    :attr:`Split.HELDOUT_POLICY_KIND`; a group carrying a predicate of a trained kind
+    but a withheld paraphrase (:data:`HELDOUT_PARAPHRASE_INDICES`) lands entirely in
+    :attr:`Split.HELDOUT_POLICY_PHRASING` (see ADR 0010). A row whose group is one of a
+    contrastive pair (i.e. some row sharing its group key carries a
+    ``contrastive_pair_id``, whether or not this particular row does) is assigned by
+    :func:`assign_pair_split`; every other row is assigned by :func:`assign_split`. Both
+    halves of a contrastive pair always land in the same split: only ``make_pair``
+    derived rows are required to carry ``contrastive_pair_id`` (see :class:`Example`),
+    but base and derived rows always share a group key, so routing on the group key --
+    not the per-row flag -- keeps them together even when only one of the two rows is
+    tagged.
     """
     pair_group_keys = {
         compute_group_key(example.latent)
         for example in examples
         if example.contrastive_pair_id is not None
+    }
+    policy_kind_heldout_groups = {
+        compute_group_key(example.latent)
+        for example in examples
+        if any(_predicate_kind_is_heldout(p) for p in example.latent.policy_predicates)
+    }
+    policy_phrasing_heldout_groups = {
+        compute_group_key(example.latent)
+        for example in examples
+        if any(_predicate_phrasing_is_heldout(p) for p in example.latent.policy_predicates)
     }
     pair_split: dict[str, Split] = {}
     result: dict[Split, list[Example]] = {split: [] for split in Split}
@@ -206,6 +255,10 @@ def split_examples(
             split = pair_split[pair_id]
         elif is_heldout_family(example.latent.family_id, salt=salt):
             split = Split.HELDOUT_FAMILY
+        elif group_key in policy_kind_heldout_groups:
+            split = Split.HELDOUT_POLICY_KIND
+        elif group_key in policy_phrasing_heldout_groups:
+            split = Split.HELDOUT_POLICY_PHRASING
         elif group_key in pair_group_keys:
             split = assign_pair_split(group_key, salt=salt)
         else:

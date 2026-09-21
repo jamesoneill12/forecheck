@@ -498,3 +498,138 @@ class TestEvaluatePredicateEveryKind:
         latent = make_latent(change_freeze=False)
         pred = PolicyPredicate(id="p", kind=PolicyPredicateKind.REQUIRE_CHANGE_WINDOW)
         assert evaluate_predicate(pred, latent) is False
+
+    def test_forbid_bulk_above_n_violated(self) -> None:
+        latent = make_latent(record_count=500)
+        pred = PolicyPredicate(
+            id="p", kind=PolicyPredicateKind.FORBID_BULK_ABOVE_N, max_record_count=100
+        )
+        assert evaluate_predicate(pred, latent) is True
+
+    def test_forbid_bulk_above_n_not_violated(self) -> None:
+        latent = make_latent(record_count=10)
+        pred = PolicyPredicate(
+            id="p", kind=PolicyPredicateKind.FORBID_BULK_ABOVE_N, max_record_count=100
+        )
+        assert evaluate_predicate(pred, latent) is False
+
+    def test_require_ticket_reference_violated(self) -> None:
+        latent = make_latent(ticket_reference=None)
+        pred = PolicyPredicate(id="p", kind=PolicyPredicateKind.REQUIRE_TICKET_REFERENCE)
+        assert evaluate_predicate(pred, latent) is True
+
+    def test_require_ticket_reference_not_violated(self) -> None:
+        latent = make_latent(ticket_reference="TICKET-1234")
+        pred = PolicyPredicate(id="p", kind=PolicyPredicateKind.REQUIRE_TICKET_REFERENCE)
+        assert evaluate_predicate(pred, latent) is False
+
+    def test_forbid_outside_business_hours_violated(self) -> None:
+        latent = make_latent(local_hour=3)
+        pred = PolicyPredicate(
+            id="p",
+            kind=PolicyPredicateKind.FORBID_OUTSIDE_BUSINESS_HOURS,
+            business_hour_start=9,
+            business_hour_end=17,
+        )
+        assert evaluate_predicate(pred, latent) is True
+
+    def test_forbid_outside_business_hours_not_violated(self) -> None:
+        latent = make_latent(local_hour=10)
+        pred = PolicyPredicate(
+            id="p",
+            kind=PolicyPredicateKind.FORBID_OUTSIDE_BUSINESS_HOURS,
+            business_hour_start=9,
+            business_hour_end=17,
+        )
+        assert evaluate_predicate(pred, latent) is False
+
+    def test_forbid_recipient_domain_violated(self) -> None:
+        latent = make_latent(recipient_domain="unknown-domain.example")
+        pred = PolicyPredicate(
+            id="p",
+            kind=PolicyPredicateKind.FORBID_RECIPIENT_DOMAIN,
+            allowed_domains=["corp-internal.example"],
+        )
+        assert evaluate_predicate(pred, latent) is True
+
+    def test_forbid_recipient_domain_not_violated(self) -> None:
+        latent = make_latent(recipient_domain="corp-internal.example")
+        pred = PolicyPredicate(
+            id="p",
+            kind=PolicyPredicateKind.FORBID_RECIPIENT_DOMAIN,
+            allowed_domains=["corp-internal.example"],
+        )
+        assert evaluate_predicate(pred, latent) is False
+
+    def test_forbid_recipient_domain_absent_is_not_violated(self) -> None:
+        latent = make_latent(recipient_domain=None)
+        pred = PolicyPredicate(
+            id="p",
+            kind=PolicyPredicateKind.FORBID_RECIPIENT_DOMAIN,
+            allowed_domains=["corp-internal.example"],
+        )
+        assert evaluate_predicate(pred, latent) is False
+
+    def test_require_dry_run_first_violated(self) -> None:
+        latent = make_latent(operation=OperationKind.DELETE, dry_run_performed=False)
+        pred = PolicyPredicate(id="p", kind=PolicyPredicateKind.REQUIRE_DRY_RUN_FIRST)
+        assert evaluate_predicate(pred, latent) is True
+
+    def test_require_dry_run_first_not_violated_when_performed(self) -> None:
+        latent = make_latent(operation=OperationKind.DELETE, dry_run_performed=True)
+        pred = PolicyPredicate(id="p", kind=PolicyPredicateKind.REQUIRE_DRY_RUN_FIRST)
+        assert evaluate_predicate(pred, latent) is False
+
+    def test_require_dry_run_first_not_violated_when_not_destructive(self) -> None:
+        latent = make_latent(operation=OperationKind.READ, dry_run_performed=False)
+        pred = PolicyPredicate(id="p", kind=PolicyPredicateKind.REQUIRE_DRY_RUN_FIRST)
+        assert evaluate_predicate(pred, latent) is False
+
+    def test_data_residency_region_violated(self) -> None:
+        latent = make_latent(resource_region="eu-west-1")
+        pred = PolicyPredicate(
+            id="p", kind=PolicyPredicateKind.DATA_RESIDENCY_REGION, allowed_regions=["us-east-1"]
+        )
+        assert evaluate_predicate(pred, latent) is True
+
+    def test_data_residency_region_not_violated(self) -> None:
+        latent = make_latent(resource_region="us-east-1")
+        pred = PolicyPredicate(
+            id="p", kind=PolicyPredicateKind.DATA_RESIDENCY_REGION, allowed_regions=["us-east-1"]
+        )
+        assert evaluate_predicate(pred, latent) is False
+
+    def test_forbid_pii_field_export_violated(self) -> None:
+        latent = make_latent(
+            destination_present=True,
+            destination_relationship=DestinationRelationship.UNKNOWN_EXTERNAL,
+            touched_pii_fields=["ssn", "email"],
+        )
+        pred = PolicyPredicate(
+            id="p", kind=PolicyPredicateKind.FORBID_PII_FIELD_EXPORT, pii_fields=["ssn"]
+        )
+        assert evaluate_predicate(pred, latent) is True
+
+    def test_forbid_pii_field_export_not_violated_without_overlap(self) -> None:
+        latent = make_latent(
+            destination_present=True,
+            destination_relationship=DestinationRelationship.UNKNOWN_EXTERNAL,
+            touched_pii_fields=["phone"],
+        )
+        pred = PolicyPredicate(
+            id="p", kind=PolicyPredicateKind.FORBID_PII_FIELD_EXPORT, pii_fields=["ssn"]
+        )
+        assert evaluate_predicate(pred, latent) is False
+
+    def test_forbid_pii_field_export_not_violated_without_destination(self) -> None:
+        latent = make_latent(destination_present=False, touched_pii_fields=["ssn"])
+        pred = PolicyPredicate(
+            id="p", kind=PolicyPredicateKind.FORBID_PII_FIELD_EXPORT, pii_fields=["ssn"]
+        )
+        assert evaluate_predicate(pred, latent) is False
+
+    def test_every_kind_is_handled_explicitly(self) -> None:
+        latent = make_latent()
+        for kind in PolicyPredicateKind:
+            pred = PolicyPredicate(id="p", kind=kind)
+            evaluate_predicate(pred, latent)

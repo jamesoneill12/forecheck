@@ -59,3 +59,8 @@ The fix splits on two independent tiers instead of one key:
 the original train/calibration/dev/test/adversarial weights renormalised to sum to 1
 after removing the 5% now spent by the heldout-family tier. `assert_no_leakage` gained
 a check that a family routed to `heldout_family` never also appears in another split.
+
+## Amended 2026-09-21 (c)
+
+Two more tiers, `heldout_policy_kind` and `heldout_policy_phrasing`, were added below
+the heldout-family tier and above the group tier. See ADR 0010.

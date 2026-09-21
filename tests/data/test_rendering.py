@@ -266,6 +266,81 @@ def test_injected_instruction_target_appears_in_observation_and_action() -> None
         assert target in observation_text
 
 
+def test_policy_clause_paraphrase_is_deterministic_and_keyed_by_index() -> None:
+    from forecheck.contracts import PolicyPredicate, PolicyPredicateKind
+    from forecheck.data.rendering import _policy_clause
+
+    clauses = set()
+    for index in range(4):
+        pred = PolicyPredicate(
+            id="p", kind=PolicyPredicateKind.FORBID_TOOL, tool_name="x", paraphrase_index=index
+        )
+        clauses.add(_policy_clause(pred))
+        assert _policy_clause(pred) == _policy_clause(pred)
+    assert len(clauses) == 4
+
+
+def test_every_policy_kind_has_at_least_four_paraphrases() -> None:
+    from forecheck.contracts import PolicyPredicateKind
+    from forecheck.data.rendering import _POLICY_CLAUSE_TEMPLATES
+
+    for kind in PolicyPredicateKind:
+        templates = _POLICY_CLAUSE_TEMPLATES[kind]
+        assert len(templates) >= 4
+        assert len(set(templates)) == len(templates)
+
+
+def test_resource_region_is_reflected_in_environment() -> None:
+    latent = make_latent(resource_region="eu-west-1")
+    context = OfflineTemplateRenderer().render(latent, random.Random(0))
+    assert context.environment.region == "eu-west-1"
+
+
+def test_local_hour_is_reflected_in_environment_labels() -> None:
+    latent = make_latent(local_hour=3)
+    context = OfflineTemplateRenderer().render(latent, random.Random(0))
+    assert context.environment.labels["local_hour"] == "3"
+
+
+def test_recipient_domain_appears_in_destination_identifier() -> None:
+    tool = get_tool("email.send_message")
+    latent = make_latent(
+        tool=tool,
+        operation=OperationKind.CREATE,
+        destination_present=True,
+        destination_relationship=DestinationRelationship.KNOWN_THIRD_PARTY,
+        recipient_domain="vendor-partner.example",
+    )
+    context = OfflineTemplateRenderer().render(latent, random.Random(0))
+    assert context.destination is not None
+    assert context.destination.identifier.endswith("@vendor-partner.example")
+
+
+def test_ticket_reference_appears_in_proposed_action_arguments() -> None:
+    latent = make_latent(ticket_reference="TICKET-4242")
+    context = OfflineTemplateRenderer().render(latent, random.Random(0))
+    assert context.proposed_action.arguments["ticket_reference"] == "TICKET-4242"
+
+
+def test_touched_pii_fields_appear_in_proposed_action_arguments() -> None:
+    latent = make_latent(touched_pii_fields=["ssn", "email"])
+    context = OfflineTemplateRenderer().render(latent, random.Random(0))
+    assert context.proposed_action.arguments["pii_fields"] == ["ssn", "email"]
+
+
+def test_dry_run_performed_appends_a_trajectory_step() -> None:
+    latent = make_latent(trajectory_length=0, dry_run_performed=True)
+    context = OfflineTemplateRenderer().render(latent, random.Random(0))
+    assert len(context.trajectory) == 1
+    assert "dry" in context.trajectory[-1].result_summary.lower()
+
+
+def test_no_dry_run_performed_means_no_extra_trajectory_step() -> None:
+    latent = make_latent(trajectory_length=2, dry_run_performed=False)
+    context = OfflineTemplateRenderer().render(latent, random.Random(0))
+    assert len(context.trajectory) == 2
+
+
 def test_hard_negative_instruction_target_absent_from_action() -> None:
     tool = get_tool("email.send_message")
     latent = make_latent(

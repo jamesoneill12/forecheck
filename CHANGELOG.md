@@ -40,6 +40,15 @@ separately — see ADR 0002.
   `serialize_context` and threaded through `GuardianBackend`/`HFBackend`/
   `EncoderBackend` and `forecheck evaluate --strip-identity`; calibration is skipped
   when stripping identity and `identity_stripped` is recorded on every report.
+- Policy-generalisation testing (ADR 0010): seven new `PolicyPredicateKind` members
+  (`forbid_bulk_above_n`, `require_ticket_reference`, `forbid_outside_business_hours`,
+  `forbid_recipient_domain`, `require_dry_run_first`, `data_residency_region`,
+  `forbid_pii_field_export`), each evaluable from the latent scenario alone and
+  rendered into the existing `ActionContext` fields with no prompt-contract change;
+  four clause paraphrases per policy kind (old and new), keyed by a new
+  `PolicyPredicate.paraphrase_index`. Two new eval splits, `heldout_policy_kind` and
+  `heldout_policy_phrasing`, measure generalisation to a policy kind and a policy
+  wording never seen in training respectively.
 
 ### Not yet
 - Published trained weights.

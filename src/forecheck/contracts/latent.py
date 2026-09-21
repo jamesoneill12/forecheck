@@ -115,6 +115,13 @@ class PolicyPredicateKind(StrEnum):
     MAX_FINANCIAL_AMOUNT = "max_financial_amount"
     FORBID_ROLE = "forbid_role"
     REQUIRE_CHANGE_WINDOW = "require_change_window"
+    FORBID_BULK_ABOVE_N = "forbid_bulk_above_n"
+    REQUIRE_TICKET_REFERENCE = "require_ticket_reference"
+    FORBID_OUTSIDE_BUSINESS_HOURS = "forbid_outside_business_hours"
+    FORBID_RECIPIENT_DOMAIN = "forbid_recipient_domain"
+    REQUIRE_DRY_RUN_FIRST = "require_dry_run_first"
+    DATA_RESIDENCY_REGION = "data_residency_region"
+    FORBID_PII_FIELD_EXPORT = "forbid_pii_field_export"
 
 
 class PolicyPredicate(BaseModel):
@@ -122,12 +129,18 @@ class PolicyPredicate(BaseModel):
 
     ``violated`` is computed by :mod:`forecheck.data.labeling`, not asserted by the
     generator, so a predicate cannot silently disagree with the scenario it describes.
+
+    ``paraphrase_index`` selects which surface clause paraphrase (see
+    ``forecheck.data.rendering``) is used to render this predicate's text. It lives on
+    the predicate, not the surface, so the policy-generalisation splits can key on it
+    without touching rendered text.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     id: ShortStr
     kind: PolicyPredicateKind
+    paraphrase_index: int = Field(default=0, ge=0)
     tool_name: ShortStr | None = None
     operation: OperationKind | None = None
     min_sensitivity: Sensitivity | None = None
@@ -135,6 +148,12 @@ class PolicyPredicate(BaseModel):
     max_amount: float | None = Field(default=None, ge=0)
     role: ShortStr | None = None
     severity: ShortStr = "medium"
+    max_record_count: int | None = Field(default=None, ge=0)
+    business_hour_start: int | None = Field(default=None, ge=0, le=23)
+    business_hour_end: int | None = Field(default=None, ge=0, le=23)
+    allowed_domains: list[ShortStr] = Field(default_factory=list)
+    allowed_regions: list[ShortStr] = Field(default_factory=list)
+    pii_fields: list[ShortStr] = Field(default_factory=list)
 
 
 class ToolSpec(BaseModel):
@@ -195,6 +214,8 @@ class LatentScenario(BaseModel):
 
     stage: Stage = Stage.PRODUCTION
     change_freeze: bool = False
+    local_hour: int = Field(default=12, ge=0, le=23)
+    resource_region: str = "us-east-1"
 
     financial_amount: float = Field(default=0.0, ge=0.0)
     financial_currency: str = "USD"
@@ -211,6 +232,11 @@ class LatentScenario(BaseModel):
 
     authority_before: list[ShortStr] = Field(default_factory=list)
     authority_after: list[ShortStr] = Field(default_factory=list)
+
+    recipient_domain: str | None = None
+    ticket_reference: ShortStr | None = None
+    dry_run_performed: bool = False
+    touched_pii_fields: list[ShortStr] = Field(default_factory=list)
 
     policy_predicates: list[PolicyPredicate] = Field(default_factory=list)
     policy_supplied: bool = True

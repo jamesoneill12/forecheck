@@ -42,6 +42,16 @@ ai-infra eks submit-job /tmp/forecheck-job --recipe configs/eks/train-encoder-mo
 ai-infra eks submit-job /tmp/forecheck-job --recipe configs/eks/train-encoder-granite-embedding-r2-b200-recipe.yaml --name forecheck-enc-granite-r2 --gpu-type B200 --instance-type ml.p6-b200.48xlarge --az us-east-2a --gpus-per-pod 1 --cpus-per-pod 6 --memory-per-pod 100 --efas 0 --region us-east-2 --cluster eks-fsdp-cluster --fsx-id fs-0979a8395b825c774
 ```
 
+Swap in `configs/eks/train-2b-b200-v3-recipe.yaml` / `forecheck-train-2b-v3` to
+generate onto `/opt/ml/fsx/forecheck/data/v3` and additionally evaluate the two
+policy-generalisation splits from ADR 0010 (`heldout_policy_kind`,
+`heldout_policy_phrasing`, both `synthetic_heldout_adversarial`) for the hf and
+`rule_baseline` backends:
+
+```bash
+ai-infra eks submit-job /tmp/forecheck-job --recipe configs/eks/train-2b-b200-v3-recipe.yaml --name forecheck-train-2b-v3 --gpu-type B200 --instance-type ml.p6-b200.48xlarge --az us-east-2a --gpus-per-pod 1 --cpus-per-pod 2 --memory-per-pod 60 --efas 0 --region us-east-2 --cluster eks-fsdp-cluster --fsx-id fs-0979a8395b825c774 --follow-logs
+```
+
 Unlike the decoder recipes, the encoder recipes do not regenerate or split the
 dataset -- they guard on `/opt/ml/fsx/forecheck/data/v2/train.jsonl` already existing
 (run `train-2b-b200-recipe.yaml` or `forecheck data generate`/`split` first if it does

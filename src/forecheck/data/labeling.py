@@ -67,7 +67,32 @@ def evaluate_predicate(pred: PolicyPredicate, latent: LatentScenario) -> bool:
         return pred.max_amount is not None and latent.financial_amount > pred.max_amount
     if pred.kind is PolicyPredicateKind.FORBID_ROLE:
         return pred.role is not None and pred.role in latent.principal_roles
-    return latent.change_freeze
+    if pred.kind is PolicyPredicateKind.REQUIRE_CHANGE_WINDOW:
+        return latent.change_freeze
+    if pred.kind is PolicyPredicateKind.FORBID_BULK_ABOVE_N:
+        return pred.max_record_count is not None and latent.record_count > pred.max_record_count
+    if pred.kind is PolicyPredicateKind.REQUIRE_TICKET_REFERENCE:
+        return not latent.ticket_reference
+    if pred.kind is PolicyPredicateKind.FORBID_OUTSIDE_BUSINESS_HOURS:
+        if pred.business_hour_start is None or pred.business_hour_end is None:
+            return False
+        return not (pred.business_hour_start <= latent.local_hour < pred.business_hour_end)
+    if pred.kind is PolicyPredicateKind.FORBID_RECIPIENT_DOMAIN:
+        if latent.recipient_domain is None:
+            return False
+        return latent.recipient_domain not in pred.allowed_domains
+    if pred.kind is PolicyPredicateKind.REQUIRE_DRY_RUN_FIRST:
+        is_destructive = _destructive_or_irreversible(latent) is LabelValue.YES
+        return is_destructive and not latent.dry_run_performed
+    if pred.kind is PolicyPredicateKind.DATA_RESIDENCY_REGION:
+        if not pred.allowed_regions:
+            return False
+        return latent.resource_region not in pred.allowed_regions
+    if pred.kind is PolicyPredicateKind.FORBID_PII_FIELD_EXPORT:
+        if not pred.pii_fields or not latent.destination_present:
+            return False
+        return bool(set(pred.pii_fields) & set(latent.touched_pii_fields))
+    raise AssertionError(f"unhandled PolicyPredicateKind: {pred.kind!r}")
 
 
 def _prompt_injection_influence(latent: LatentScenario) -> LabelValue:
