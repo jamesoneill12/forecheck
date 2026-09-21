@@ -22,7 +22,7 @@ from forecheck.generation.scenarios import iter_scenarios, sample_scenario
 
 __all__ = ["GenerationConfig", "build_jobs", "load_generation_config"]
 
-_MAX_PAIR_BASE_ATTEMPTS = 25
+_MAX_PAIR_BASE_ATTEMPTS = 200
 _MAX_DIFFICULTY_ATTEMPTS_PER_SLOT = 50
 
 
@@ -32,7 +32,7 @@ class GenerationConfig(BaseModel):
     seed: int
     families: list[ToolFamily] = Field(default_factory=lambda: list(ToolFamily))
     n_per_family: int = Field(gt=0)
-    pairs_per_axis: int = Field(default=1, ge=0)
+    pairs_per_axis: int = Field(default=40, ge=0)
     difficulty_mix: dict[DifficultyTier, float] | None = Field(
         default=None,
         description="Optional target share per difficulty tier for the bulk scenarios "

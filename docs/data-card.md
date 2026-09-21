@@ -121,23 +121,23 @@ carry the same `contrastive_pair_id`).
 
 | Split | Examples | Families | sha256 |
 | --- | --- | --- | --- |
-| `adversarial` | 85 | 47 | `788c73566065f979...` |
-| `calibration` | 182 | 56 | `8e9d240d14beb256...` |
-| `dev` | 194 | 56 | `59c0c08206a93e77...` |
-| `heldout_family` | 88 | 3 | `5ce6d52c1594d5d0...` |
-| `test` | 191 | 55 | `4cbdd09d83a13b41...` |
-| `train` | 1172 | 69 | `4caffb7d57843c88...` |
+| `adversarial` | 93 | 47 | `2c3c171a2bc0ab71...` |
+| `calibration` | 198 | 57 | `ef326b95b9d1011e...` |
+| `dev` | 218 | 57 | `03f5bcccaab5f2ec...` |
+| `heldout_family` | 88 | 3 | `b4d5abb3f62a3cc9...` |
+| `test` | 207 | 54 | `24f9e953449c98ba...` |
+| `train` | 1108 | 69 | `c95f8c1d7c2b7534...` |
 
 Per-dimension positive rate by split:
 
 | Split | prompt_injection_influence | unauthorized_scope | sensitive_data_exposure | untrusted_destination | privilege_escalation | destructive_or_irreversible_action | financial_commitment | external_communication | policy_conflict | suspicious_action_sequence | insufficient_context |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `adversarial` | 0.071 | 0.134 | 0.462 | 0.526 | 0.047 | 0.118 | 0.047 | 1.000 | 0.296 | 0.300 | 0.082 |
-| `calibration` | 0.077 | 0.199 | 0.140 | 0.400 | 0.022 | 0.132 | 0.055 | 0.000 | 0.350 | 0.364 | 0.115 |
-| `dev` | 0.072 | 0.100 | 0.364 | 0.314 | 0.031 | 0.088 | 0.082 | 0.750 | 0.382 | 0.273 | 0.062 |
+| `adversarial` | 0.097 | 0.122 | 0.462 | 0.526 | 0.043 | 0.118 | 0.065 | 1.000 | 0.290 | 0.348 | 0.075 |
+| `calibration` | 0.096 | 0.184 | 0.135 | 0.368 | 0.020 | 0.126 | 0.056 | 0.125 | 0.364 | 0.304 | 0.116 |
+| `dev` | 0.069 | 0.099 | 0.367 | 0.354 | 0.028 | 0.087 | 0.101 | 0.583 | 0.379 | 0.302 | 0.064 |
 | `heldout_family` | 0.091 | 0.037 | 0.261 | 0.286 | 0.000 | 0.057 | 0.170 | 0.000 | 0.375 | 0.353 | 0.102 |
-| `test` | 0.099 | 0.077 | 0.111 | 0.327 | 0.010 | 0.115 | 0.052 | 1.000 | 0.339 | 0.231 | 0.084 |
-| `train` | 0.085 | 0.117 | 0.194 | 0.365 | 0.026 | 0.103 | 0.070 | 0.415 | 0.305 | 0.269 | 0.083 |
+| `test` | 0.082 | 0.086 | 0.116 | 0.333 | 0.010 | 0.121 | 0.043 | 1.000 | 0.286 | 0.214 | 0.087 |
+| `train` | 0.084 | 0.119 | 0.193 | 0.363 | 0.028 | 0.103 | 0.067 | 0.452 | 0.312 | 0.272 | 0.082 |
 
 ## Licence
 

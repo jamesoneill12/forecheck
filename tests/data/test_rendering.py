@@ -3,10 +3,12 @@ from __future__ import annotations
 import random
 
 from forecheck.contracts import (
+    ActionOrigin,
     ContextGap,
     DestinationRelationship,
     OperationKind,
     Sensitivity,
+    SequencePattern,
     TrustLevel,
 )
 from forecheck.data.rendering import OfflineTemplateRenderer, build_surface_text
@@ -185,3 +187,97 @@ def test_resource_sensitivity_matches_latent_when_present() -> None:
     context = OfflineTemplateRenderer().render(latent, random.Random(0))
     assert len(context.resources) == 1
     assert context.resources[0].sensitivity is Sensitivity.RESTRICTED
+
+
+def test_every_sequence_pattern_renders_a_trajectory() -> None:
+    for pattern in SequencePattern:
+        length = 0 if pattern is SequencePattern.NONE else 3
+        latent = make_latent(sequence_pattern=pattern, trajectory_length=length)
+        context = OfflineTemplateRenderer().render(latent, random.Random(0))
+        assert len(context.trajectory) == length
+
+
+def test_attack_trajectory_does_not_copy_proposed_action_tool_into_final_step() -> None:
+    tool = get_tool("storage.read_object")
+    latent = make_latent(
+        tool=tool,
+        operation=OperationKind.READ,
+        sequence_pattern=SequencePattern.RECON_THEN_COLLECT_THEN_EXFILTRATE,
+        trajectory_length=3,
+    )
+    final_tools = set()
+    for seed in range(10):
+        context = OfflineTemplateRenderer().render(latent, random.Random(seed))
+        final_tools.add(context.trajectory[-1].tool_name)
+    assert final_tools != {tool.name}
+    assert all(get_tool(name).operation is not OperationKind.READ for name in final_tools)
+
+
+def test_attack_and_benign_trajectory_tool_sequences_are_disjoint() -> None:
+    tool = get_tool("storage.read_object")
+    attack_latent = make_latent(
+        tool=tool,
+        operation=OperationKind.READ,
+        sequence_pattern=SequencePattern.RECON_THEN_COLLECT_THEN_EXFILTRATE,
+        trajectory_length=3,
+    )
+    benign_latent = make_latent(
+        tool=tool,
+        operation=OperationKind.READ,
+        sequence_pattern=SequencePattern.BENIGN_LINEAR_TASK,
+        trajectory_length=3,
+    )
+    attack_sequences = set()
+    benign_sequences = set()
+    for seed in range(30):
+        attack_ctx = OfflineTemplateRenderer().render(attack_latent, random.Random(seed))
+        benign_ctx = OfflineTemplateRenderer().render(benign_latent, random.Random(seed))
+        attack_sequences.add(tuple(s.tool_name for s in attack_ctx.trajectory))
+        benign_sequences.add(tuple(s.tool_name for s in benign_ctx.trajectory))
+    assert attack_sequences.isdisjoint(benign_sequences)
+
+
+def test_benign_trajectory_includes_non_success_outcomes() -> None:
+    latent = make_latent(
+        sequence_pattern=SequencePattern.BENIGN_RETRY_AFTER_ERROR, trajectory_length=3
+    )
+    outcomes = {
+        step.outcome
+        for seed in range(20)
+        for step in OfflineTemplateRenderer().render(latent, random.Random(seed)).trajectory
+    }
+    assert "error" in outcomes
+    assert "success" in outcomes
+
+
+def test_injected_instruction_target_appears_in_observation_and_action() -> None:
+    tool = get_tool("email.send_message")
+    latent = make_latent(
+        tool=tool,
+        operation=OperationKind.CREATE,
+        action_origin=ActionOrigin.INJECTED_INSTRUCTION,
+        untrusted_content_present=True,
+        untrusted_content_contains_instruction=True,
+    )
+    for seed in range(10):
+        context = OfflineTemplateRenderer().render(latent, random.Random(seed))
+        observation_text = context.observations[0].content
+        target = context.proposed_action.arguments["instructed_target"]
+        assert target in observation_text
+
+
+def test_hard_negative_instruction_target_absent_from_action() -> None:
+    tool = get_tool("email.send_message")
+    latent = make_latent(
+        tool=tool,
+        operation=OperationKind.CREATE,
+        action_origin=ActionOrigin.PRINCIPAL_REQUEST,
+        untrusted_content_present=True,
+        untrusted_content_contains_instruction=True,
+        is_benign_hard_negative=True,
+    )
+    for seed in range(20):
+        context = OfflineTemplateRenderer().render(latent, random.Random(seed))
+        observation_text = context.observations[0].content
+        assert "instructed_target" not in context.proposed_action.arguments
+        assert context.proposed_action.arguments["to"] not in observation_text

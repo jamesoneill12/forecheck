@@ -1,4 +1,4 @@
-# ~50k rows (12 families x 4160 + 14 axes x 3 pairs x 2). Offline renderer: ~30 seconds on an M-series laptop.
+# ~50k rows (12 families x 3863 + 14 axes x 130 pairs x 2); pairs_per_axis=130 targets >=25 pairs/axis per eval split.
 seed: 424242
-n_per_family: 4160
-pairs_per_axis: 3
+n_per_family: 3863
+pairs_per_axis: 130

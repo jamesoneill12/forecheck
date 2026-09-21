@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import collections
 import random
 from datetime import UTC, datetime
 
@@ -23,6 +24,7 @@ from forecheck.data.splitting import (
     IneligibleForSplitError,
     LeakageError,
     assert_no_leakage,
+    assign_pair_split,
     assign_split,
     compute_group_key,
     is_heldout_family,
@@ -97,6 +99,47 @@ def test_split_examples_keeps_contrastive_pairs_together() -> None:
     assert_no_leakage(splits)
     found = [split for split, rows in splits.items() if rows]
     assert len(found) == 1
+
+
+def test_assign_pair_split_favors_eval_over_train() -> None:
+    counts = collections.Counter(assign_pair_split(f"group-{i}") for i in range(2000))
+    assert counts[Split.CALIBRATION] > counts[Split.TRAIN]
+    assert counts[Split.DEV] > counts[Split.TRAIN]
+    assert counts[Split.TEST] > counts[Split.TRAIN]
+
+
+def test_pair_group_routes_through_pair_ratios() -> None:
+    """Only the transformed row of each pair carries ``contrastive_pair_id`` (matching
+    the real contract), yet the pair-heavy eval ratios still apply to the whole group."""
+    examples: list[Example] = []
+    for i in range(300):
+        base = make_latent(
+            scenario_id=f"base-{i}",
+            family_id=f"fam-pair-{i}",
+            template_lineage=[f"fam-pair-{i}#base-{i}"],
+        )
+        flipped = make_pair(base, ContrastiveAxis.RESOURCE_SENSITIVITY)
+        pair_id = contrastive_pair_id(base.scenario_id, ContrastiveAxis.RESOURCE_SENSITIVITY)
+        transformation = Transformation(
+            axis=ContrastiveAxis.RESOURCE_SENSITIVITY,
+            base_example_id=f"ex-base-{i}",
+            from_value="internal",
+            to_value="restricted",
+        )
+        examples.append(_example_for(base, example_id=f"ex-base-{i}"))
+        examples.append(
+            _example_for(
+                flipped,
+                example_id=f"ex-flip-{i}",
+                family_id=base.family_id,
+                contrastive_pair_id=pair_id,
+                transformation=transformation,
+            )
+        )
+    splits = split_examples(examples)
+    assert_no_leakage(splits)
+    eval_rows = len(splits[Split.CALIBRATION]) + len(splits[Split.DEV]) + len(splits[Split.TEST])
+    assert eval_rows > len(splits[Split.TRAIN])
 
 
 def test_split_examples_refuses_eval_only_when_routed_to_train() -> None:
