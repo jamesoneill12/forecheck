@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     log_level: str = "info"
     store_request_bodies: bool = False
     store_request_bodies_path: Path = Path("./forecheck-stored-bodies")
+    feedback_sink_path: Path = Path("./forecheck-feedback")
     auth_mode: AuthMode = "none"
     static_token: str | None = None
     auth_header_name: str = "X-Forecheck-Principal"

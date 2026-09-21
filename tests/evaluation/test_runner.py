@@ -115,6 +115,30 @@ def test_evaluate_without_engine_has_no_decisions() -> None:
     assert report.decisions is None
 
 
+def test_evaluate_with_stacking_synthetic_populates_stacking_report() -> None:
+    backend = StubBackend(default_score=0.95)
+    report = evaluate(
+        backend,
+        _examples(),
+        evaluation_class=EvaluationClass.SYNTHETIC_IN_DISTRIBUTION,
+        n_boot=10,
+        stacking_synthetic=True,
+    )
+    assert report.stacking is not None
+    ks = {row.k for row in report.stacking.rows}
+    assert ks == set(range(1, 12))
+    strategies = {row.strategy for row in report.stacking.rows}
+    assert strategies == {"independent", "joint"}
+
+
+def test_evaluate_without_stacking_flags_has_no_stacking_report() -> None:
+    backend = StubBackend(default_score=0.5)
+    report = evaluate(
+        backend, _examples(), evaluation_class=EvaluationClass.SYNTHETIC_IN_DISTRIBUTION, n_boot=10
+    )
+    assert report.stacking is None
+
+
 def test_evaluate_with_include_latency() -> None:
     backend = StubBackend(default_score=0.5)
     report = evaluate(

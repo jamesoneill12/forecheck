@@ -10,9 +10,12 @@ from forecheck.contracts import (
     CalibrationInfo,
     ClassifyRequest,
     ClassifyResponse,
+    Decision,
     ErrorBody,
     ErrorCode,
     ErrorResponse,
+    FeedbackOutcome,
+    FeedbackRecord,
     ModelInfo,
     PolicyDecision,
     PolicyEvaluateRequest,
@@ -210,6 +213,49 @@ def test_ready_returns_false_on_non_2xx() -> None:
 
     client = ForecheckClient("https://forecheck.test", transport=httpx.MockTransport(handler))
     assert client.ready() is False
+
+
+def test_feedback_happy_path() -> None:
+    seen_requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen_requests.append(request)
+        return httpx.Response(
+            200, json={"schema_version": "1.0", "feedback_id": "fb-1", "stored": True}
+        )
+
+    client = ForecheckClient("https://forecheck.test", transport=httpx.MockTransport(handler))
+    record = FeedbackRecord(
+        request_id="req-1",
+        decision=Decision.REVIEW,
+        outcome=FeedbackOutcome.APPROVED,
+        reviewer_role="support_lead",
+    )
+    ack = client.feedback(record)
+
+    assert ack.feedback_id == "fb-1"
+    assert ack.stored is True
+    assert seen_requests[0].url.path == "/v1/feedback"
+    assert seen_requests[0].headers.get(REQUEST_ID_HEADER) == "req-1"
+
+
+async def test_async_feedback_happy_path() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200, json={"schema_version": "1.0", "feedback_id": "fb-2", "stored": True}
+        )
+
+    client = AsyncForecheckClient("https://forecheck.test", transport=httpx.MockTransport(handler))
+    record = FeedbackRecord(
+        request_id="req-2",
+        decision=Decision.DENY,
+        outcome=FeedbackOutcome.ESCALATED,
+        reviewer_role="security_oncall",
+    )
+    ack = await client.feedback(record)
+    await client.aclose()
+
+    assert ack.feedback_id == "fb-2"
 
 
 async def test_async_classify_happy_path() -> None:

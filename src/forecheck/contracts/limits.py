@@ -29,3 +29,5 @@ class Limits:
     MAX_BATCH_ITEMS: Final[int] = 32
 
     MAX_PROMPT_TOKENS: Final[int] = 8_192
+
+    FEEDBACK_REASON: Final[int] = 1_024

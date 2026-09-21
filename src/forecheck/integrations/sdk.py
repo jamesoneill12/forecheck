@@ -1,8 +1,9 @@
 """Synchronous and asynchronous HTTP clients for the forecheck service.
 
 Both clients speak the fixed route surface (``/v1/classify``, ``/v1/classify/batch``,
-``/v1/policies/evaluate``, ``/v1/policies``, ``/health/live``, ``/health/ready``,
-``/version``) and never import :mod:`forecheck.api`. Request bodies are never logged.
+``/v1/policies/evaluate``, ``/v1/policies``, ``/v1/feedback``, ``/health/live``,
+``/health/ready``, ``/version``) and never import :mod:`forecheck.api`. Request bodies
+are never logged.
 Retries apply only to ``ErrorBody.retryable`` 5xx responses or connection failures,
 never to a 4xx response, and use jittered exponential backoff.
 """
@@ -25,6 +26,8 @@ from forecheck.contracts import (
     ClassifyResponse,
     ErrorCode,
     ErrorResponse,
+    FeedbackAck,
+    FeedbackRecord,
     PolicyDecision,
     PolicyEvaluateRequest,
 )
@@ -41,6 +44,7 @@ _PATH_CLASSIFY: Final[str] = "/v1/classify"
 _PATH_CLASSIFY_BATCH: Final[str] = "/v1/classify/batch"
 _PATH_POLICIES_EVALUATE: Final[str] = "/v1/policies/evaluate"
 _PATH_POLICIES: Final[str] = "/v1/policies"
+_PATH_FEEDBACK: Final[str] = "/v1/feedback"
 _PATH_HEALTH_LIVE: Final[str] = "/health/live"
 _PATH_HEALTH_READY: Final[str] = "/health/ready"
 _PATH_VERSION: Final[str] = "/version"
@@ -224,6 +228,15 @@ class ForecheckClient:
         payload = response.json()
         return payload if isinstance(payload, list) else [payload]
 
+    def feedback(self, record: FeedbackRecord) -> FeedbackAck:
+        response = self._request(
+            "POST",
+            _PATH_FEEDBACK,
+            json_body=record.model_dump(mode="json"),
+            request_id=record.request_id,
+        )
+        return FeedbackAck.model_validate(response.json())
+
     def ready(self) -> bool:
         try:
             response = self._client.get(_PATH_HEALTH_READY)
@@ -352,6 +365,15 @@ class AsyncForecheckClient:
         response = await self._request("GET", _PATH_POLICIES)
         payload = response.json()
         return payload if isinstance(payload, list) else [payload]
+
+    async def feedback(self, record: FeedbackRecord) -> FeedbackAck:
+        response = await self._request(
+            "POST",
+            _PATH_FEEDBACK,
+            json_body=record.model_dump(mode="json"),
+            request_id=record.request_id,
+        )
+        return FeedbackAck.model_validate(response.json())
 
     async def ready(self) -> bool:
         try:

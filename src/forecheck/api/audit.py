@@ -18,8 +18,16 @@ from forecheck.api.redaction import digest_json
 
 if TYPE_CHECKING:
     from forecheck.contracts import ActionContext, ClassifyResponse, PolicyDecision
+    from forecheck.contracts.io import FeedbackRecord
 
-__all__ = ["build_classify_event", "build_policy_event", "emit", "logger", "store_event"]
+__all__ = [
+    "build_classify_event",
+    "build_feedback_event",
+    "build_policy_event",
+    "emit",
+    "logger",
+    "store_event",
+]
 
 logger = structlog.get_logger("forecheck.audit")
 
@@ -79,6 +87,20 @@ def build_policy_event(
         "matched_rule_ids": [m.rule_id for m in decision.matched_rules],
         "policy_bundle_id": decision.policy_bundle_id,
         "policy_bundle_hash": decision.policy_bundle_hash,
+    }
+
+
+def build_feedback_event(*, record: FeedbackRecord, tenant_id: str | None) -> dict[str, Any]:
+    return {
+        "event_kind": "feedback",
+        "feedback_id": record.feedback_id,
+        "request_id": record.request_id,
+        "tenant_id": tenant_id,
+        "decision": record.decision.value,
+        "outcome": record.outcome.value,
+        "reviewer_role": record.reviewer_role,
+        "policy_bundle_id": record.policy_bundle_id,
+        "has_corrected_labels": record.corrected_labels is not None,
     }
 
 

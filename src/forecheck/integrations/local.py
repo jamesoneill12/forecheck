@@ -4,7 +4,7 @@ without an HTTP hop.
 Constructs a :class:`~forecheck.inference.classifier.Classifier` and a
 :class:`~forecheck.policies.engine.DeterministicPolicyEngine` directly. Useful for
 tests, offline examples, and any deployment shape where the middleware runs in the same
-process as the model (see ``docs/product-spec.md`` §9, deployment shape 1).
+process as the model (see ``docs/product-spec.md`` §12, deployment shape 1).
 
 The default backend is :class:`~forecheck.inference.mock.MockBackend`, a deterministic
 heuristic. **It is not a trained model and must not be used to make real access-control

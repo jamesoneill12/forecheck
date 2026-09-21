@@ -20,7 +20,11 @@ from typing import TYPE_CHECKING, Any
 
 from forecheck.contracts import LABEL_SCHEMA_VERSION, Limits, ModelInfo, RiskDimension
 from forecheck.inference.base import BackendCapabilities, BaseBackend, RawScores
-from forecheck.inference.chat_template import ChatPrefillPlanner, render_full_chat_text
+from forecheck.inference.chat_template import (
+    ChatPrefillPlan,
+    ChatPrefillPlanner,
+    render_full_chat_text,
+)
 from forecheck.inference.hf_loading import LoadClass, load_model, load_tokenizer
 from forecheck.inference.prompt import QUESTIONS, USE_CHAT_TEMPLATE_DEFAULT, prompt_contract_hash
 from forecheck.inference.serialization import serialize_context
@@ -63,6 +67,8 @@ class HFBackendConfig:
     load_class: LoadClass = "auto"
     use_chat_template: bool = USE_CHAT_TEMPLATE_DEFAULT
     strip_identity: bool = False
+    # Kept above len(QUESTIONS) so one row's dimensions batch into a single forward.
+    batch_size: int = 32
 
 
 def _auto_device(torch: Any) -> str:
@@ -111,6 +117,40 @@ def _log_odds(torch: Any, logits: Any, yes_ids: set[int], no_ids: set[int]) -> f
     yes_logp = torch.logsumexp(logits.index_select(-1, yes_index), dim=-1)
     no_logp = torch.logsumexp(logits.index_select(-1, no_index), dim=-1)
     return float(yes_logp - no_logp)
+
+
+def _pad_token_id(tokenizer: Any) -> int:
+    for attr in ("pad_token_id", "eos_token_id"):
+        candidate = getattr(tokenizer, attr, None)
+        if candidate is not None:
+            return int(candidate)
+    return 0
+
+
+def _pad_sequences(
+    torch: Any, sequences: list[tuple[int, ...]], pad_id: int
+) -> tuple[Any, list[int]]:
+    lengths = [len(s) for s in sequences]
+    max_len = max(lengths)
+    padded = torch.full((len(sequences), max_len), pad_id, dtype=torch.long)
+    for i, seq in enumerate(sequences):
+        padded[i, : len(seq)] = torch.tensor(seq, dtype=torch.long)
+    return padded, lengths
+
+
+def _repeat_past_key_values(past: Any, n: int) -> Any | None:
+    """Expand a batch-1 KV cache to batch size ``n`` on an independent copy.
+
+    Uses the Cache API's own ``batch_repeat_interleave`` (present on every
+    transformers Cache class we target); returns ``None`` when unavailable, telling
+    callers to fall back to the verified per-question path instead of guessing at an
+    unfamiliar cache's internal tensor layout.
+    """
+    if not hasattr(past, "batch_repeat_interleave"):
+        return None
+    batched = copy.deepcopy(past)
+    batched.batch_repeat_interleave(n)
+    return batched
 
 
 class HFBackend(BaseBackend):
@@ -231,14 +271,28 @@ class HFBackend(BaseBackend):
                 )
             elif use_shared:
                 prefix_out = model(prefix_ids, use_cache=True)
-                base_past = prefix_out.past_key_values
-                for dim in dims:
-                    q_text = "\n\n" + QUESTIONS[dim]
-                    q_ids = tokenizer(q_text, return_tensors="pt").input_ids.to(self._device)
-                    # DynamicCache/hybrid-cache update() mutates in place; copy per question.
-                    past = copy.deepcopy(base_past)
-                    out = model(q_ids, past_key_values=past, use_cache=True)
-                    scores[dim] = _log_odds(torch, out.logits[0, -1], yes_ids, no_ids)
+                items = [
+                    (
+                        dim,
+                        tuple(
+                            int(t)
+                            for t in tokenizer(
+                                "\n\n" + QUESTIONS[dim], return_tensors="pt"
+                            ).input_ids[0]
+                        ),
+                    )
+                    for dim in dims
+                ]
+                scores = self._score_suffix_batch(
+                    torch,
+                    model,
+                    int(prefix_ids.shape[-1]),
+                    prefix_out.past_key_values,
+                    items,
+                    _pad_token_id(tokenizer),
+                    yes_ids,
+                    no_ids,
+                )
             else:
                 for dim in dims:
                     full_text = rendered.text + "\n\n" + QUESTIONS[dim]
@@ -263,28 +317,88 @@ class HFBackend(BaseBackend):
         use_shared: bool,
     ) -> dict[RiskDimension, float]:
         scores: dict[RiskDimension, float] = {}
-        cached_prefix_ids: tuple[int, ...] | None = None
-        cached_prefix_out: Any = None
         assert self._chat_planner is not None
+        plans: dict[RiskDimension, ChatPrefillPlan] = {}
+        fallback_dims: list[RiskDimension] = []
         for dim in dims:
-            question = QUESTIONS[dim]
-            plan = self._chat_planner.plan(context_text, question) if use_shared else None
+            plan = self._chat_planner.plan(context_text, QUESTIONS[dim]) if use_shared else None
             if plan is not None:
-                if cached_prefix_ids != plan.prefix_ids:
-                    cached_prefix_ids = plan.prefix_ids
-                    prefix_tensor = torch.tensor(
-                        [list(cached_prefix_ids)], dtype=torch.long, device=self._device
-                    )
-                    cached_prefix_out = model(prefix_tensor, use_cache=True)
-                past = copy.deepcopy(cached_prefix_out.past_key_values)
-                suffix_tensor = torch.tensor(
-                    [list(plan.suffix_ids)], dtype=torch.long, device=self._device
-                )
-                out = model(suffix_tensor, past_key_values=past, use_cache=True)
+                plans[dim] = plan
             else:
-                full_text = render_full_chat_text(tokenizer, context_text, question)
-                full_ids = tokenizer.encode(full_text, add_special_tokens=False)
-                full_tensor = torch.tensor([list(full_ids)], dtype=torch.long, device=self._device)
-                out = model(full_tensor, use_cache=False)
+                fallback_dims.append(dim)
+
+        if plans:
+            # Every plan for this context shares the same verified prefix split.
+            prefix_ids = next(iter(plans.values())).prefix_ids
+            prefix_tensor = torch.tensor([list(prefix_ids)], dtype=torch.long, device=self._device)
+            prefix_out = model(prefix_tensor, use_cache=True)
+            items = [(dim, plan.suffix_ids) for dim, plan in plans.items()]
+            scores.update(
+                self._score_suffix_batch(
+                    torch,
+                    model,
+                    len(prefix_ids),
+                    prefix_out.past_key_values,
+                    items,
+                    _pad_token_id(tokenizer),
+                    yes_ids,
+                    no_ids,
+                )
+            )
+
+        for dim in fallback_dims:
+            full_text = render_full_chat_text(tokenizer, context_text, QUESTIONS[dim])
+            full_ids = tokenizer.encode(full_text, add_special_tokens=False)
+            full_tensor = torch.tensor([list(full_ids)], dtype=torch.long, device=self._device)
+            out = model(full_tensor, use_cache=False)
             scores[dim] = _log_odds(torch, out.logits[0, -1], yes_ids, no_ids)
+        return scores
+
+    def _score_suffix_batch(
+        self,
+        torch: Any,
+        model: Any,
+        prefix_len: int,
+        prefix_past: Any,
+        items: list[tuple[RiskDimension, tuple[int, ...]]],
+        pad_id: int,
+        yes_ids: set[int],
+        no_ids: set[int],
+    ) -> dict[RiskDimension, float]:
+        """Score every ``(dim, suffix)`` pair against one cached prefix, batching up
+        to ``HFBackendConfig.batch_size`` of them per forward call by expanding the
+        prefix cache with ``batch_repeat_interleave`` (see
+        ``_repeat_past_key_values``). Falls back to the original one-question-at-a-time
+        deepcopy loop for cache types that don't support it.
+        """
+        scores: dict[RiskDimension, float] = {}
+        chunk = max(1, self._config.batch_size)
+        for start in range(0, len(items), chunk):
+            group = items[start : start + chunk]
+            batched_past = _repeat_past_key_values(prefix_past, len(group))
+            if batched_past is None:
+                for dim, suffix_ids in group:
+                    past = copy.deepcopy(prefix_past)
+                    suffix_tensor = torch.tensor(
+                        [list(suffix_ids)], dtype=torch.long, device=self._device
+                    )
+                    out = model(suffix_tensor, past_key_values=past, use_cache=True)
+                    scores[dim] = _log_odds(torch, out.logits[0, -1], yes_ids, no_ids)
+                continue
+            suffix_tensor, lengths = _pad_sequences(torch, [s for _, s in group], pad_id)
+            suffix_tensor = suffix_tensor.to(self._device)
+            attention_mask = torch.zeros(
+                (len(group), prefix_len + suffix_tensor.shape[1]), dtype=torch.long
+            )
+            attention_mask[:, :prefix_len] = 1
+            for i, length in enumerate(lengths):
+                attention_mask[i, prefix_len : prefix_len + length] = 1
+            out = model(
+                suffix_tensor,
+                past_key_values=batched_past,
+                use_cache=True,
+                attention_mask=attention_mask.to(self._device),
+            )
+            for i, (dim, _suffix_ids) in enumerate(group):
+                scores[dim] = _log_odds(torch, out.logits[i, lengths[i] - 1], yes_ids, no_ids)
         return scores

@@ -29,3 +29,7 @@ copy that pattern into production code.
 
 - **`anthropic_tools_adapter.py`** — The same mapping for an Anthropic Messages API
   `tool_use` content block (already-parsed `input`), with an inline self-check.
+
+- **`feedback_roundtrip.py`** — Classifies and policy-evaluates an action that comes
+  back `REVIEW`, then submits a human reviewer's outcome via `POST /v1/feedback` (the
+  label flywheel), reading it back from a `JsonlFeedbackSink`.

@@ -16,6 +16,7 @@ __all__ = [
     "Decision",
     "DestinationRelationship",
     "ErrorCode",
+    "FeedbackOutcome",
     "LabelValue",
     "ObligationKind",
     "OperationKind",
@@ -266,6 +267,20 @@ class AbstentionReason(StrEnum):
     BACKEND_TIMEOUT = "backend_timeout"
     ITEM_FAILED = "item_failed"
     """A batch item raised an unexpected error; isolated from its batch-mates."""
+
+
+class FeedbackOutcome(StrEnum):
+    """The human's real-world outcome on a forecheck decision, mostly a REVIEW.
+
+    This is the label flywheel: every outcome is a data point for refitting
+    calibration and policy thresholds on real traffic rather than synthetic data.
+    """
+
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    MODIFIED = "modified"
+    ESCALATED = "escalated"
+    EXPIRED = "expired"
 
 
 class ObligationKind(StrEnum):

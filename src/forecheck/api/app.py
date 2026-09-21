@@ -17,7 +17,7 @@ from fastapi import FastAPI, Response
 from forecheck.api import metrics, otel
 from forecheck.api.deps import build_app_state, run_warmup, shutdown_app_state
 from forecheck.api.errors import install_exception_handlers
-from forecheck.api.routes import classify, health, policies
+from forecheck.api.routes import classify, feedback, health, policies
 from forecheck.api.settings import Settings
 from forecheck.version import __version__
 
@@ -194,6 +194,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(classify.router)
     app.include_router(policies.router)
+    app.include_router(feedback.router)
     app.include_router(health.router)
 
     @app.get("/metrics", include_in_schema=False)

@@ -7,6 +7,24 @@ separately — see ADR 0002.
 ## [Unreleased]
 
 ### Added
+- Feedback contract and flywheel: `FeedbackRecord`/`FeedbackAck` in `contracts/io.py`,
+  a new `FeedbackOutcome` enum (`approved`/`rejected`/`modified`/`escalated`/`expired`),
+  a `POST /v1/feedback` route backed by a pluggable `FeedbackSink` (default: an
+  append-only JSONL file under `FORECHECK_FEEDBACK_SINK_PATH`), `client.feedback(...)`
+  on both the sync and async SDK clients, an offline `examples/feedback_roundtrip.py`
+  showing a `REVIEW` -> human decision -> feedback round trip, and a
+  `forecheck feedback export --sink-dir --since --format jsonl` CLI command.
+  `schema_version` is unchanged (new models, no fields added to existing ones).
+- `docs/evaluation/approval-elimination.md`: precise definitions of approvals
+  eliminated and incident rate, the mapping onto `evaluation/selective.py`'s
+  risk-coverage machinery and `evaluation/decisions.py`'s `HIGH_SEVERITY_DIMENSIONS`,
+  and the exact report shape a future `forecheck evaluate --approval-curve` would
+  print. Not implemented — `cli_cmds/evaluate.py` is under separate concurrent work.
+- `docs/product-spec.md` reframed around four product pillars (approval elimination,
+  delegated-authority conformance, the label flywheel, multi-policy composition) ahead
+  of the dimension/wire-contract mechanics, plus an explicit "what we are not" section
+  naming Prompt Guard 2, Llama Guard 4, Granite Guardian and ShieldGemma as the
+  content-safety tooling forecheck is not competing with.
 - Versioned request/response contract (`schema_version` 1.0) with eleven descriptive
   risk dimensions, calibration metadata, abstention, truncation reporting and a stable
   error envelope.
@@ -49,6 +67,13 @@ separately — see ADR 0002.
   `PolicyPredicate.paraphrase_index`. Two new eval splits, `heldout_policy_kind` and
   `heldout_policy_phrasing`, measure generalisation to a policy kind and a policy
   wording never seen in training respectively.
+- Multi-policy stacking evaluation (`evaluation/stacking.py`): for k = 1..K policies,
+  compares OR-ing k independently-evaluated guards against merging their rules into one
+  bundle and evaluating it once with the existing policy engine, reporting
+  false-positive/false-negative/review rate and decision cost per (k, strategy).
+  `forecheck evaluate --stacking-bundles <names/paths> --stacking-synthetic` (the latter
+  builds 11 single-dimension policies from the threshold-selection split); rendered in
+  `report.md` under "Multi-policy stacking". See `docs/evaluation/multi-policy-stacking.md`.
 
 ### Not yet
 - Published trained weights.

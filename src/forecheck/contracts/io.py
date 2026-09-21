@@ -8,7 +8,7 @@ code that never calls the model.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -18,6 +18,8 @@ from forecheck.contracts.enums import (
     AbstentionReason,
     CalibrationMethod,
     Decision,
+    FeedbackOutcome,
+    LabelValue,
     ObligationKind,
     RiskDimension,
     RuleKind,
@@ -33,6 +35,8 @@ __all__ = [
     "ClassifyRequest",
     "ClassifyResponse",
     "DimensionScore",
+    "FeedbackAck",
+    "FeedbackRecord",
     "ModelInfo",
     "Obligation",
     "PolicyDecision",
@@ -232,3 +236,37 @@ class PolicyDecision(_Model):
     policy_bundle_hash: str
     classification: ClassifyResponse | None = None
     evaluated_at: datetime | None = None
+
+
+class FeedbackRecord(_Model):
+    """A human outcome on a prior forecheck decision, mostly a ``REVIEW``.
+
+    This is the label flywheel (``docs/product-spec.md`` §1, §9): every
+    approval, rejection, modification, escalation or expiry on a decision is a label on
+    a real action, captured so calibration and policy thresholds can be refit per
+    customer. ``reviewer_role`` is a role name such as ``"support_lead"``, never a
+    personal identifier — feedback aggregates for recalibration, it does not build a
+    per-person audit trail.
+    """
+
+    schema_version: SchemaVersion = SCHEMA_VERSION
+    feedback_id: str | None = Field(default=None, max_length=Limits.SHORT_STR)
+    request_id: str = Field(max_length=Limits.SHORT_STR)
+    decision: Decision
+    outcome: FeedbackOutcome
+    corrected_labels: dict[RiskDimension, LabelValue] | None = Field(
+        default=None, description="Human-corrected ground truth per dimension, if supplied."
+    )
+    reviewer_role: str = Field(max_length=Limits.SHORT_STR)
+    reason: str | None = Field(default=None, max_length=Limits.FEEDBACK_REASON)
+    policy_bundle_id: str | None = Field(default=None, max_length=Limits.SHORT_STR)
+    policy_bundle_version: int | None = Field(default=None, ge=0)
+    calibration_version: str | None = Field(default=None, max_length=Limits.SHORT_STR)
+    model_id: str | None = Field(default=None, max_length=Limits.SHORT_STR)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class FeedbackAck(_Model):
+    schema_version: SchemaVersion = SCHEMA_VERSION
+    feedback_id: str
+    stored: bool = True

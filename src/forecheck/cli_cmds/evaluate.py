@@ -19,6 +19,7 @@ from forecheck.data.io import read_jsonl, sha256_file
 from forecheck.evaluation.report import EvaluationClass
 from forecheck.evaluation.runner import evaluate
 from forecheck.evaluation.score_cache import load_raw_scores, save_raw_scores, score_cache_path
+from forecheck.policies.dsl import PolicyBundle
 
 __all__ = ["evaluate_command"]
 
@@ -61,6 +62,20 @@ def evaluate_command(
             help="Evaluate a fixed-seed random subsample of this many rows (slow backends).",
         ),
     ] = None,
+    stacking_bundles: Annotated[
+        str | None,
+        typer.Option(
+            "--stacking-bundles",
+            help="Comma-separated policy bundle names or paths to stack, k=1..K.",
+        ),
+    ] = None,
+    stacking_synthetic: Annotated[
+        bool,
+        typer.Option(
+            "--stacking-synthetic",
+            help="Append 11 synthetic single-dimension policies to the stacking bundles.",
+        ),
+    ] = False,
 ) -> None:
     """Score ``split`` with ``backend``, apply any fitted calibration, and write reports."""
     if backend == "guardian":
@@ -107,6 +122,11 @@ def evaluate_command(
             )
     engine = load_policy_engine_by_name_or_path(bundle) if bundle is not None else None
 
+    stack_bundles: list[PolicyBundle] = []
+    if stacking_bundles:
+        names = [name.strip() for name in stacking_bundles.split(",") if name.strip()]
+        stack_bundles = [load_policy_engine_by_name_or_path(name).bundle for name in names]
+
     selection_scores = None
     on_selection_scored = None
     if selection_examples is not None and threshold_split != "none":
@@ -138,6 +158,8 @@ def evaluate_command(
             identity_stripped=strip_identity,
             threshold_selection_scores=selection_scores,
             on_threshold_selection_scored=on_selection_scored,
+            stacking_bundles=stack_bundles,
+            stacking_synthetic=stacking_synthetic,
         )
     finally:
         backend_instance.close()

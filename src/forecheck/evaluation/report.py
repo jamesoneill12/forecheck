@@ -25,6 +25,7 @@ from forecheck.evaluation.decisions import DecisionMetricsResult
 from forecheck.evaluation.latency import LatencyReport
 from forecheck.evaluation.metrics import DimensionMetrics
 from forecheck.evaluation.selective import SelectiveResult
+from forecheck.evaluation.stacking import StackingReport
 
 __all__ = [
     "SYNTHETIC_CLASSES",
@@ -97,6 +98,7 @@ class EvaluationReport(BaseModel):
     selective: dict[RiskDimension, SelectiveResult] | None = None
     decisions: DecisionMetricsResult | None = None
     latency: LatencyReport | None = None
+    stacking: StackingReport | None = None
 
     def to_json(self, path: Path) -> None:
         path.write_text(self.model_dump_json(indent=2))
@@ -183,6 +185,9 @@ class EvaluationReport(BaseModel):
             lines.append(
                 f"- mean risk-weighted cost: {_fmt(self.decisions.mean_risk_weighted_cost)}"
             )
+        if self.stacking is not None:
+            lines.append("")
+            lines.append(self.stacking.to_markdown().rstrip("\n"))
         if self.latency is not None:
             lines.append("")
             lines.append("## Latency")

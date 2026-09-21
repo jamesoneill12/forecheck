@@ -37,6 +37,7 @@ from forecheck.contracts import (
 )
 from forecheck.evaluation import consistency, selective, slices
 from forecheck.evaluation import decisions as decisions_mod
+from forecheck.evaluation import stacking as stacking_mod
 from forecheck.evaluation.bootstrap import BootstrapResult, bootstrap_ci
 from forecheck.evaluation.latency import LatencyReport, measure_latency
 from forecheck.evaluation.metrics import (
@@ -62,6 +63,7 @@ if TYPE_CHECKING:
     from forecheck.calibration.base import Calibrator, CalibratorBundle
     from forecheck.inference.base import ClassifierBackend, RawScores
     from forecheck.policies.base import PolicyEngine
+    from forecheck.policies.dsl import PolicyBundle
 
     ThresholdSelectionArrays = dict[RiskDimension, tuple[NDArray[np.int_], NDArray[np.float64]]]
 
@@ -265,6 +267,7 @@ def _build_classify_responses(
                 DimensionScore(
                     dimension=dimension,
                     probability=prob if not abstained else None,
+                    raw_score=None if abstained else raw_scores.scores.get(dimension),
                     calibrated=prob is not None and not abstained,
                     abstained=abstained,
                 )
@@ -322,6 +325,8 @@ def evaluate(
     identity_stripped: bool = False,
     threshold_selection_scores: Sequence[RawScores] | None = None,
     on_threshold_selection_scored: Callable[[Sequence[RawScores]], None] | None = None,
+    stacking_bundles: Sequence[PolicyBundle] = (),
+    stacking_synthetic: bool = False,
 ) -> EvaluationReport:
     """Run a full evaluation of ``backend`` on ``examples`` and return a report.
 
@@ -404,12 +409,31 @@ def evaluate(
 
     calibration_info = _calibration_info(calibrator_bundle, dims)
 
+    responses = None
     decision_result = None
     if engine is not None:
         responses = _build_classify_responses(
             examples, raw, probabilities, dims, backend.model_info, calibration_info
         )
         decision_result = decisions_mod.decision_metrics(engine, responses, examples)
+
+    stacking_result = None
+    stack_policies = list(stacking_bundles)
+    if stacking_synthetic:
+        tau = {
+            dimension: metrics.optimal_threshold
+            for dimension, metrics in dimension_metrics.items()
+            if metrics.optimal_threshold is not None
+        }
+        stack_policies += stacking_mod.synthetic_dimension_policies(
+            thresholds=tau, default_threshold=threshold
+        )
+    if stack_policies:
+        if responses is None:
+            responses = _build_classify_responses(
+                examples, raw, probabilities, dims, backend.model_info, calibration_info
+            )
+        stacking_result = stacking_mod.stacking_report(examples, responses, stack_policies)
 
     latency_report: LatencyReport | None = None
     if include_latency:
@@ -436,4 +460,5 @@ def evaluate(
         selective=selective_results,
         decisions=decision_result,
         latency=latency_report,
+        stacking=stacking_result,
     )

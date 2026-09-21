@@ -21,6 +21,7 @@ from forecheck.api.auth import (
 )
 from forecheck.api.batching import MicroBatcher
 from forecheck.api.device import DeviceInfo, detect
+from forecheck.api.feedback import FeedbackSink, JsonlFeedbackSink
 from forecheck.api.settings import Settings
 from forecheck.calibration.store import load_bundle
 from forecheck.contracts import (
@@ -71,6 +72,7 @@ class AppState:
     auth_provider: AuthProvider
     batcher: MicroBatcher | None
     device: DeviceInfo
+    feedback_sink: FeedbackSink
     ready: bool = field(default=False)
 
 
@@ -154,6 +156,7 @@ async def build_app_state(settings: Settings) -> AppState:
         auth_provider=auth_provider,
         batcher=batcher,
         device=detect(),
+        feedback_sink=JsonlFeedbackSink(settings.feedback_sink_path),
     )
 
 

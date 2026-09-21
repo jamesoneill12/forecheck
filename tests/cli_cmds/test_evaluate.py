@@ -209,6 +209,83 @@ def test_evaluate_command_max_examples_subsamples_split(
     assert report["dataset"]["n"] == 5
 
 
+def test_evaluate_command_stacking_synthetic_writes_stacking_section(
+    tmp_path: Path,
+) -> None:
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    _write_split(data_dir, "dev")
+    _write_split(data_dir, "test")
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+
+    evaluate_command(
+        run=run_dir,
+        split="test",
+        evaluation_class=EvaluationClass.SYNTHETIC_IN_DISTRIBUTION,
+        backend="mock",
+        backend_config=None,
+        strip_identity=False,
+        data=data_dir,
+        stacking_bundles=None,
+        stacking_synthetic=True,
+    )
+
+    report = json.loads((run_dir / "reports" / "test" / "report.json").read_text())
+    assert report["stacking"] is not None
+    assert len(report["stacking"]["rows"]) == 22
+    markdown = (run_dir / "reports" / "test" / "report.md").read_text()
+    assert "## Multi-policy stacking" in markdown
+
+
+def test_evaluate_command_stacking_bundles_and_synthetic_combine(tmp_path: Path) -> None:
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    _write_split(data_dir, "dev")
+    _write_split(data_dir, "test")
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+
+    evaluate_command(
+        run=run_dir,
+        split="test",
+        evaluation_class=EvaluationClass.SYNTHETIC_IN_DISTRIBUTION,
+        backend="mock",
+        backend_config=None,
+        strip_identity=False,
+        data=data_dir,
+        stacking_bundles="balanced,conservative",
+        stacking_synthetic=True,
+    )
+
+    report = json.loads((run_dir / "reports" / "test" / "report.json").read_text())
+    assert report["stacking"] is not None
+    max_k = max(row["k"] for row in report["stacking"]["rows"])
+    assert max_k == 13
+
+
+def test_evaluate_command_without_stacking_flags_omits_stacking(tmp_path: Path) -> None:
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    _write_split(data_dir, "dev")
+    _write_split(data_dir, "test")
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+
+    evaluate_command(
+        run=run_dir,
+        split="test",
+        evaluation_class=EvaluationClass.SYNTHETIC_IN_DISTRIBUTION,
+        backend="mock",
+        backend_config=None,
+        strip_identity=False,
+        data=data_dir,
+    )
+
+    report = json.loads((run_dir / "reports" / "test" / "report.json").read_text())
+    assert report["stacking"] is None
+
+
 def test_resolve_data_dir_reads_encoder_run_config(tmp_path: Path) -> None:
     from forecheck.cli_cmds._common import resolve_data_dir
 

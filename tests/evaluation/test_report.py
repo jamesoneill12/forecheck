@@ -14,6 +14,7 @@ from forecheck.evaluation.report import (
     EvaluationClass,
     EvaluationReport,
 )
+from forecheck.evaluation.stacking import StackingReport, StackingRow
 
 DIM = RiskDimension.FINANCIAL_COMMITMENT
 
@@ -142,3 +143,34 @@ def test_markdown_per_dimension_table_shows_na_when_no_optimal_threshold() -> No
     markdown = report._render_markdown()
     table_line = next(line for line in markdown.splitlines() if line.startswith("| financial"))
     assert table_line.count("n/a") == 4
+
+
+def test_markdown_omits_stacking_section_when_absent() -> None:
+    report = _minimal_report(EvaluationClass.SYNTHETIC_IN_DISTRIBUTION)
+    markdown = report._render_markdown()
+    assert "Multi-policy stacking" not in markdown
+
+
+def test_markdown_renders_stacking_section_when_present() -> None:
+    stacking = StackingReport(
+        rows=[
+            StackingRow(
+                k=1,
+                strategy="independent",
+                policy_ids=["synthetic-financial_commitment"],
+                n=10,
+                n_covered_benign=8,
+                n_covered_risky=2,
+                false_positive_rate=0.1,
+                false_negative_rate=0.0,
+                review_rate=0.0,
+                mean_risk_weighted_cost=0.5,
+            )
+        ]
+    )
+    report = _minimal_report(EvaluationClass.SYNTHETIC_IN_DISTRIBUTION).model_copy(
+        update={"stacking": stacking}
+    )
+    markdown = report._render_markdown()
+    assert "## Multi-policy stacking" in markdown
+    assert "synthetic-financial_commitment" in markdown

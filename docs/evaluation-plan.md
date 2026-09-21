@@ -106,6 +106,19 @@ p50 / p90 / p99 latency, throughput, peak RSS; sliced by rendered-context length
 number of dimensions requested; hardware string recorded. Mock and real backends are
 never reported in the same table without the backend named in every row.
 
+**CPU scoring throughput (`scripts/bench_scoring.py`).** `HFBackend._score_chat_template`
+originally issued one `model()` call plus one `copy.deepcopy` of the shared-prefix KV
+cache per scored dimension (12 forward calls, ~9 deepcopies per row for 11 questions).
+Profiling 157 `data/fixtures/dev.jsonl` rows with a random-weight tiny `GraniteForCausalLM`
+(real `granite-3.3-2b-instruct` tokenizer, 2 layers/hidden 32, CPU, `cProfile`) put
+`copy.deepcopy` at 15% of wall time and `model()` calls at 1884 for 157 rows (~12/row).
+Batching every dimension sharing a prefix into one padded forward call, via the Cache
+API's `batch_repeat_interleave` (one `deepcopy` per row instead of one per dimension),
+cut that to 314 `model()` calls (~2/row), dropped total function calls from 3.06M to
+0.96M, and raised throughput from 35.6 to 65.5 rows/s (1.8x) on this harness — with
+`copy.deepcopy` no longer appearing in the top CPU sinks at all. `HFBackendConfig.batch_size`
+(default 32, above `len(QUESTIONS)`) caps how many dimensions batch into one forward call.
+
 ### 3.10 Uncertainty
 Every headline metric carries a 95 % bootstrap confidence interval (1000 resamples over
 examples, stratified by family, fixed seed). Differences between systems whose intervals

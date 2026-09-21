@@ -7,7 +7,7 @@ known teammate about an internal document, and the same tool called after the ag
 reads an attacker-planted instruction in an untrusted "shared" document.
 
 The mock backend's scores are not calibrated probabilities (see
-``docs/product-spec.md`` §5.1), and every shipped policy bundle refuses to let an
+``docs/product-spec.md`` §7.1), and every shipped policy bundle refuses to let an
 uncalibrated score drive ALLOW/DENY automatically -- it always falls back to REVIEW.
 To make the ALLOW-vs-DENY contrast visible in this offline demo, a trivial identity
 calibration bundle is built in-memory purely for illustration; it is not a real fit and

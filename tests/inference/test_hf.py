@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import builtins
+import copy
 import importlib.util
 from types import SimpleNamespace
 from typing import Any
@@ -8,6 +9,7 @@ from typing import Any
 import pytest
 
 from forecheck.contracts import RiskDimension
+from forecheck.inference.prompt import QUESTIONS
 from tests.inference.conftest import make_context
 
 HAS_TORCH = importlib.util.find_spec("torch") is not None
@@ -108,7 +110,9 @@ if HAS_TORCH:
     class _MutableKVCache:
         """Minimal stand-in for transformers' ``DynamicCache``: ``update`` mutates its
         own state in place and returns the concatenated tensors, exactly the semantics
-        that make passing the same cache object to two questions unsafe."""
+        that make passing the same cache object to two questions unsafe.
+        ``batch_repeat_interleave`` mirrors the real Cache API method the batched
+        suffix-scoring path in ``hf.py`` uses to expand a batch-1 prefix cache."""
 
         def __init__(self, k: Any, v: Any) -> None:
             self.k = k
@@ -118,6 +122,10 @@ if HAS_TORCH:
             self.k = _torch.cat([self.k, k_new], dim=1)
             self.v = _torch.cat([self.v, v_new], dim=1)
             return self.k, self.v
+
+        def batch_repeat_interleave(self, repeats: int) -> None:
+            self.k = self.k.repeat_interleave(repeats, dim=0)
+            self.v = self.v.repeat_interleave(repeats, dim=0)
 
     class _ToyCausalLM(_torch.nn.Module):  # type: ignore[misc]
         def __init__(self, vocab_size: int, dim: int) -> None:
@@ -135,6 +143,7 @@ if HAS_TORCH:
             input_ids: Any,
             past_key_values: _MutableKVCache | None = None,
             use_cache: bool = False,
+            attention_mask: Any = None,
         ) -> SimpleNamespace:
             x = self.embed(input_ids)
             k_new = self.k_proj(x)
@@ -152,6 +161,11 @@ if HAS_TORCH:
             mask = _torch.full((t_new, t_total), float("-inf"))
             for i in range(t_new):
                 mask[i, : offset + i + 1] = 0.0
+            if attention_mask is not None:
+                # Right-padding only: no real token attends past-pad.
+                key_mask = attention_mask == 0
+                mask = mask.unsqueeze(0).expand(q.shape[0], -1, -1).clone()
+                mask = mask.masked_fill(key_mask.unsqueeze(1), float("-inf"))
             attn = _torch.softmax(scores + mask, dim=-1)
             ctx = _torch.matmul(attn, v)
             logits = self.out_proj(ctx)
@@ -339,6 +353,73 @@ def test_shared_prefill_chat_template_matches_naive_fallback_numerically() -> No
 
     for dim in dims:
         assert shared_result.scores[dim] == pytest.approx(naive_result.scores[dim], abs=1e-4)
+
+
+@requires_torch
+def test_batch_size_chunking_does_not_change_scores() -> None:
+    from forecheck.inference.hf import HFBackend, HFBackendConfig
+
+    model, tokenizer, _yes_id, _no_id = _build_toy_model_and_tokenizer()
+
+    def fake_load(self: HFBackend, torch_mod: object) -> tuple[object, object, str]:
+        return model, tokenizer, "cpu"
+
+    context = make_context()
+    dims = list(RiskDimension)
+
+    backend_full = HFBackend(HFBackendConfig(model_id="toy", batch_size=32))
+    backend_chunked = HFBackend(HFBackendConfig(model_id="toy", batch_size=2))
+    backend_full._load_model_and_tokenizer = fake_load.__get__(backend_full)  # type: ignore[method-assign]
+    backend_chunked._load_model_and_tokenizer = fake_load.__get__(backend_chunked)  # type: ignore[method-assign]
+
+    full_result = backend_full.score(context, dims)
+    chunked_result = backend_chunked.score(context, dims)
+
+    for dim in dims:
+        assert chunked_result.scores[dim] == pytest.approx(full_result.scores[dim], abs=1e-4)
+
+
+@requires_torch
+def test_batched_suffix_scoring_matches_per_question_forward_calls() -> None:
+    """Directly exercises the batch_repeat_interleave path added for CPU throughput:
+    scoring all 11 dimensions in one padded forward call must match issuing 11
+    separate single-question forward calls against the same cached prefix."""
+    import torch
+
+    from forecheck.inference.chat_template import ChatPrefillPlanner
+    from forecheck.inference.hf import HFBackend, HFBackendConfig, _log_odds
+    from forecheck.inference.serialization import serialize_context
+
+    model, tokenizer, yes_id, no_id = _build_toy_model_and_tokenizer()
+    yes_ids, no_ids = {yes_id}, {no_id}
+    context = make_context()
+    rendered = serialize_context(context)
+    dims = list(RiskDimension)
+
+    planner = ChatPrefillPlanner(tokenizer)
+    plans = {dim: planner.plan(rendered.text, QUESTIONS[dim]) for dim in dims}
+    assert all(plan is not None for plan in plans.values())
+
+    prefix_ids = plans[dims[0]].prefix_ids  # type: ignore[union-attr]
+    expected: dict[RiskDimension, float] = {}
+    with torch.no_grad():
+        prefix_tensor = torch.tensor([list(prefix_ids)], dtype=torch.long)
+        prefix_out = model(prefix_tensor, use_cache=True)
+        for dim in dims:
+            past = copy.deepcopy(prefix_out.past_key_values)
+            suffix_tensor = torch.tensor([list(plans[dim].suffix_ids)], dtype=torch.long)  # type: ignore[union-attr]
+            out = model(suffix_tensor, past_key_values=past, use_cache=True)
+            expected[dim] = _log_odds(torch, out.logits[0, -1], yes_ids, no_ids)
+
+    def fake_load(self: HFBackend, torch_mod: object) -> tuple[object, object, str]:
+        return model, tokenizer, "cpu"
+
+    backend = HFBackend(HFBackendConfig(model_id="toy", use_chat_template=True))
+    backend._load_model_and_tokenizer = fake_load.__get__(backend)  # type: ignore[method-assign]
+    result = backend.score(context, dims)
+
+    for dim in dims:
+        assert result.scores[dim] == pytest.approx(expected[dim], abs=1e-4)
 
 
 class _BoundaryMergingToyTokenizer:

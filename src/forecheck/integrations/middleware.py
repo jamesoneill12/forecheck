@@ -2,7 +2,7 @@
 
 Wraps any ``call_tool(name, args) -> result`` callable so every call is classified and
 policy-evaluated before it runs. This is deployment shape 1 from
-``docs/product-spec.md`` §9: the only shape that closes the TOCTOU gap (TM-12) in
+``docs/product-spec.md`` §12: the only shape that closes the TOCTOU gap (TM-12) in
 ``docs/threat-model.md``, because the arguments classified are re-digested and checked
 against the arguments about to execute.
 """
