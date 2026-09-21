@@ -18,7 +18,7 @@ approval.
 
 ## Submit
 
-Stage only what the job needs into a directory named exactly `forecheck-job` — ai-infra uploads the directory itself, so the code lands at `/opt/ml/code/forecheck-job/`, which is where the recipe command `cd`s (the upload is scanned, and `docs/`/`tests/` are not required on the node):
+Stage only what the job needs into a directory named exactly `forecheck-job` — ai-infra uploads the directory itself and the `fin-base-training` image's `setup_and_run.sh` syncs the upload into `/workspace`, so the code lands at `/workspace/forecheck-job/`, which is where the recipe command `cd`s (the upload is scanned, and `docs/`/`tests/` are not required on the node):
 
 ```bash
 rm -rf /tmp/forecheck-job && mkdir -p /tmp/forecheck-job && cp -R pyproject.toml uv.lock README.md LICENSE NOTICE src configs policies scripts /tmp/forecheck-job/
