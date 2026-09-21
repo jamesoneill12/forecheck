@@ -34,16 +34,18 @@ Swap the recipe/name for `configs/eks/train-8b-b200-recipe.yaml` /
 `forecheck-train-8b` to run the Nimble-parity Granite-3.3-8B recipe instead, or for
 `configs/eks/train-encoder-b200-recipe.yaml` / `forecheck-train-encoders` to train both
 encoder-classifier-arm configs (`encoder-modernbert-large.yaml`,
-`encoder-granite-embedding-r2.yaml`) back to back, using the same flags:
+`encoder-granite-embedding-r2.yaml`) back to back. To run the two arms in parallel
+on one node (one GPU each), submit the per-arm recipes instead:
 
 ```bash
-ai-infra eks submit-job /tmp/forecheck-job --recipe configs/eks/train-encoder-b200-recipe.yaml --name forecheck-train-encoders --gpu-type B200 --instance-type ml.p6-b200.48xlarge --az us-east-2a --gpus-per-pod 1 --cpus-per-pod 6 --memory-per-pod 100 --efas 0 --region us-east-2 --cluster eks-fsdp-cluster --fsx-id fs-0979a8395b825c774 --follow-logs
+ai-infra eks submit-job /tmp/forecheck-job --recipe configs/eks/train-encoder-modernbert-large-b200-recipe.yaml --name forecheck-enc-modernbert --gpu-type B200 --instance-type ml.p6-b200.48xlarge --az us-east-2a --gpus-per-pod 1 --cpus-per-pod 6 --memory-per-pod 100 --efas 0 --region us-east-2 --cluster eks-fsdp-cluster --fsx-id fs-0979a8395b825c774
+ai-infra eks submit-job /tmp/forecheck-job --recipe configs/eks/train-encoder-granite-embedding-r2-b200-recipe.yaml --name forecheck-enc-granite-r2 --gpu-type B200 --instance-type ml.p6-b200.48xlarge --az us-east-2a --gpus-per-pod 1 --cpus-per-pod 6 --memory-per-pod 100 --efas 0 --region us-east-2 --cluster eks-fsdp-cluster --fsx-id fs-0979a8395b825c774
 ```
 
-Unlike the decoder recipes, the encoder recipe does not regenerate or split the
-dataset -- it guards on `/opt/ml/fsx/forecheck/data/v2/train.jsonl` already existing
+Unlike the decoder recipes, the encoder recipes do not regenerate or split the
+dataset -- they guard on `/opt/ml/fsx/forecheck/data/v2/train.jsonl` already existing
 (run `train-2b-b200-recipe.yaml` or `forecheck data generate`/`split` first if it does
-not) and trains/calibrates/evaluates both encoder configs against it.
+not) and train/calibrate/evaluate the encoder config against it.
 
 Job names are prefixed with your username by ai-infra and limited to 63 characters.
 

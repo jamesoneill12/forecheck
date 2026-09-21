@@ -1,0 +1,31 @@
+# One encoder arm per job so both arms train in parallel on one node; submission commands in configs/eks/README.md.
+trainer:
+  runtime_name: "torch-runtime"
+  project_name: "forecheck"
+  experiment_name: "train-encoder-granite-embedding-r2-v2"
+
+  ecr_image: "812836555640.dkr.ecr.us-east-2.amazonaws.com/ai/fin-base-training:latest"
+
+  command: >-
+    bash -c 'set -euo pipefail &&
+    cd /workspace/forecheck-job &&
+    pip install -q --no-cache-dir -e ".[train]" &&
+    test -f /opt/ml/fsx/forecheck/data/v2/train.jsonl &&
+    forecheck train-encoder --config configs/training/encoder-granite-embedding-r2.yaml data.dir=/opt/ml/fsx/forecheck/data/v2 output.dir=/opt/ml/fsx/forecheck/runs/encoder-granite-embedding-r2-v2 tracking.backend=local &&
+    forecheck calibrate --backend encoder --run /opt/ml/fsx/forecheck/runs/encoder-granite-embedding-r2-v2 --split calibration &&
+    forecheck evaluate --backend encoder --run /opt/ml/fsx/forecheck/runs/encoder-granite-embedding-r2-v2 --split test --class synthetic_in_distribution &&
+    forecheck evaluate --backend encoder --run /opt/ml/fsx/forecheck/runs/encoder-granite-embedding-r2-v2 --split heldout_family --class synthetic_heldout_adversarial'
+
+  env_vars:
+    FORECHECK_TRACKING_BACKEND: "local"
+    HF_HOME: "/opt/ml/fsx/forecheck/hf_cache"
+    TOKENIZERS_PARALLELISM: "false"
+    PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+
+  nnodes: 1
+
+  resources:
+    worker:
+      instance_type: ml.p6-b200.48xlarge
+      gpus_per_pod: 1
+      cpus_per_pod: 6
