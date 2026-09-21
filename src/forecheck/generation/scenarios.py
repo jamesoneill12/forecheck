@@ -272,7 +272,7 @@ def sample_scenario(rng: random.Random, family: ToolFamily, scenario_id: str) ->
     return LatentScenario(
         scenario_id=scenario_id,
         family_id=family_id,
-        template_lineage=[family_id],
+        template_lineage=[f"{family_id}#{scenario_id}"],
         tool=tool,
         operation=operation,
         principal_roles=principal_roles,

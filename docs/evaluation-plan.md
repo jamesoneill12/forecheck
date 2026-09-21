@@ -16,7 +16,7 @@ declaring which of the three classes it belongs to.
 | Class | Data | What a good number means | What it does **not** mean |
 |---|---|---|---|
 | **1. Synthetic in-distribution** | `dev` / `test` splits: unseen families, seen tool families and templates | The model learned the label rules from the latent schema | Anything about real traffic |
-| **2. Synthetic held-out-family and adversarial** | `heldout_family` (entire tool families withheld), `adversarial` (injection attempts against forecheck itself, paraphrase attacks, look-alikes) | The model generalizes across tool families and resists the attack shapes we thought of | Resistance to attack shapes we did not think of |
+| **2. Synthetic held-out-family and adversarial** | `heldout_family` (entire tools withheld — one `family_id` is one tool), `adversarial` (injection attempts against forecheck itself, paraphrase attacks, look-alikes) | The model generalizes across tools and resists the attack shapes we thought of | Resistance to attack shapes we did not think of |
 | **3. External or human-labelled** | Adapted public benchmarks (evaluation-only), the human gold set once it exists | Something about the world | — |
 
 Numbers from different classes are never averaged, never plotted on one axis, and never

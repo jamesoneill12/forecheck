@@ -244,8 +244,12 @@ class GenerationPipeline:
             )
 
         existing_ids = self._load_existing_ids()
-        bucket = TokenBucket(
-            self.config.rate_limit_per_s, self.config.rate_limit_burst, clock_fn=self._clock_fn
+        bucket = (
+            TokenBucket(
+                self.config.rate_limit_per_s, self.config.rate_limit_burst, clock_fn=self._clock_fn
+            )
+            if renderer.requires_network
+            else None
         )
         results: list[Example] = []
         completed = 0
@@ -271,7 +275,8 @@ class GenerationPipeline:
             if context is not None:
                 cached += 1
             else:
-                bucket.acquire(self._sleep_fn)
+                if bucket is not None:
+                    bucket.acquire(self._sleep_fn)
                 try:
                     context = self._render_with_retry(renderer, job.latent, _new_random(seed), seed)
                 except Exception:

@@ -25,6 +25,7 @@ from forecheck.data.splitting import (
     assert_no_leakage,
     assign_split,
     compute_group_key,
+    is_heldout_family,
     split_examples,
 )
 from forecheck.version import LABEL_DERIVATION_VERSION
@@ -69,7 +70,7 @@ def test_assign_split_is_deterministic() -> None:
 
 def test_assign_split_covers_every_split_over_many_groups() -> None:
     seen = {assign_split(f"group-{i}") for i in range(500)}
-    assert seen == set(Split)
+    assert seen == set(Split) - {Split.HELDOUT_FAMILY}
 
 
 def test_split_examples_keeps_contrastive_pairs_together() -> None:
@@ -125,3 +126,88 @@ def test_assert_no_leakage_raises_on_group_split_across_splits() -> None:
     }
     with pytest.raises(LeakageError):
         assert_no_leakage(splits)
+
+
+def test_heldout_family_rows_all_land_in_heldout_family_and_nowhere_else() -> None:
+    heldout_family_id = "fam-21"
+    assert is_heldout_family(heldout_family_id)
+    examples = [
+        _example_for(
+            make_latent(
+                scenario_id=f"scenario-{i}",
+                family_id=heldout_family_id,
+                template_lineage=[f"{heldout_family_id}#scenario-{i}"],
+            ),
+            example_id=f"ex-{i}",
+        )
+        for i in range(20)
+    ]
+    splits = split_examples(examples)
+    assert len(splits[Split.HELDOUT_FAMILY]) == 20
+    for split, rows in splits.items():
+        if split is not Split.HELDOUT_FAMILY:
+            assert rows == []
+
+
+def test_non_heldout_family_scenarios_spread_across_group_splits() -> None:
+    non_heldout_family_id = "fam-0"
+    assert not is_heldout_family(non_heldout_family_id)
+    examples = [
+        _example_for(
+            make_latent(
+                scenario_id=f"scenario-{i}",
+                family_id=non_heldout_family_id,
+                template_lineage=[f"{non_heldout_family_id}#scenario-{i}"],
+            ),
+            example_id=f"ex-{i}",
+        )
+        for i in range(200)
+    ]
+    splits = split_examples(examples)
+    assert splits[Split.HELDOUT_FAMILY] == []
+    occupied = {split for split, rows in splits.items() if rows}
+    assert occupied == {Split.TRAIN, Split.CALIBRATION, Split.DEV, Split.TEST, Split.ADVERSARIAL}
+
+
+def test_assert_no_leakage_raises_when_heldout_family_also_appears_elsewhere() -> None:
+    heldout_family_id = "fam-21"
+    latent_heldout = make_latent(scenario_id="a", family_id=heldout_family_id)
+    latent_train = make_latent(scenario_id="b", family_id=heldout_family_id)
+    example_heldout = _example_for(latent_heldout, example_id="ex-a")
+    example_train = _example_for(latent_train, example_id="ex-b")
+    splits = {
+        Split.TRAIN: [example_train],
+        Split.HELDOUT_FAMILY: [example_heldout],
+        Split.CALIBRATION: [],
+        Split.DEV: [],
+        Split.TEST: [],
+        Split.ADVERSARIAL: [],
+    }
+    with pytest.raises(LeakageError):
+        assert_no_leakage(splits)
+
+
+def test_contrastive_pair_still_lands_together_with_heldout_tier() -> None:
+    base = make_latent(scenario_id="base-1", family_id="fam-21")
+    flipped = make_pair(base, ContrastiveAxis.RESOURCE_SENSITIVITY)
+    pair_id = contrastive_pair_id(base.scenario_id, ContrastiveAxis.RESOURCE_SENSITIVITY)
+    transformation = Transformation(
+        axis=ContrastiveAxis.RESOURCE_SENSITIVITY,
+        base_example_id="ex-base-1",
+        from_value="internal",
+        to_value="restricted",
+    )
+    examples = [
+        _example_for(base, example_id="ex-base-1"),
+        _example_for(
+            flipped,
+            example_id="ex-flip-1",
+            family_id=base.family_id,
+            contrastive_pair_id=pair_id,
+            transformation=transformation,
+        ),
+    ]
+    splits = split_examples(examples)
+    assert_no_leakage(splits)
+    found = [split for split, rows in splits.items() if rows]
+    assert len(found) == 1

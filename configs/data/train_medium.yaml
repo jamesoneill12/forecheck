@@ -1,4 +1,4 @@
-# ~50k rows (12 families x 4160 + 14 axes x 3 pairs x 2). Offline renderer: ~2-4 minutes on a laptop.
+# ~50k rows (12 families x 4160 + 14 axes x 3 pairs x 2). Offline renderer: ~30 seconds on an M-series laptop.
 seed: 424242
 n_per_family: 4160
 pairs_per_axis: 3
