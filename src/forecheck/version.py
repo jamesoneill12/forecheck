@@ -8,7 +8,7 @@ __version__: Final[str] = "0.1.0"
 
 API_SCHEMA_VERSION: Final[str] = "1.0"
 LABEL_DERIVATION_VERSION: Final[str] = "1.0.0"
-PROMPT_CONTRACT_VERSION: Final[str] = "1.0.0"
+PROMPT_CONTRACT_VERSION: Final[str] = "1.1.0"
 POLICY_DSL_VERSION: Final[str] = "1.0"
 
 __all__ = [

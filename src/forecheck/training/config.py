@@ -15,6 +15,8 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from forecheck.contracts import Limits, RiskDimension, Split
+from forecheck.inference.hf_loading import LoadClass
+from forecheck.inference.prompt import USE_CHAT_TEMPLATE_DEFAULT
 
 __all__ = [
     "DataConfig",
@@ -45,6 +47,7 @@ class ModelConfig(_Strict):
     revision: str | None = None
     dtype: DType = "auto"
     attn_implementation: str | None = None
+    load_class: LoadClass = "auto"
 
 
 class LoraConfig(_Strict):
@@ -92,6 +95,7 @@ class TrainLoopConfig(_Strict):
     early_stop_patience: int = Field(default=3, gt=0)
     resume_from: Path | None = None
     shared_prefill: bool = True
+    use_chat_template: bool = USE_CHAT_TEMPLATE_DEFAULT
 
 
 class TrackingConfig(_Strict):

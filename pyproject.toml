@@ -47,7 +47,7 @@ dependencies = [
 # Local inference / training with a real Hugging Face backbone.
 torch = [
   "torch>=2.4",
-  "transformers>=4.44",
+  "transformers>=4.57",
   "accelerate>=0.33",
 ]
 train = [

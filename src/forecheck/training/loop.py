@@ -116,19 +116,22 @@ def _auto_device(torch: Any) -> str:
     return "cpu"
 
 
+_DTYPE_ATTRS = {"bf16": "bfloat16", "fp16": "float16", "fp32": "float32"}
+
+
 def _resolve_dtype(torch: Any, dtype_name: str, device: str) -> Any:
     if dtype_name == "auto":
         return torch.bfloat16 if device != "cpu" else torch.float32
-    return getattr(torch, dtype_name)
+    return getattr(torch, _DTYPE_ATTRS[dtype_name])
 
 
 def build_base_model_and_tokenizer(config: TrainConfig) -> tuple[Any, Any, str]:
     torch = _require_torch()
-    from transformers import AutoModelForCausalLM, AutoTokenizer
+    from forecheck.inference.hf_loading import load_model, load_tokenizer
 
     device = _auto_device(torch)
     dtype = _resolve_dtype(torch, config.model.dtype, device)
-    tokenizer = AutoTokenizer.from_pretrained(config.model.base_id, revision=config.model.revision)
+    tokenizer = load_tokenizer(config.model.base_id, revision=config.model.revision)
     model_kwargs: dict[str, Any] = {"revision": config.model.revision, "torch_dtype": dtype}
     if config.model.attn_implementation is not None:
         model_kwargs["attn_implementation"] = config.model.attn_implementation
@@ -144,7 +147,7 @@ def build_base_model_and_tokenizer(config: TrainConfig) -> tuple[Any, Any, str]:
             bnb_4bit_quant_type="nf4",
         )
         model_kwargs["device_map"] = {"": 0}
-    model = AutoModelForCausalLM.from_pretrained(config.model.base_id, **model_kwargs)
+    model = load_model(config.model.base_id, load_class=config.model.load_class, **model_kwargs)
     if not config.lora.qlora:
         model.to(device)
     return model, tokenizer, device
@@ -345,12 +348,14 @@ def run_training(
         tokenizer,
         shared_prefill=config.train.shared_prefill,
         max_prompt_tokens=config.data.max_prompt_tokens,
+        use_chat_template=config.train.use_chat_template,
     )
     dev_dataset = TrainableExampleDataset(
         dev_examples,
         tokenizer,
         shared_prefill=config.train.shared_prefill,
         max_prompt_tokens=config.data.max_prompt_tokens,
+        use_chat_template=config.train.use_chat_template,
     )
 
     steps_per_epoch = max(1, len(train_dataset) // config.optim.micro_batch_size)

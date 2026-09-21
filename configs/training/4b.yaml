@@ -1,6 +1,5 @@
 model:
-  # Placeholder: confirm the licence in configs/training/README.md before replacing this id.
-  base_id: REPLACE_WITH_APPROVED_4B_BASE_MODEL
+  base_id: Qwen/Qwen3.5-4B
   dtype: bf16
   attn_implementation: sdpa
 

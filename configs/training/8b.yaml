@@ -1,14 +1,14 @@
 model:
-  # Placeholder: confirm the licence in configs/training/README.md before replacing this id.
-  base_id: REPLACE_WITH_APPROVED_8B_BASE_MODEL
+  base_id: Qwen/Qwen3.5-9B
   dtype: bf16
   attn_implementation: sdpa
+  load_class: auto
 
 lora:
-  r: 64
-  alpha: 128
+  r: 16
+  alpha: 32
   dropout: 0.05
-  target_modules: [q_proj, k_proj, v_proj, o_proj]
+  target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
   qlora: false
 
 data:
@@ -22,9 +22,9 @@ optim:
   lr: 0.00005
   weight_decay: 0.01
   warmup_ratio: 0.03
-  epochs: 2
-  micro_batch_size: 4
-  grad_accum: 4
+  epochs: 1
+  micro_batch_size: 8
+  grad_accum: 1
   grad_clip: 1.0
   scheduler: cosine
 
@@ -34,6 +34,7 @@ train:
   save_every: 200
   early_stop_patience: 5
   shared_prefill: true
+  use_chat_template: true
 
 tracking:
   backend: local

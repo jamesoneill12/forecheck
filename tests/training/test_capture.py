@@ -45,8 +45,12 @@ def test_capture_env_reports_optional_packages_and_device() -> None:
     env = capture_env()
 
     assert "torch" in env["packages"]
-    assert env["device"]["device"] == "cpu"
-    assert env["device"]["cuda_available"] is False
+    device = env["device"]
+    assert device["device"] in {"cpu", "mps", "cuda"}
+    assert device["device"] == "cuda" or device["cuda_available"] is False
+    assert (
+        device["device"] == "mps" or device["mps_available"] is False or device["device"] == "cuda"
+    )
 
 
 def test_compute_data_hashes_matches_sha256_file(tmp_path: Path) -> None:

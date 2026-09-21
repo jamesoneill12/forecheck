@@ -14,7 +14,7 @@ from forecheck.training.dataset import (
     encode_example,
     load_examples,
 )
-from tests.training.conftest import FakeTokenizer, make_training_example
+from tests.training.conftest import FakeChatTokenizer, FakeTokenizer, make_training_example
 
 
 def test_dimension_order_covers_every_risk_dimension() -> None:
@@ -116,3 +116,115 @@ def test_trainable_dataset_caches_encodings(fake_tokenizer: FakeTokenizer) -> No
     assert first is second
     assert dataset[0][0].example_id == "ex-1"
     assert dataset[1][0].example_id == "ex-2"
+
+
+def test_shared_prefill_chat_template_encodes_one_sequence_with_eleven_targets(
+    fake_chat_tokenizer: FakeChatTokenizer,
+) -> None:
+    example = make_training_example("ex-1")
+
+    sequences = encode_example(
+        example, fake_chat_tokenizer, shared_prefill=True, use_chat_template=True
+    )
+
+    assert len(sequences) == 1
+    sequence = sequences[0]
+    assert len(sequence.targets) == 11
+    assert {t.dimension for t in sequence.targets} == set(RiskDimension)
+    assert set(sequence.block_ids[: sequence.block_ids.index(1)]) == {CONTEXT_BLOCK_ID}
+    for target in sequence.targets:
+        assert 0 <= target.position < len(sequence.input_ids)
+
+
+def test_naive_chat_template_encodes_eleven_independent_sequences(
+    fake_chat_tokenizer: FakeChatTokenizer,
+) -> None:
+    example = make_training_example("ex-1")
+
+    sequences = encode_example(
+        example, fake_chat_tokenizer, shared_prefill=False, use_chat_template=True
+    )
+
+    assert len(sequences) == 11
+    for sequence in sequences:
+        assert len(sequence.targets) == 1
+        assert set(sequence.block_ids) == {CONTEXT_BLOCK_ID}
+        assert sequence.targets[0].position == len(sequence.input_ids) - 1
+
+
+def test_shared_and_naive_chat_template_encodings_produce_equivalent_targets(
+    fake_chat_tokenizer: FakeChatTokenizer,
+) -> None:
+    example = make_training_example(
+        "ex-1", label_overrides={RiskDimension.FINANCIAL_COMMITMENT: LabelValue.YES}
+    )
+
+    shared = encode_example(
+        example, fake_chat_tokenizer, shared_prefill=True, use_chat_template=True
+    )
+    naive = encode_example(
+        example, FakeChatTokenizer(), shared_prefill=False, use_chat_template=True
+    )
+
+    shared_targets = {t.dimension: t.label for t in shared[0].targets}
+    naive_targets = {seq.targets[0].dimension: seq.targets[0].label for seq in naive}
+
+    assert shared_targets == naive_targets
+
+
+class _BoundaryMergingChatTokenizer:
+    """Merges a newline immediately followed by ``I`` into one token, simulating a
+    BPE merge that only happens when the context/question boundary is tokenized
+    jointly -- exactly the case :func:`plan_chat_prefill` must detect and reject."""
+
+    def apply_chat_template(
+        self,
+        messages: list[dict[str, str]],
+        *,
+        add_generation_prompt: bool = True,
+        tokenize: bool = False,
+        **kwargs: object,
+    ) -> str:
+        system = next(m["content"] for m in messages if m["role"] == "system")
+        user = next(m["content"] for m in messages if m["role"] == "user")
+        text = f"{system}|{user}"
+        if add_generation_prompt:
+            text += "|GEN"
+        return text
+
+    def encode(self, text: str, add_special_tokens: bool = False) -> list[int]:
+        ids: list[int] = []
+        i = 0
+        while i < len(text):
+            if text[i : i + 2] == "\nI":
+                ids.append(-1)
+                i += 2
+                continue
+            ids.append(ord(text[i]))
+            i += 1
+        return ids
+
+
+def test_shared_prefill_chat_template_raises_on_unstable_boundary() -> None:
+    example = make_training_example("ex-1")
+
+    with pytest.raises(DataDisciplineError, match="chat-template prefix/suffix split"):
+        encode_example(
+            example,
+            _BoundaryMergingChatTokenizer(),
+            shared_prefill=True,
+            use_chat_template=True,
+        )
+
+
+def test_naive_chat_template_is_unaffected_by_the_same_unstable_boundary() -> None:
+    example = make_training_example("ex-1")
+
+    sequences = encode_example(
+        example,
+        _BoundaryMergingChatTokenizer(),
+        shared_prefill=False,
+        use_chat_template=True,
+    )
+
+    assert len(sequences) == 11

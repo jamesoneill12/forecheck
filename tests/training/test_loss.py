@@ -77,6 +77,7 @@ def test_candidate_cross_entropy_applies_dimension_weights() -> None:
     from forecheck.training.loss import candidate_cross_entropy
 
     logits = torch.zeros((2, 4))
+    logits[0, 1] = 3.0
     dimensions = [RiskDimension.FINANCIAL_COMMITMENT, RiskDimension.UNAUTHORIZED_SCOPE]
     labels = [LabelValue.YES, LabelValue.YES]
 

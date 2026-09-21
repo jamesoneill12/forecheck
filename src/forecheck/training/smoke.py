@@ -134,7 +134,7 @@ def build_smoke_config(
     return TrainConfig(
         model=ModelConfig(base_id=model_id, dtype="fp32", attn_implementation="eager"),
         lora=LoraConfig(r=4, alpha=8, dropout=0.0, target_modules=("q_proj", "v_proj")),
-        data=DataConfig(dir=data_dir, max_prompt_tokens=512),
+        data=DataConfig(dir=data_dir, max_prompt_tokens=1024),
         optim=OptimConfig(
             lr=1e-3,
             epochs=steps,
@@ -150,6 +150,7 @@ def build_smoke_config(
             early_stop_patience=100,
             resume_from=resume_from,
             shared_prefill=True,
+            use_chat_template=False,  # tiny-random-Llama ships no chat template
         ),
         tracking=TrackingConfig(backend="local"),
         output=OutputConfig(dir=output_dir),

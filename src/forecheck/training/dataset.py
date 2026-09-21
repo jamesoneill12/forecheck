@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Protocol
 
 from forecheck.contracts import Example, LabelValue, Limits, RiskDimension, Split, UsageRestriction
 from forecheck.data.io import read_jsonl
+from forecheck.inference.chat_template import plan_chat_prefill, render_full_chat_text
 from forecheck.inference.prompt import QUESTIONS
 from forecheck.inference.serialization import render_context
 
@@ -160,20 +161,122 @@ def _encode_naive(
     )
 
 
+def _encode_shared_chat(
+    example: Example,
+    tokenizer: TokenizerLike,
+    context_text: str,
+    max_prompt_tokens: int,
+    *,
+    enable_thinking: bool,
+) -> EncodedSequence:
+    input_ids: list[int] = []
+    block_ids: list[int] = []
+    targets: list[QuestionTarget] = []
+    shared_prefix_ids: tuple[int, ...] | None = None
+    for block_index, dimension in enumerate(DIMENSION_ORDER, start=1):
+        plan = plan_chat_prefill(
+            tokenizer, context_text, QUESTIONS[dimension], enable_thinking=enable_thinking
+        )
+        if plan is None:
+            raise DataDisciplineError(
+                f"example {example.example_id!r}: chat-template prefix/suffix split is "
+                f"not a prefix-match of the full tokenization for dimension "
+                f"{dimension.value!r}; cannot build a shared-prefill sequence"
+            )
+        if shared_prefix_ids is None:
+            shared_prefix_ids = plan.prefix_ids
+            input_ids.extend(shared_prefix_ids)
+            block_ids.extend([CONTEXT_BLOCK_ID] * len(shared_prefix_ids))
+        elif plan.prefix_ids != shared_prefix_ids:
+            raise DataDisciplineError(
+                f"example {example.example_id!r}: chat-template prefix differs between "
+                f"questions; cannot build a shared-prefill sequence"
+            )
+        input_ids.extend(plan.suffix_ids)
+        block_ids.extend([block_index] * len(plan.suffix_ids))
+        targets.append(
+            QuestionTarget(
+                dimension=dimension,
+                position=len(input_ids) - 1,
+                label=example.labels.values[dimension],
+            )
+        )
+    _check_budget(example.example_id, len(input_ids), max_prompt_tokens)
+    return EncodedSequence(
+        example_id=example.example_id,
+        input_ids=tuple(input_ids),
+        block_ids=tuple(block_ids),
+        targets=tuple(targets),
+    )
+
+
+def _encode_naive_chat(
+    example: Example,
+    tokenizer: TokenizerLike,
+    context_text: str,
+    dimension: RiskDimension,
+    max_prompt_tokens: int,
+    *,
+    enable_thinking: bool,
+) -> EncodedSequence:
+    full_text = render_full_chat_text(
+        tokenizer, context_text, QUESTIONS[dimension], enable_thinking=enable_thinking
+    )
+    input_ids = list(tokenizer.encode(full_text, add_special_tokens=False))
+    _check_budget(example.example_id, len(input_ids), max_prompt_tokens)
+    target = QuestionTarget(
+        dimension=dimension,
+        position=len(input_ids) - 1,
+        label=example.labels.values[dimension],
+    )
+    return EncodedSequence(
+        example_id=example.example_id,
+        input_ids=tuple(input_ids),
+        block_ids=tuple([CONTEXT_BLOCK_ID] * len(input_ids)),
+        targets=(target,),
+    )
+
+
 def encode_example(
     example: Example,
     tokenizer: TokenizerLike,
     *,
     shared_prefill: bool = True,
     max_prompt_tokens: int = Limits.MAX_PROMPT_TOKENS,
+    use_chat_template: bool = False,
+    enable_thinking: bool = False,
 ) -> list[EncodedSequence]:
     """Encode one example: one sequence if ``shared_prefill``, else eleven.
 
     The eleven per-dimension targets carry every :class:`~forecheck.contracts.LabelValue`
     unchanged, including ``NOT_APPLICABLE``/``UNDETERMINED``; masking those out of the
-    loss is :mod:`forecheck.training.loss`'s job, not this module's.
+    loss is :mod:`forecheck.training.loss`'s job, not this module's. ``use_chat_template``
+    routes context+question through :mod:`forecheck.inference.chat_template`, the same
+    helper :mod:`forecheck.inference.hf` uses to serve, so train and serve stay in sync.
     """
     context_text = render_context(example.context)
+    if use_chat_template:
+        if shared_prefill:
+            return [
+                _encode_shared_chat(
+                    example,
+                    tokenizer,
+                    context_text,
+                    max_prompt_tokens,
+                    enable_thinking=enable_thinking,
+                )
+            ]
+        return [
+            _encode_naive_chat(
+                example,
+                tokenizer,
+                context_text,
+                dimension,
+                max_prompt_tokens,
+                enable_thinking=enable_thinking,
+            )
+            for dimension in DIMENSION_ORDER
+        ]
     context_ids = list(tokenizer.encode(context_text))
     if shared_prefill:
         return [_encode_shared(example, tokenizer, context_ids, max_prompt_tokens)]
@@ -197,11 +300,15 @@ class TrainableExampleDataset:
         *,
         shared_prefill: bool = True,
         max_prompt_tokens: int = Limits.MAX_PROMPT_TOKENS,
+        use_chat_template: bool = False,
+        enable_thinking: bool = False,
     ) -> None:
         self._examples = examples
         self._tokenizer = tokenizer
         self._shared_prefill = shared_prefill
         self._max_prompt_tokens = max_prompt_tokens
+        self._use_chat_template = use_chat_template
+        self._enable_thinking = enable_thinking
         self._cache: dict[int, list[EncodedSequence]] = {}
 
     def __len__(self) -> int:
@@ -216,6 +323,8 @@ class TrainableExampleDataset:
             self._tokenizer,
             shared_prefill=self._shared_prefill,
             max_prompt_tokens=self._max_prompt_tokens,
+            use_chat_template=self._use_chat_template,
+            enable_thinking=self._enable_thinking,
         )
         self._cache[index] = encoded
         return encoded

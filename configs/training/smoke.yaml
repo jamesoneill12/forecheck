@@ -14,7 +14,7 @@ data:
   dir: data/fixtures
   train_split: train
   dev_split: dev
-  max_prompt_tokens: 512
+  max_prompt_tokens: 1024
   dimension_weights: {}
 
 optim:
@@ -34,6 +34,7 @@ train:
   save_every: 10
   early_stop_patience: 100
   shared_prefill: true
+  use_chat_template: false
 
 tracking:
   backend: local

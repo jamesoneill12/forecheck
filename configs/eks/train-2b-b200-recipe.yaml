@@ -3,7 +3,7 @@
 trainer:
   runtime_name: "torch-runtime"
   project_name: "forecheck"
-  experiment_name: "train-1b-lora-synthetic-v1"
+  experiment_name: "train-2b-lora-synthetic-v1"
 
   ecr_image: "nvcr.io/nvidia/pytorch:25.06-py3"
 
@@ -13,13 +13,13 @@ trainer:
     pip install -q --no-cache-dir -e ".[train]" &&
     forecheck data generate --offline --config configs/data/train_medium.yaml --out /opt/ml/fsx/forecheck/data/v1 &&
     forecheck data split /opt/ml/fsx/forecheck/data/v1 &&
-    forecheck train --config configs/training/1b.yaml
+    forecheck train --config configs/training/2b.yaml
       data.dir=/opt/ml/fsx/forecheck/data/v1
-      output.dir=/opt/ml/fsx/forecheck/runs/1b-synthetic-v1
+      output.dir=/opt/ml/fsx/forecheck/runs/2b-synthetic-v1
       tracking.backend=local &&
-    forecheck calibrate --run /opt/ml/fsx/forecheck/runs/1b-synthetic-v1 --split calibration &&
-    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/1b-synthetic-v1 --split test --class synthetic_in_distribution &&
-    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/1b-synthetic-v1 --split heldout_family --class synthetic_heldout_adversarial'
+    forecheck calibrate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v1 --split calibration &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v1 --split test --class synthetic_in_distribution &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v1 --split heldout_family --class synthetic_heldout_adversarial'
 
   env_vars:
     FORECHECK_TRACKING_BACKEND: "local"

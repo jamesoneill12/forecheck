@@ -25,8 +25,14 @@ __all__ = [
     "QUESTIONS",
     "SECTION_ORDER",
     "SYSTEM_PREAMBLE",
+    "USE_CHAT_TEMPLATE_DEFAULT",
     "prompt_contract_hash",
 ]
+
+USE_CHAT_TEMPLATE_DEFAULT: Final[bool] = True
+"""Default for the ``use_chat_template`` scoring/training option (see ADR 0004
+Amendment 2026-09-20). Part of the hash below because it changes the literal text a
+model sees for the same :class:`~forecheck.contracts.ActionContext`."""
 
 SYSTEM_PREAMBLE: Final[str] = (
     "You are assessing a single proposed AI-agent action for descriptive risk factors. "
@@ -109,6 +115,8 @@ def _compute_prompt_contract_hash() -> str:
         digest.update(b"=")
         digest.update(QUESTIONS[dimension].encode("utf-8"))
         digest.update(b"\x00")
+    digest.update(str(USE_CHAT_TEMPLATE_DEFAULT).encode("utf-8"))
+    digest.update(b"\x00")
     digest.update(PROMPT_CONTRACT_VERSION.encode("utf-8"))
     return digest.hexdigest()
 

@@ -57,9 +57,34 @@ class FakeTokenizer:
         return 0
 
 
+class FakeChatTokenizer(FakeTokenizer):
+    """A :class:`FakeTokenizer` with a real (non-merging) chat template, for exercising
+    ``use_chat_template=True`` without a real tokenizer's ``apply_chat_template``."""
+
+    def apply_chat_template(
+        self,
+        messages: list[dict[str, str]],
+        *,
+        add_generation_prompt: bool = True,
+        tokenize: bool = False,
+        **kwargs: object,
+    ) -> str:
+        system = next(m["content"] for m in messages if m["role"] == "system")
+        user = next(m["content"] for m in messages if m["role"] == "user")
+        text = f"<sys>{system}</sys><user>{user}</user>"
+        if add_generation_prompt:
+            text += "<assistant>"
+        return text
+
+
 @pytest.fixture
 def fake_tokenizer() -> FakeTokenizer:
     return FakeTokenizer()
+
+
+@pytest.fixture
+def fake_chat_tokenizer() -> FakeChatTokenizer:
+    return FakeChatTokenizer()
 
 
 def make_training_example(
@@ -107,4 +132,10 @@ def make_training_example(
     )
 
 
-__all__ = ["FakeTokenizer", "fake_tokenizer", "make_training_example"]
+__all__ = [
+    "FakeChatTokenizer",
+    "FakeTokenizer",
+    "fake_chat_tokenizer",
+    "fake_tokenizer",
+    "make_training_example",
+]
