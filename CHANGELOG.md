@@ -7,6 +7,22 @@ separately — see ADR 0002.
 ## [Unreleased]
 
 ### Added
+- Expected-cost decision mode for the policy engine (`policy DSL` 1.0 -> 1.1, additive,
+  ADR 0002): `PolicyBundle.decision_mode: threshold | expected_cost` and an optional
+  per-rule `cost: {allow_if_risky, review, deny_if_benign}` block, with a
+  severity-derived default cost table (`default_cost_for_dimension` in
+  `policies/dsl.py`). Under `expected_cost`, `DeterministicPolicyEngine` picks the
+  ALLOW/REVIEW/DENY that minimises expected cost over the bundle's covered
+  dimensions' probabilities jointly (`policies/engine.py::expected_costs`), ties break
+  to the more restrictive decision, and a fired `hard` rule still forces DENY. Records
+  a `DecisionTrace` (mode + the three expected costs + pre-override argmin) on
+  `PolicyDecision` when this mode is used. New `expected_cost_joint` strategy in
+  `evaluation/stacking.py` and a property test
+  (`test_expected_cost_joint_fpr_bounded_while_independent_fpr_grows_with_k`) showing
+  its false-positive rate stays bounded as k grows where `independent`'s does not.
+  New example bundle `policies/expected-cost-example.yaml`. Documented in
+  `docs/policy-dsl.md` and `docs/evaluation/multi-policy-stacking.md`. The loader now
+  only rejects a major `dsl_version` mismatch, so existing `1.0` bundles are unaffected.
 - Feedback contract and flywheel: `FeedbackRecord`/`FeedbackAck` in `contracts/io.py`,
   a new `FeedbackOutcome` enum (`approved`/`rejected`/`modified`/`escalated`/`expired`),
   a `POST /v1/feedback` route backed by a pluggable `FeedbackSink` (default: an

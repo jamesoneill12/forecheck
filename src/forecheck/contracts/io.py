@@ -18,6 +18,7 @@ from forecheck.contracts.enums import (
     AbstentionReason,
     CalibrationMethod,
     Decision,
+    DecisionMode,
     FeedbackOutcome,
     LabelValue,
     ObligationKind,
@@ -34,6 +35,7 @@ __all__ = [
     "ClassifyOptions",
     "ClassifyRequest",
     "ClassifyResponse",
+    "DecisionTrace",
     "DimensionScore",
     "FeedbackAck",
     "FeedbackRecord",
@@ -204,6 +206,24 @@ class RuleMatch(_Model):
     )
 
 
+class DecisionTrace(_Model):
+    """Records how :class:`PolicyDecision` was reached under ``decision_mode: expected_cost``.
+
+    Present only when a bundle's ``decision_mode`` is ``expected_cost``; a
+    ``threshold``-mode decision carries no trace, since ``matched_rules`` already
+    replays it fully. The three costs are ``E[c(ALLOW)]``, ``E[c(REVIEW)]`` and
+    ``E[c(DENY)]`` from ``docs/policy-dsl.md``'s objective; ``decision`` is their
+    argmin before any ``hard`` rule override is applied.
+    """
+
+    mode: DecisionMode
+    expected_cost_allow: float
+    expected_cost_review: float
+    expected_cost_deny: float
+    argmin_decision: Decision
+    hard_override_applied: bool = False
+
+
 class PolicyEvaluateRequest(_Model):
     """Evaluate a policy bundle against scores.
 
@@ -236,6 +256,7 @@ class PolicyDecision(_Model):
     policy_bundle_hash: str
     classification: ClassifyResponse | None = None
     evaluated_at: datetime | None = None
+    decision_trace: DecisionTrace | None = None
 
 
 class FeedbackRecord(_Model):

@@ -20,7 +20,7 @@ from forecheck.evaluation.stacking import (
     stacking_report,
     synthetic_dimension_policies,
 )
-from forecheck.policies.dsl import Condition, PolicyBundle, Rule, RuleKind, UnknownAs
+from forecheck.policies.dsl import Condition, Cost, PolicyBundle, Rule, RuleKind, UnknownAs
 
 MODEL_INFO = ModelInfo(
     backend="stub", model_id="stub-v1", prompt_contract_hash="n/a", label_schema_version="1.0"
@@ -235,5 +235,80 @@ def test_false_negative_rate_counts_missed_covered_positives() -> None:
 
     report = stacking_report([risky], [response], policies)
     for row in report.rows:
-        assert row.false_negative_rate == 1.0
         assert row.n_covered_risky == 1
+        if row.strategy in ("independent", "joint"):
+            assert row.false_negative_rate == 1.0
+        else:
+            # expected_cost_joint picks REVIEW here, not ALLOW, so it is not a false negative.
+            assert row.false_negative_rate == 0.0
+
+
+_SYMMETRIC_COST = Cost(allow_if_risky=1.0, review=0.5, deny_if_benign=1.0)
+
+
+def _symmetric_cost_policies(n: int) -> list[PolicyBundle]:
+    """First n synthetic dimension policies, each rule given ``_SYMMETRIC_COST``.
+
+    ``allow_if_risky == deny_if_benign`` isolates the effect of aggregating
+    probabilities jointly (``expected_cost_joint``) from any cost asymmetry.
+    """
+    policies = synthetic_dimension_policies()[:n]
+    for policy in policies:
+        policy.rules[0] = policy.rules[0].model_copy(update={"cost": _SYMMETRIC_COST})
+    return policies
+
+
+def _own_dim_spiky_examples_and_responses(
+    n: int, *, spike: float = 0.9, baseline: float = 0.2
+) -> tuple[list, list[ClassifyResponse]]:
+    """n benign examples; example i's own dimension i is spiked to ``spike``, every
+    other dimension sits at ``baseline`` (below the 0.5 threshold, so no independent
+    guard fires on it alone)."""
+    examples = [make_example(f"benign-{i}", family_id=f"fam-{i}") for i in range(n)]
+    responses = [_response({DIMS[i]: spike}, default=baseline) for i in range(n)]
+    return examples, responses
+
+
+def test_expected_cost_joint_fpr_bounded_while_independent_fpr_grows_with_k() -> None:
+    """Property: with symmetric costs, stacking more guards compounds independent's
+    false-positive rate (each guard's own miscalibrated dimension flags one more
+    example, forever), but expected_cost_joint aggregates the whole probability
+    vector, so a single spiky dimension is outweighed by the other covered
+    dimensions' low baseline probabilities once there are enough of them, and the
+    false positive is corrected rather than compounded.
+    """
+    n = 6
+    examples, responses = _own_dim_spiky_examples_and_responses(n)
+    policies = _symmetric_cost_policies(n)
+
+    report = stacking_report(examples, responses, policies)
+    by_k: dict[int, dict[str, float | None]] = {}
+    for row in report.rows:
+        by_k.setdefault(row.k, {})[row.strategy] = row.false_positive_rate
+
+    independent_fprs = [by_k[k]["independent"] for k in range(1, n + 1)]
+    joint_fprs = [by_k[k]["joint"] for k in range(1, n + 1)]
+    expected_cost_fprs = [by_k[k]["expected_cost_joint"] for k in range(1, n + 1)]
+
+    assert independent_fprs == [k / n for k in range(1, n + 1)]
+    assert joint_fprs == independent_fprs
+    assert independent_fprs[-1] == 1.0
+
+    assert expected_cost_fprs == [1 / 6, 2 / 6, 0.0, 0.0, 0.0, 0.0]
+    assert max(expected_cost_fprs) < 1.0
+    assert all(ec <= ind for ec, ind in zip(expected_cost_fprs, independent_fprs, strict=True))
+
+
+def test_expected_cost_joint_fnr_not_worse_than_independent_at_k1() -> None:
+    policies = _symmetric_cost_policies(1)
+    risky = make_example("risky", labels=all_no_labels(**{DIMS[0]: LabelValue.YES}))
+    response = _response({DIMS[0]: 0.9}, default=0.2)
+
+    report = stacking_report([risky], [response], policies)
+    by_strategy = {row.strategy: row for row in report.rows if row.k == 1}
+
+    assert by_strategy["expected_cost_joint"].false_negative_rate is not None
+    assert (
+        by_strategy["expected_cost_joint"].false_negative_rate
+        <= by_strategy["independent"].false_negative_rate
+    )

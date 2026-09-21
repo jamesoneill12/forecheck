@@ -128,7 +128,7 @@ def test_evaluate_with_stacking_synthetic_populates_stacking_report() -> None:
     ks = {row.k for row in report.stacking.rows}
     assert ks == set(range(1, 12))
     strategies = {row.strategy for row in report.stacking.rows}
-    assert strategies == {"independent", "joint"}
+    assert strategies == {"independent", "joint", "expected_cost_joint"}
 
 
 def test_evaluate_without_stacking_flags_has_no_stacking_report() -> None:

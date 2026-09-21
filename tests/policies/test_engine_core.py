@@ -7,14 +7,19 @@ from hypothesis import strategies as st
 
 from forecheck.contracts import (
     Decision,
+    DecisionMode,
     Obligation,
     ObligationKind,
     RiskDimension,
     RuleKind,
     RuleMatch,
 )
-from forecheck.policies.dsl import PolicyBundle, Rule, UnknownAs
-from forecheck.policies.engine import DeterministicPolicyEngine, combine_matched_rules
+from forecheck.policies.dsl import Cost, PolicyBundle, Rule, UnknownAs
+from forecheck.policies.engine import (
+    DeterministicPolicyEngine,
+    combine_matched_rules,
+    expected_costs,
+)
 from forecheck.policies.loader import hash_bundle
 
 from .conftest import make_classification, make_context
@@ -258,6 +263,137 @@ def test_context_supplied_known_false_fact_does_not_fire() -> None:
     classification = make_classification({})
     decision = engine.evaluate(classification, context=make_context())
     assert decision.decision is Decision.ALLOW
+
+
+def _expected_cost_engine(
+    rules: list[Rule], *, default_decision: Decision = Decision.REVIEW
+) -> DeterministicPolicyEngine:
+    bundle = PolicyBundle.model_validate(
+        {
+            "bundle_id": "ec-bundle",
+            "version": 1,
+            "dsl_version": "1.1",
+            "description": "test",
+            "default_decision": default_decision,
+            "decision_mode": "expected_cost",
+            "rules": rules,
+        }
+    )
+    return DeterministicPolicyEngine(bundle, hash_bundle(bundle))
+
+
+_SYMMETRIC = Cost(allow_if_risky=1.0, review=10.0, deny_if_benign=1.0)
+
+
+def _cost_rule(rule_id: str, dimension: RiskDimension, *, cost: Cost, hard: bool = False) -> Rule:
+    return Rule.model_validate(
+        {
+            "id": rule_id,
+            "description": "test",
+            "decision": "deny" if hard else "review",
+            "hard": hard,
+            "when": {"score": dimension.value, "gte": 0.9 if hard else 0.0001},
+            "cost": cost.model_dump(),
+        }
+    )
+
+
+def test_expected_cost_picks_allow_when_cheapest() -> None:
+    engine = _expected_cost_engine(
+        [_cost_rule("r1", RiskDimension.FINANCIAL_COMMITMENT, cost=_SYMMETRIC)]
+    )
+    classification = make_classification({RiskDimension.FINANCIAL_COMMITMENT: 0.1})
+    decision = engine.evaluate(classification)
+    assert decision.decision is Decision.ALLOW
+    assert decision.decision_trace is not None
+    assert decision.decision_trace.mode is DecisionMode.EXPECTED_COST
+
+
+def test_expected_cost_picks_deny_when_cheapest() -> None:
+    engine = _expected_cost_engine(
+        [_cost_rule("r1", RiskDimension.FINANCIAL_COMMITMENT, cost=_SYMMETRIC)]
+    )
+    classification = make_classification({RiskDimension.FINANCIAL_COMMITMENT: 0.9})
+    decision = engine.evaluate(classification)
+    assert decision.decision is Decision.DENY
+
+
+def test_expected_cost_tie_breaks_to_more_restrictive() -> None:
+    engine = _expected_cost_engine(
+        [_cost_rule("r1", RiskDimension.FINANCIAL_COMMITMENT, cost=_SYMMETRIC)]
+    )
+    classification = make_classification({RiskDimension.FINANCIAL_COMMITMENT: 0.5})
+    decision = engine.evaluate(classification)
+    trace = decision.decision_trace
+    assert trace is not None
+    assert trace.expected_cost_allow == trace.expected_cost_deny
+    assert decision.decision is Decision.DENY
+
+
+def test_expected_cost_hard_rule_forces_deny_over_a_cheaper_allow_argmin() -> None:
+    cheap_allow_expensive_deny = Cost(allow_if_risky=0.01, review=5.0, deny_if_benign=5.0)
+    engine = _expected_cost_engine(
+        [
+            _cost_rule(
+                "hard_but_cheap_argmin",
+                RiskDimension.FINANCIAL_COMMITMENT,
+                cost=cheap_allow_expensive_deny,
+                hard=True,
+            )
+        ]
+    )
+    classification = make_classification({RiskDimension.FINANCIAL_COMMITMENT: 0.95})
+    decision = engine.evaluate(classification)
+    assert decision.decision is Decision.DENY
+    trace = decision.decision_trace
+    assert trace is not None
+    assert trace.argmin_decision is Decision.ALLOW
+    assert trace.hard_override_applied is True
+
+
+def test_expected_cost_decision_trace_matches_expected_costs_helper() -> None:
+    rules = [_cost_rule("r1", RiskDimension.FINANCIAL_COMMITMENT, cost=_SYMMETRIC)]
+    engine = _expected_cost_engine(rules)
+    classification = make_classification({RiskDimension.FINANCIAL_COMMITMENT: 0.3})
+    decision = engine.evaluate(classification)
+    costs = expected_costs(engine.bundle, classification)
+    trace = decision.decision_trace
+    assert trace is not None
+    assert trace.expected_cost_allow == costs.allow
+    assert trace.expected_cost_review == costs.review
+    assert trace.expected_cost_deny == costs.deny
+
+
+def test_threshold_mode_bundle_has_no_decision_trace() -> None:
+    engine = _engine(
+        default_decision=Decision.ALLOW,
+        rules=[_deny_rule("d", RiskDimension.FINANCIAL_COMMITMENT)],
+    )
+    classification = make_classification({RiskDimension.FINANCIAL_COMMITMENT: 0.9})
+    decision = engine.evaluate(classification)
+    assert decision.decision_trace is None
+
+
+def test_expected_cost_abstained_dimension_contributes_nothing() -> None:
+    rules = [
+        _cost_rule("r1", RiskDimension.FINANCIAL_COMMITMENT, cost=_SYMMETRIC),
+        _cost_rule("r2", RiskDimension.PRIVILEGE_ESCALATION, cost=_SYMMETRIC),
+    ]
+    engine = _expected_cost_engine(rules)
+    classification = make_classification(
+        {RiskDimension.FINANCIAL_COMMITMENT: 0.1},
+        abstained=[RiskDimension.PRIVILEGE_ESCALATION],
+    )
+    decision = engine.evaluate(classification)
+    solo_engine = _expected_cost_engine([rules[0]])
+    solo_classification = make_classification({RiskDimension.FINANCIAL_COMMITMENT: 0.1})
+    solo_decision = solo_engine.evaluate(solo_classification)
+    assert decision.decision_trace is not None
+    assert solo_decision.decision_trace is not None
+    assert (
+        decision.decision_trace.expected_cost_allow
+        == solo_decision.decision_trace.expected_cost_allow
+    )
 
 
 DIMENSION_STRATEGY = st.sampled_from(list(RiskDimension))

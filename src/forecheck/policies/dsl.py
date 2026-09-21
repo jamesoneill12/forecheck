@@ -18,14 +18,26 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from forecheck.contracts import Decision, ObligationKind, RiskDimension, RuleKind
+from forecheck.contracts import (
+    META_DIMENSIONS,
+    Decision,
+    DecisionMode,
+    ObligationKind,
+    RiskDimension,
+    RuleKind,
+)
 
 __all__ = [
+    "CRITICAL_COST_DIMENSIONS",
+    "HIGH_COST_DIMENSIONS",
     "Condition",
+    "Cost",
+    "DecisionMode",
     "FactValue",
     "PolicyBundle",
     "Rule",
     "UnknownAs",
+    "default_cost_for_dimension",
 ]
 
 FactValue = bool | int | float | str
@@ -58,6 +70,68 @@ class UnknownAs(StrEnum):
 
 class _Model(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, populate_by_name=True)
+
+
+class Cost(_Model):
+    """Cost block for ``decision_mode: expected_cost``.
+
+    ``allow_if_risky`` is paid when ``ALLOW`` is chosen and the dimension is truly
+    risky; ``deny_if_benign`` is paid when ``DENY`` is chosen and the dimension is
+    truly benign; ``review`` is paid whenever ``REVIEW`` is chosen, regardless of
+    truth. See :func:`default_cost_for_dimension` for the severity-derived defaults
+    and ``docs/policy-dsl.md`` for the objective these feed.
+    """
+
+    allow_if_risky: float = Field(gt=0.0)
+    review: float = Field(ge=0.0)
+    deny_if_benign: float = Field(gt=0.0)
+
+
+CRITICAL_COST_DIMENSIONS: frozenset[RiskDimension] = frozenset(
+    {
+        RiskDimension.DESTRUCTIVE_OR_IRREVERSIBLE_ACTION,
+        RiskDimension.SENSITIVE_DATA_EXPOSURE,
+        RiskDimension.UNTRUSTED_DESTINATION,
+    }
+)
+"""Irreversible-or-exfiltration dimensions: the highest default cost tier."""
+
+HIGH_COST_DIMENSIONS: frozenset[RiskDimension] = frozenset(
+    {
+        RiskDimension.PRIVILEGE_ESCALATION,
+        RiskDimension.FINANCIAL_COMMITMENT,
+        RiskDimension.UNAUTHORIZED_SCOPE,
+    }
+)
+"""High-severity dimensions that are neither irreversible nor exfiltration."""
+
+_COST_BY_TIER: dict[str, Cost] = {
+    "critical": Cost(allow_if_risky=10.0, review=0.5, deny_if_benign=2.0),
+    "high": Cost(allow_if_risky=5.0, review=0.3, deny_if_benign=1.5),
+    "standard": Cost(allow_if_risky=3.0, review=0.2, deny_if_benign=1.0),
+    "meta": Cost(allow_if_risky=1.0, review=0.1, deny_if_benign=1.0),
+}
+
+
+def default_cost_for_dimension(dimension: RiskDimension) -> Cost:
+    """Severity-derived default :class:`Cost` for a dimension with no explicit block.
+
+    | Tier | Membership | allow_if_risky | review | deny_if_benign |
+    |---|---|---|---|---|
+    | critical | :data:`CRITICAL_COST_DIMENSIONS` | 10.0 | 0.5 | 2.0 |
+    | high | :data:`HIGH_COST_DIMENSIONS` | 5.0 | 0.3 | 1.5 |
+    | meta | :data:`~forecheck.contracts.META_DIMENSIONS` | 1.0 | 0.1 | 1.0 |
+    | standard | everything else | 3.0 | 0.2 | 1.0 |
+
+    Full worked table and rationale: ``docs/policy-dsl.md``.
+    """
+    if dimension in CRITICAL_COST_DIMENSIONS:
+        return _COST_BY_TIER["critical"]
+    if dimension in HIGH_COST_DIMENSIONS:
+        return _COST_BY_TIER["high"]
+    if dimension in META_DIMENSIONS:
+        return _COST_BY_TIER["meta"]
+    return _COST_BY_TIER["standard"]
 
 
 class Condition(_Model):
@@ -128,6 +202,12 @@ class Rule(_Model):
     hard: bool = False
     kind: RuleKind = RuleKind.STANDARD
     obligations: list[ObligationKind] = Field(default_factory=list)
+    cost: Cost | None = Field(
+        default=None,
+        description="Only consulted under decision_mode: expected_cost. Overrides "
+        "default_cost_for_dimension() for whichever RiskDimension(s) this rule's "
+        "'when' tree references.",
+    )
 
     @model_validator(mode="after")
     def _allow_override_constraints(self) -> Rule:
@@ -159,6 +239,7 @@ class PolicyBundle(_Model):
     uncalibrated_decision: Decision = Decision.REVIEW
     allow_uncalibrated: bool = False
     unknown_as: UnknownAs = UnknownAs.WORST_CASE
+    decision_mode: DecisionMode = DecisionMode.THRESHOLD
     rules: list[Rule] = Field(default_factory=list)
 
     @model_validator(mode="after")

@@ -31,6 +31,15 @@ defensible policy for a specific operating posture, not a placeholder.
   flagged `hard`, so no `allow_override` rule in that bundle -- however broad -- can
   turn one of those specific fired denies into an ALLOW.
 
+## Expected-cost decision mode
+
+All three bundles above use `decision_mode: threshold` (the default): most-restrictive
+rule wins. `expected-cost-example.yaml` demonstrates the alternative,
+`decision_mode: expected_cost`, which picks whichever of ALLOW/REVIEW/DENY minimises
+expected cost over the bundle's covered dimensions' probabilities jointly, rather than
+each rule checking only its own threshold. See `docs/policy-dsl.md` for the DSL
+fields, the severity-derived default cost table, and a worked example.
+
 ## Choosing a bundle at runtime
 
 `policy_bundle_id` on a `PolicyEvaluateRequest` selects one of these by name (or a

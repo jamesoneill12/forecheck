@@ -233,7 +233,7 @@ def test_evaluate_command_stacking_synthetic_writes_stacking_section(
 
     report = json.loads((run_dir / "reports" / "test" / "report.json").read_text())
     assert report["stacking"] is not None
-    assert len(report["stacking"]["rows"]) == 22
+    assert len(report["stacking"]["rows"]) == 33
     markdown = (run_dir / "reports" / "test" / "report.md").read_text()
     assert "## Multi-policy stacking" in markdown
 

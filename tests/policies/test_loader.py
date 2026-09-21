@@ -102,3 +102,24 @@ def test_available_bundle_names() -> None:
 def test_unknown_builtin_bundle_name_raises() -> None:
     with pytest.raises(KeyError):
         builtin_bundle_path("nonexistent")
+
+
+def test_load_accepts_same_major_minor_dsl_version() -> None:
+    yaml_text = MINIMAL_VALID_YAML.replace('dsl_version: "1.0"', 'dsl_version: "1.1"')
+    bundle = load_bundle_yaml(yaml_text)
+    assert bundle.dsl_version == "1.1"
+
+
+def test_load_rejects_wrong_dsl_major_version() -> None:
+    yaml_text = MINIMAL_VALID_YAML.replace('dsl_version: "1.0"', 'dsl_version: "2.0"')
+    with pytest.raises(ForecheckError) as excinfo:
+        load_bundle_yaml(yaml_text)
+    assert excinfo.value.code is ErrorCode.POLICY_BUNDLE_INVALID
+
+
+def test_expected_cost_example_bundle_loads(policies_dir: Path) -> None:
+    bundle = load_bundle_file(policies_dir / "expected-cost-example.yaml")
+    assert bundle.bundle_id == "expected-cost-example"
+    assert bundle.decision_mode.value == "expected_cost"
+    assert any(rule.hard for rule in bundle.rules)
+    assert any(rule.cost is not None for rule in bundle.rules)

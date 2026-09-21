@@ -5,8 +5,16 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from forecheck.contracts import Decision, ObligationKind, RiskDimension, RuleKind
-from forecheck.policies.dsl import Condition, PolicyBundle, Rule
+from forecheck.contracts import Decision, DecisionMode, ObligationKind, RiskDimension, RuleKind
+from forecheck.policies.dsl import (
+    CRITICAL_COST_DIMENSIONS,
+    HIGH_COST_DIMENSIONS,
+    Condition,
+    Cost,
+    PolicyBundle,
+    Rule,
+    default_cost_for_dimension,
+)
 
 
 def _bundle(**overrides: object) -> dict[str, object]:
@@ -151,3 +159,62 @@ def test_bundle_defaults() -> None:
 def test_score_condition_accepts_every_risk_dimension() -> None:
     for dimension in RiskDimension:
         Condition.model_validate({"score": dimension.value, "gte": 0.1})
+
+
+def test_bundle_decision_mode_defaults_to_threshold() -> None:
+    bundle = PolicyBundle.model_validate(_bundle())
+    assert bundle.decision_mode is DecisionMode.THRESHOLD
+
+
+def test_bundle_decision_mode_expected_cost_round_trips() -> None:
+    bundle = PolicyBundle.model_validate(_bundle(decision_mode="expected_cost"))
+    assert bundle.decision_mode is DecisionMode.EXPECTED_COST
+
+
+def test_rule_cost_defaults_to_none() -> None:
+    rule = Rule.model_validate(
+        {
+            "id": "r",
+            "description": "d",
+            "decision": "review",
+            "when": {"score": "policy_conflict", "gte": 0.5},
+        }
+    )
+    assert rule.cost is None
+
+
+def test_rule_cost_parses_and_round_trips() -> None:
+    rule = Rule.model_validate(
+        {
+            "id": "r",
+            "description": "d",
+            "decision": "review",
+            "when": {"score": "policy_conflict", "gte": 0.5},
+            "cost": {"allow_if_risky": 4.0, "review": 0.25, "deny_if_benign": 1.5},
+        }
+    )
+    assert rule.cost == Cost(allow_if_risky=4.0, review=0.25, deny_if_benign=1.5)
+
+
+def test_cost_requires_positive_allow_and_deny_costs() -> None:
+    with pytest.raises(ValidationError):
+        Cost.model_validate({"allow_if_risky": 0.0, "review": 0.1, "deny_if_benign": 1.0})
+    with pytest.raises(ValidationError):
+        Cost.model_validate({"allow_if_risky": 1.0, "review": 0.1, "deny_if_benign": 0.0})
+
+
+def test_default_cost_for_dimension_follows_severity_table() -> None:
+    for dimension in CRITICAL_COST_DIMENSIONS:
+        assert default_cost_for_dimension(dimension) == Cost(
+            allow_if_risky=10.0, review=0.5, deny_if_benign=2.0
+        )
+    for dimension in HIGH_COST_DIMENSIONS:
+        assert default_cost_for_dimension(dimension) == Cost(
+            allow_if_risky=5.0, review=0.3, deny_if_benign=1.5
+        )
+    assert default_cost_for_dimension(RiskDimension.INSUFFICIENT_CONTEXT) == Cost(
+        allow_if_risky=1.0, review=0.1, deny_if_benign=1.0
+    )
+    assert default_cost_for_dimension(RiskDimension.PROMPT_INJECTION_INFLUENCE) == Cost(
+        allow_if_risky=3.0, review=0.2, deny_if_benign=1.0
+    )

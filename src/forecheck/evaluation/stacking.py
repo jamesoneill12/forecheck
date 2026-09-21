@@ -1,14 +1,18 @@
 """Multi-policy stacking evaluation.
 
-Measures the difference between two ways of combining K policies over the same
+Measures the difference between three ways of combining K policies over the same
 probability vector: ``independent`` evaluates each of the first k policies on its
 own and takes the most severe of the k final decisions (OR-of-guards); ``joint``
 merges the first k policies' rules into one bundle and evaluates it once with the
 forecheck engine's own combination rule
-(:func:`forecheck.policies.engine.combine_matched_rules`). See
-``tests/evaluation/test_stacking.py`` for the exact equivalence this guarantees
-for rule sets with no hard/allow_override rules, and its documented limit once
-those are mixed in.
+(:func:`forecheck.policies.engine.combine_matched_rules`); ``expected_cost_joint``
+evaluates that same merged bundle in ``decision_mode: expected_cost``, using the
+covered dimensions' probabilities jointly rather than per-rule thresholds. See
+``tests/evaluation/test_stacking.py`` for the exact equivalence ``joint`` guarantees
+versus ``independent`` for rule sets with no hard/allow_override rules, its
+documented limit once those are mixed in, and the property test showing
+``expected_cost_joint``'s false-positive rate stays bounded as k grows where
+``independent``'s does not.
 """
 
 from __future__ import annotations
@@ -26,7 +30,14 @@ from forecheck.contracts import (
     RiskDimension,
 )
 from forecheck.evaluation.decisions import DEFAULT_COST_MATRIX, CostMatrix, decision_metrics
-from forecheck.policies.dsl import Condition, PolicyBundle, Rule, RuleKind, UnknownAs
+from forecheck.policies.dsl import (
+    Condition,
+    DecisionMode,
+    PolicyBundle,
+    Rule,
+    RuleKind,
+    UnknownAs,
+)
 from forecheck.policies.engine import DeterministicPolicyEngine, combine_matched_rules
 from forecheck.policies.loader import hash_bundle
 from forecheck.version import POLICY_DSL_VERSION
@@ -39,7 +50,7 @@ __all__ = [
     "synthetic_dimension_policies",
 ]
 
-Strategy = Literal["independent", "joint"]
+Strategy = Literal["independent", "joint", "expected_cost_joint"]
 
 _DECISION_RANK: dict[Decision, int] = {Decision.ALLOW: 0, Decision.REVIEW: 1, Decision.DENY: 2}
 
@@ -70,7 +81,10 @@ class StackingReport(BaseModel):
             "Independent = OR across the first k policies evaluated separately "
             "(each guard alone decides, the stack takes the most severe). "
             "Joint = the first k policies' rules merged into one bundle and "
-            "evaluated once by the forecheck policy engine."
+            "evaluated once by the forecheck policy engine, in threshold mode. "
+            "expected_cost_joint = the same merged bundle evaluated in "
+            "decision_mode: expected_cost, using the joint probability vector "
+            "instead of per-rule thresholds."
         )
         lines.append("")
         lines.append(
@@ -314,4 +328,24 @@ def stacking_report(
         joint_bundle = merge_bundles(subset, f"joint-stack-k{k}")
         joint_engine = DeterministicPolicyEngine(joint_bundle, hash_bundle(joint_bundle))
         rows.append(_stack_row(k, "joint", subset, joint_engine, responses, examples, cost_matrix))
+        expected_cost_bundle = joint_bundle.model_copy(
+            update={
+                "bundle_id": f"expected-cost-joint-stack-k{k}",
+                "decision_mode": DecisionMode.EXPECTED_COST,
+            }
+        )
+        expected_cost_engine = DeterministicPolicyEngine(
+            expected_cost_bundle, hash_bundle(expected_cost_bundle)
+        )
+        rows.append(
+            _stack_row(
+                k,
+                "expected_cost_joint",
+                subset,
+                expected_cost_engine,
+                responses,
+                examples,
+                cost_matrix,
+            )
+        )
     return StackingReport(rows=rows)

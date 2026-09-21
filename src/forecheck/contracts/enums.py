@@ -14,6 +14,7 @@ __all__ = [
     "AuthMethod",
     "CalibrationMethod",
     "Decision",
+    "DecisionMode",
     "DestinationRelationship",
     "ErrorCode",
     "FeedbackOutcome",
@@ -101,6 +102,20 @@ class Decision(StrEnum):
     ALLOW = "allow"
     REVIEW = "review"
     DENY = "deny"
+
+
+class DecisionMode(StrEnum):
+    """How a policy bundle turns scores into a decision.
+
+    ``THRESHOLD`` (the default) is today's per-rule most-restrictive-wins
+    combination. ``EXPECTED_COST`` picks the decision that minimises expected cost
+    over the bundle's covered dimensions, using the calibrated probability vector
+    jointly instead of independent per-rule thresholds. See
+    ``docs/policy-dsl.md``.
+    """
+
+    THRESHOLD = "threshold"
+    EXPECTED_COST = "expected_cost"
 
 
 class TrustLevel(StrEnum):

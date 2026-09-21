@@ -14,11 +14,16 @@ a concrete boolean only once, at the top, using :class:`~forecheck.policies.dsl.
 ``worst_case`` (the default) resolves ``UNKNOWN`` in whichever direction is more
 restrictive for that rule's own decision, so uncertainty can never make the outcome
 *less* safe.
+
+``decision_mode: expected_cost`` (:func:`expected_costs`) replaces most-restrictive-wins
+with an argmin over the bundle's covered dimensions' probabilities and per-dimension
+costs; a fired ``hard`` rule still forces ``DENY``. See ``docs/policy-dsl.md``.
 """
 
 from __future__ import annotations
 
 import enum
+from typing import NamedTuple
 
 from forecheck.contracts import (
     MUTATING_OPERATIONS,
@@ -26,23 +31,36 @@ from forecheck.contracts import (
     CalibrationMethod,
     ClassifyResponse,
     Decision,
+    DecisionMode,
+    DecisionTrace,
     DimensionScore,
     Obligation,
     ObligationKind,
     OperationKind,
     PolicyDecision,
+    RiskDimension,
     RuleKind,
     RuleMatch,
 )
 from forecheck.policies.base import PolicyEngineBase
-from forecheck.policies.dsl import Condition, FactValue, PolicyBundle, Rule, UnknownAs
+from forecheck.policies.dsl import (
+    Condition,
+    Cost,
+    FactValue,
+    PolicyBundle,
+    Rule,
+    UnknownAs,
+    default_cost_for_dimension,
+)
 
 __all__ = [
     "FACT_NAMES",
     "DeterministicPolicyEngine",
+    "ExpectedCosts",
     "FactTable",
     "combine_matched_rules",
     "derive_facts",
+    "expected_costs",
 ]
 
 FactTable = dict[str, FactValue | list[str] | None]
@@ -338,6 +356,70 @@ def _matched_on(
     return matched_on
 
 
+class ExpectedCosts(NamedTuple):
+    """The three candidate-decision expected costs from :func:`expected_costs`."""
+
+    allow: float
+    review: float
+    deny: float
+
+
+def _bundle_dimension_costs(bundle: PolicyBundle) -> dict[RiskDimension, Cost]:
+    """Map each of the bundle's covered dimensions to its :class:`Cost`.
+
+    The first rule (in bundle order) whose ``when`` tree references a dimension
+    supplies that dimension's ``cost`` override, if it set one; otherwise
+    :func:`default_cost_for_dimension` applies.
+    """
+    costs: dict[RiskDimension, Cost] = {}
+    for rule in bundle.rules:
+        for leaf in _collect_leaves(rule.when):
+            if leaf.score is None or leaf.score in costs:
+                continue
+            costs[leaf.score] = (
+                rule.cost if rule.cost is not None else default_cost_for_dimension(leaf.score)
+            )
+    return costs
+
+
+def expected_costs(
+    bundle: PolicyBundle,
+    classification: ClassifyResponse,
+    *,
+    use_raw_scores: bool = False,
+) -> ExpectedCosts:
+    """Expected cost of ALLOW/REVIEW/DENY over ``bundle``'s covered dimensions.
+
+    For each covered dimension with a known probability ``p`` (abstained or unscored
+    dimensions contribute nothing): ALLOW costs ``p * allow_if_risky``, DENY costs
+    ``(1 - p) * deny_if_benign``, REVIEW costs ``review`` regardless of ``p``. See
+    ``docs/policy-dsl.md`` for the worked example.
+    """
+    dimension_costs = _bundle_dimension_costs(bundle)
+    by_dimension = classification.by_dimension()
+    allow = review = deny = 0.0
+    for dimension, cost in dimension_costs.items():
+        p = _score_value(by_dimension.get(dimension), use_raw=use_raw_scores)
+        if p is None:
+            continue
+        allow += p * cost.allow_if_risky
+        deny += (1.0 - p) * cost.deny_if_benign
+        review += cost.review
+    return ExpectedCosts(allow=allow, review=review, deny=deny)
+
+
+def _argmin_decision(costs: ExpectedCosts) -> Decision:
+    """Cheapest of the three candidate decisions; ties resolve to the more restrictive."""
+    by_decision = {
+        Decision.ALLOW: costs.allow,
+        Decision.REVIEW: costs.review,
+        Decision.DENY: costs.deny,
+    }
+    minimum = min(by_decision.values())
+    cheapest = [d for d, c in by_decision.items() if c == minimum]
+    return max(cheapest, key=lambda d: _DECISION_RANK[d])
+
+
 def combine_matched_rules(matches: list[RuleMatch], default_decision: Decision) -> Decision:
     """Combine already-fired rules into a single decision.
 
@@ -442,7 +524,22 @@ class DeterministicPolicyEngine(PolicyEngineBase):
                     kind=rule.kind,
                 )
             )
-        decision = combine_matched_rules(matches, bundle.default_decision)
+        decision_trace: DecisionTrace | None = None
+        if bundle.decision_mode is DecisionMode.THRESHOLD:
+            decision = combine_matched_rules(matches, bundle.default_decision)
+        else:
+            costs = expected_costs(bundle, classification, use_raw_scores=use_raw_scores)
+            argmin = _argmin_decision(costs)
+            hard_fired = any(match.hard for match in matches)
+            decision = Decision.DENY if hard_fired else argmin
+            decision_trace = DecisionTrace(
+                mode=bundle.decision_mode,
+                expected_cost_allow=costs.allow,
+                expected_cost_review=costs.review,
+                expected_cost_deny=costs.deny,
+                argmin_decision=argmin,
+                hard_override_applied=hard_fired,
+            )
         obligations = _aggregate_obligations(matches)
         if use_raw_scores:
             obligations = [
@@ -460,4 +557,5 @@ class DeterministicPolicyEngine(PolicyEngineBase):
             policy_bundle_id=bundle.bundle_id,
             policy_bundle_hash=self._bundle_hash,
             classification=classification,
+            decision_trace=decision_trace,
         )

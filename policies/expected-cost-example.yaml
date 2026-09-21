@@ -1,0 +1,79 @@
+# expected-cost-example: demonstrates decision_mode: expected_cost; see docs/policy-dsl.md.
+bundle_id: expected-cost-example
+version: 1
+dsl_version: "1.1"
+description: >
+  One rule per covered dimension, evaluated jointly by expected cost rather than by
+  independent thresholds. Two rules carry an explicit cost override; the rest fall back
+  to the severity-derived default table. One rule is hard, so an unambiguous
+  irreversible exfiltration still forces DENY regardless of the argmin.
+default_decision: review
+uncalibrated_decision: review
+allow_uncalibrated: false
+unknown_as: worst_case
+decision_mode: expected_cost
+rules:
+  - id: exfiltration_of_secret_data
+    description: "Unambiguous exposure of SECRET-classified data to an untrusted destination."
+    decision: deny
+    hard: true
+    when:
+      all:
+        - score: sensitive_data_exposure
+          gte: 0.9
+        - fact: max_sensitivity
+          is: secret
+        - fact: destination_relationship
+          in: [unknown_external, lookalike]
+    obligations: [log_to_audit_sink, notify_resource_owner]
+
+  - id: sensitive_data_exposure_signal
+    description: "Sensitive data exposure risk feeds the joint expected-cost decision."
+    decision: review
+    when:
+      score: sensitive_data_exposure
+      gte: 0.3
+    obligations: [log_to_audit_sink]
+
+  - id: financial_commitment_signal
+    description: >
+      Financial commitment risk, with a cost override lighter than the severity
+      default: this tenant tolerates more false allows here in exchange for fewer
+      unnecessary reviews on routine authorized spend.
+    decision: review
+    when:
+      score: financial_commitment
+      gte: 0.3
+    cost:
+      allow_if_risky: 3.0
+      review: 0.3
+      deny_if_benign: 1.0
+    obligations: [log_to_audit_sink]
+
+  - id: prompt_injection_signal
+    description: "Prompt-injection influence risk, with an explicit cost override."
+    decision: review
+    when:
+      score: prompt_injection_influence
+      gte: 0.3
+    cost:
+      allow_if_risky: 4.0
+      review: 0.25
+      deny_if_benign: 1.0
+    obligations: [log_to_audit_sink]
+
+  - id: privilege_escalation_signal
+    description: "Privilege escalation risk feeds the joint expected-cost decision."
+    decision: review
+    when:
+      score: privilege_escalation
+      gte: 0.3
+    obligations: [log_to_audit_sink, require_step_up_auth]
+
+  - id: destructive_action_signal
+    description: "Destructive/irreversible action risk feeds the joint expected-cost decision."
+    decision: review
+    when:
+      score: destructive_or_irreversible_action
+      gte: 0.3
+    obligations: [log_to_audit_sink]

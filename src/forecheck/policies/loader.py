@@ -68,7 +68,10 @@ def validate_fact_references(bundle: PolicyBundle) -> None:
 
 
 def _validate_dsl_version(bundle: PolicyBundle) -> None:
-    if bundle.dsl_version != POLICY_DSL_VERSION:
+    # Only a major-version mismatch rejects; minor bumps are additive (ADR 0002).
+    bundle_major = bundle.dsl_version.split(".", 1)[0]
+    engine_major = POLICY_DSL_VERSION.split(".", 1)[0]
+    if bundle_major != engine_major:
         raise ForecheckError(
             ErrorCode.POLICY_BUNDLE_INVALID,
             f"bundle {bundle.bundle_id!r} declares dsl_version "
