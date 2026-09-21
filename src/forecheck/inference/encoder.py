@@ -67,6 +67,7 @@ class EncoderBackendConfig:
     device: str | None = None
     dtype: str | None = None
     batch_size: int = 32
+    strip_identity: bool = False
 
 
 def _auto_device(torch: Any) -> str:
@@ -217,7 +218,12 @@ class EncoderBackend(BaseBackend):
         dims = self._dims_or_all(dimensions)
         dim_index = {d: i for i, d in enumerate(self._dimension_order)}
 
-        rendered = [serialize_context(c, max_tokens=self._config.max_tokens) for c in contexts]
+        rendered = [
+            serialize_context(
+                c, max_tokens=self._config.max_tokens, strip_identity=self._config.strip_identity
+            )
+            for c in contexts
+        ]
         results: list[RawScores | None] = [None] * len(contexts)
         for start in range(0, len(contexts), self._config.batch_size):
             end = min(start + self._config.batch_size, len(contexts))

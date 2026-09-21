@@ -33,6 +33,13 @@ separately — see ADR 0002.
   eleven dimensions off one linear head; `forecheck train-encoder` trains it with
   masked BCE-with-logits; plugs into `calibrate`/`evaluate` via the existing
   `resolve_backend` protocol with no changes to either.
+- Zero-shot guardian baselines (ADR 0009): `GuardianBackend` scores Granite Guardian
+  3.3 8B, Llama Guard 4 12B and gpt-oss-safeguard-20b against our eleven dimensions
+  with no forecheck-specific training, via `forecheck evaluate --backend guardian
+  --backend-config <yaml>`. `strip_identity` identity-ablation switch added to
+  `serialize_context` and threaded through `GuardianBackend`/`HFBackend`/
+  `EncoderBackend` and `forecheck evaluate --strip-identity`; calibration is skipped
+  when stripping identity and `identity_stripped` is recorded on every report.
 
 ### Not yet
 - Published trained weights.

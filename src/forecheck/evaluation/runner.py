@@ -312,6 +312,7 @@ def evaluate(
     include_latency: bool = False,
     training_tool_names: frozenset[str] | None = None,
     dataset_sha256: str | None = None,
+    identity_stripped: bool = False,
 ) -> EvaluationReport:
     """Run a full evaluation of ``backend`` on ``examples`` and return a report.
 
@@ -409,6 +410,7 @@ def evaluate(
         calibration=calibration_info,
         seed=seed,
         created_at=datetime.now(UTC),
+        identity_stripped=identity_stripped,
         threshold_selection_split=threshold_selection_split,
         dimensions=dimension_metrics,
         macro=macro,

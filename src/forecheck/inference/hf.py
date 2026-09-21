@@ -62,6 +62,7 @@ class HFBackendConfig:
     max_prompt_tokens: int = Limits.MAX_PROMPT_TOKENS
     load_class: LoadClass = "auto"
     use_chat_template: bool = USE_CHAT_TEMPLATE_DEFAULT
+    strip_identity: bool = False
 
 
 def _auto_device(torch: Any) -> str:
@@ -207,7 +208,11 @@ class HFBackend(BaseBackend):
         )
 
         dims = list(dimensions) if dimensions is not None else list(RiskDimension)
-        rendered = serialize_context(context, max_tokens=self._config.max_prompt_tokens)
+        rendered = serialize_context(
+            context,
+            max_tokens=self._config.max_prompt_tokens,
+            strip_identity=self._config.strip_identity,
+        )
         prefix_ids = tokenizer(rendered.text, return_tensors="pt").input_ids.to(self._device)
         use_shared = self._config.shared_prefill and self._supports_cache_reuse
 

@@ -65,6 +65,20 @@ on the `calibration` split, and writes two evaluation reports
 backbone plus an 11-logit head, see `configs/training/README.md`) against an
 already-generated dataset, for both configured bases, calibrating and evaluating each.
 
+## Guardian zero-shot baselines
+
+`configs/eks/eval-guardian-baselines-b200-recipe.yaml` evaluates the three zero-shot
+guardian baselines (`configs/baselines/granite-guardian-3.3-8b.yaml`,
+`llama-guard-4-12b.yaml`, `gpt-oss-safeguard-20b.yaml`; see ADR 0009) against
+`test` and `heldout_family`, with and without `--strip-identity`, writing to
+`/opt/ml/fsx/forecheck/runs/baselines/<model>/reports/<split>[-noid]`. It guards on
+`/opt/ml/fsx/forecheck/data/v2/train.jsonl` already existing, same as the encoder
+recipes:
+
+```bash
+ai-infra eks submit-job /tmp/forecheck-job --recipe configs/eks/eval-guardian-baselines-b200-recipe.yaml --name forecheck-guardian-baselines --gpu-type B200 --instance-type ml.p6-b200.48xlarge --az us-east-2a --gpus-per-pod 1 --cpus-per-pod 2 --memory-per-pod 60 --efas 0 --region us-east-2 --cluster eks-fsdp-cluster --fsx-id fs-0979a8395b825c774
+```
+
 ## Before a production run
 
 Build and push a pinned forecheck image to ECR instead of `pip install -e` at job start,

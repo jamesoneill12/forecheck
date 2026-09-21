@@ -1,0 +1,7 @@
+model_id: openai/gpt-oss-safeguard-20b
+family: gpt_oss_safeguard
+dtype: bf16
+max_tokens: 4096
+max_new_tokens: 512
+batch_size: 4
+dimension_definitions: {}

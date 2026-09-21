@@ -87,6 +87,7 @@ class EvaluationReport(BaseModel):
     calibration: CalibrationInfo | None = None
     seed: int
     created_at: datetime
+    identity_stripped: bool = False
     threshold_selection_split: Split | None = None
     dimensions: dict[RiskDimension, DimensionMetrics]
     macro: dict[str, float | None]
@@ -117,6 +118,7 @@ class EvaluationReport(BaseModel):
         lines.append(f"Seed: {self.seed}. Generated at: {self.created_at.isoformat()}.")
         if self.model is not None:
             lines.append(f"Model: {self.model.backend}/{self.model.model_id}")
+        lines.append(f"Identity stripped: {str(self.identity_stripped).lower()}")
         selection_split = (
             self.threshold_selection_split.value if self.threshold_selection_split else "n/a"
         )

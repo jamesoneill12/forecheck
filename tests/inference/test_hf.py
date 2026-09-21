@@ -282,6 +282,38 @@ def test_shared_prefill_cache_copy_prevents_cross_question_contamination() -> No
 
 
 @requires_torch
+def test_strip_identity_shrinks_rendered_prompt_token_count() -> None:
+    from forecheck.contracts import AgentIdentity, Principal
+    from forecheck.inference.hf import HFBackend, HFBackendConfig
+
+    model, tokenizer, _yes_id, _no_id = _build_toy_model_and_tokenizer()
+
+    def fake_load(self: HFBackend, torch_mod: object) -> tuple[object, object, str]:
+        return model, tokenizer, "cpu"
+
+    context = make_context(
+        principal=Principal(id="user-1", entitlements=["billing:refund:<=500", "billing:view"]),
+        agent=AgentIdentity(id="agent-1", delegated_scopes=["billing:refund"]),
+    )
+    dims = [RiskDimension.FINANCIAL_COMMITMENT]
+
+    full_backend = HFBackend(
+        HFBackendConfig(model_id="toy", use_chat_template=False, strip_identity=False)
+    )
+    stripped_backend = HFBackend(
+        HFBackendConfig(model_id="toy", use_chat_template=False, strip_identity=True)
+    )
+    full_backend._load_model_and_tokenizer = fake_load.__get__(full_backend)  # type: ignore[method-assign]
+    stripped_backend._load_model_and_tokenizer = fake_load.__get__(stripped_backend)  # type: ignore[method-assign]
+
+    full_result = full_backend.score(context, dims)
+    stripped_result = stripped_backend.score(context, dims)
+
+    assert stripped_result.prompt_tokens is not None and full_result.prompt_tokens is not None
+    assert stripped_result.prompt_tokens < full_result.prompt_tokens
+
+
+@requires_torch
 def test_shared_prefill_chat_template_matches_naive_fallback_numerically() -> None:
     from forecheck.inference.hf import HFBackend, HFBackendConfig
 

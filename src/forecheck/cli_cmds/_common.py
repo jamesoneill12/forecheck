@@ -14,9 +14,11 @@ from forecheck.contracts import ErrorCode, ForecheckError, RiskDimension
 from forecheck.inference import (
     EncoderBackend,
     EncoderBackendConfig,
+    GuardianBackend,
     HFBackend,
     HFBackendConfig,
     MockBackend,
+    load_guardian_config,
 )
 from forecheck.inference.encoder import HEAD_CONFIG_FILE, head_checkpoint_dir
 from forecheck.policies.builtin import available_bundle_names, load_builtin_engine
@@ -65,7 +67,13 @@ def _latest_checkpoint_adapter(run: Path) -> Path | None:
     return max(steps, key=lambda item: item[0])[1]
 
 
-def resolve_backend(name: str, run: Path) -> ClassifierBackend:
+def resolve_backend(
+    name: str,
+    run: Path,
+    *,
+    config: Path | None = None,
+    strip_identity: bool = False,
+) -> ClassifierBackend:
     if name == "mock":
         return MockBackend()
     if name == "rule_baseline":
@@ -80,12 +88,13 @@ def resolve_backend(name: str, run: Path) -> ClassifierBackend:
                 "pass --backend mock or --backend rule_baseline otherwise"
             )
         adapter_dir = _latest_checkpoint_adapter(run)
-        config = HFBackendConfig(
+        hf_config = HFBackendConfig(
             model_id=train_config.model.base_id,
             revision=train_config.model.revision,
             adapter_id=str(adapter_dir) if adapter_dir is not None else None,
+            strip_identity=strip_identity,
         )
-        return HFBackend(config)
+        return HFBackend(hf_config)
     if name == "encoder":
         head_config_path = head_checkpoint_dir(run) / HEAD_CONFIG_FILE
         if not head_config_path.exists():
@@ -99,9 +108,21 @@ def resolve_backend(name: str, run: Path) -> ClassifierBackend:
             run_dir=run,
             pooling=head_config["pooling"],
             max_tokens=head_config["max_tokens"],
+            strip_identity=strip_identity,
         )
         return EncoderBackend(encoder_config)
-    raise typer.BadParameter(f"unknown backend {name!r}, expected mock|hf|rule_baseline|encoder")
+    if name == "guardian":
+        if config is None:
+            raise typer.BadParameter("--backend guardian requires --backend-config PATH")
+        guardian_config = load_guardian_config(config)
+        if strip_identity:
+            from dataclasses import replace
+
+            guardian_config = replace(guardian_config, strip_identity=True)
+        return GuardianBackend(guardian_config)
+    raise typer.BadParameter(
+        f"unknown backend {name!r}, expected mock|hf|rule_baseline|encoder|guardian"
+    )
 
 
 def resolve_data_dir(data: Path | None, run: Path) -> Path:

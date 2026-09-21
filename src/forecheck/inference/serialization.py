@@ -89,31 +89,35 @@ def _render_objective(context: ActionContext) -> str:
     return f"{_tag('objective', trust=obj.trust.value)}\n{body}\n{_close_tag('objective')}"
 
 
-def _render_principal(context: ActionContext) -> str:
+def _render_principal(context: ActionContext, *, strip_identity: bool = False) -> str:
     p = context.principal
-    body = (
-        f"id: {_escape(p.id)}\n"
-        f"type: {p.type.value}\n"
-        f"tenant_id: {_escape(p.tenant_id) if p.tenant_id else 'unknown'}\n"
-        f"roles: {_format_list(p.roles)}\n"
-        f"entitlements: {_format_list(p.entitlements)}\n"
-        f"auth_method: {p.auth_method.value}\n"
-        f"mfa_satisfied: {p.mfa_satisfied}"
-    )
+    lines = [
+        f"id: {_escape(p.id)}",
+        f"type: {p.type.value}",
+        f"tenant_id: {_escape(p.tenant_id) if p.tenant_id else 'unknown'}",
+        f"roles: {_format_list(p.roles)}",
+    ]
+    if not strip_identity:
+        lines.append(f"entitlements: {_format_list(p.entitlements)}")
+    lines.append(f"auth_method: {p.auth_method.value}")
+    lines.append(f"mfa_satisfied: {p.mfa_satisfied}")
+    body = "\n".join(lines)
     return (
         f"{_tag('principal', trust=TrustLevel.PRINCIPAL.value)}\n{body}\n{_close_tag('principal')}"
     )
 
 
-def _render_agent(context: ActionContext) -> str:
+def _render_agent(context: ActionContext, *, strip_identity: bool = False) -> str:
     a = context.agent
-    body = (
-        f"id: {_escape(a.id)}\n"
-        f"name: {_escape(a.name) if a.name else 'unknown'}\n"
-        f"version: {_escape(a.version) if a.version else 'unknown'}\n"
-        f"delegated_scopes: {_format_list(a.delegated_scopes)}\n"
-        f"on_behalf_of: {_escape(a.on_behalf_of) if a.on_behalf_of else 'none'}"
-    )
+    lines = [
+        f"id: {_escape(a.id)}",
+        f"name: {_escape(a.name) if a.name else 'unknown'}",
+        f"version: {_escape(a.version) if a.version else 'unknown'}",
+    ]
+    if not strip_identity:
+        lines.append(f"delegated_scopes: {_format_list(a.delegated_scopes)}")
+        lines.append(f"on_behalf_of: {_escape(a.on_behalf_of) if a.on_behalf_of else 'none'}")
+    body = "\n".join(lines)
     return f"{_tag('agent', trust=TrustLevel.SYSTEM.value)}\n{body}\n{_close_tag('agent')}"
 
 
@@ -176,14 +180,15 @@ def _render_financial(context: ActionContext) -> str:
     return f"{_tag('financial', trust=TrustLevel.SYSTEM.value)}\n{body}\n{_close_tag('financial')}"
 
 
-def _render_policies(context: ActionContext) -> str:
+def _render_policies(context: ActionContext, *, strip_identity: bool = False) -> str:
     if not context.policies:
         return (
             f"{_tag('policies', trust=TrustLevel.SYSTEM.value)}\n(none)\n{_close_tag('policies')}"
         )
     lines = [
         f"- id={_escape(p.id)} scope={_escape(p.scope) if p.scope else 'unknown'} "
-        f"severity={_escape(p.severity) if p.severity else 'unknown'}: {_escape(p.text)}"
+        f"severity={_escape(p.severity) if p.severity else 'unknown'}"
+        + ("" if strip_identity else f": {_escape(p.text)}")
         for p in context.policies
     ]
     body = "\n".join(lines)
@@ -244,26 +249,31 @@ def _render_proposed_action(context: ActionContext) -> str:
 
 
 _SECTION_RENDERERS = {
-    "system": lambda ctx, obs, traj: _render_system(),
-    "objective": lambda ctx, obs, traj: _render_objective(ctx),
-    "principal": lambda ctx, obs, traj: _render_principal(ctx),
-    "agent": lambda ctx, obs, traj: _render_agent(ctx),
-    "environment": lambda ctx, obs, traj: _render_environment(ctx),
-    "resources": lambda ctx, obs, traj: _render_resources(ctx),
-    "destination": lambda ctx, obs, traj: _render_destination(ctx),
-    "financial": lambda ctx, obs, traj: _render_financial(ctx),
-    "policies": lambda ctx, obs, traj: _render_policies(ctx),
-    "trajectory": lambda ctx, obs, traj: _render_trajectory(traj),
-    "observations": lambda ctx, obs, traj: _render_observations(obs),
-    "proposed_action": lambda ctx, obs, traj: _render_proposed_action(ctx),
+    "system": lambda ctx, obs, traj, strip: _render_system(),
+    "objective": lambda ctx, obs, traj, strip: _render_objective(ctx),
+    "principal": lambda ctx, obs, traj, strip: _render_principal(ctx, strip_identity=strip),
+    "agent": lambda ctx, obs, traj, strip: _render_agent(ctx, strip_identity=strip),
+    "environment": lambda ctx, obs, traj, strip: _render_environment(ctx),
+    "resources": lambda ctx, obs, traj, strip: _render_resources(ctx),
+    "destination": lambda ctx, obs, traj, strip: _render_destination(ctx),
+    "financial": lambda ctx, obs, traj, strip: _render_financial(ctx),
+    "policies": lambda ctx, obs, traj, strip: _render_policies(ctx, strip_identity=strip),
+    "trajectory": lambda ctx, obs, traj, strip: _render_trajectory(traj),
+    "observations": lambda ctx, obs, traj, strip: _render_observations(obs),
+    "proposed_action": lambda ctx, obs, traj, strip: _render_proposed_action(ctx),
 }
 
 
 def _render(
-    context: ActionContext, observations: list[Observation], trajectory: list[TrajectoryStep]
+    context: ActionContext,
+    observations: list[Observation],
+    trajectory: list[TrajectoryStep],
+    *,
+    strip_identity: bool = False,
 ) -> str:
     sections = [
-        _SECTION_RENDERERS[name](context, observations, trajectory) for name in SECTION_ORDER
+        _SECTION_RENDERERS[name](context, observations, trajectory, strip_identity)
+        for name in SECTION_ORDER
     ]
     return "\n\n".join(sections)
 
@@ -276,17 +286,26 @@ class SerializedContext:
 
 
 def serialize_context(
-    context: ActionContext, *, max_tokens: int = Limits.MAX_PROMPT_TOKENS
+    context: ActionContext,
+    *,
+    max_tokens: int = Limits.MAX_PROMPT_TOKENS,
+    strip_identity: bool = False,
 ) -> SerializedContext:
     """Render ``context`` to canonical text, truncating if it exceeds ``max_tokens``.
 
     Truncation drops, in order: oldest untrusted observations, then oldest trajectory
     steps (by ascending index). The proposed action, principal, agent, destination,
     and policies are never dropped.
+
+    ``strip_identity`` is the identity-ablation switch: when set, it omits the
+    principal's entitlements, the agent's delegated scopes and delegation chain
+    (``on_behalf_of``), and each policy statement's free text, leaving every other
+    field -- and the section structure itself -- unchanged. Used to test whether a
+    backend's score depends on authorization context rather than the action itself.
     """
     observations = list(context.observations)
     trajectory = list(context.trajectory)
-    original_text = _render(context, observations, trajectory)
+    original_text = _render(context, observations, trajectory, strip_identity=strip_identity)
     text = original_text
     tokens = estimate_tokens(text)
     dropped_observations = 0
@@ -304,7 +323,7 @@ def serialize_context(
             dropped_trajectory += 1
         else:
             break
-        text = _render(context, observations, trajectory)
+        text = _render(context, observations, trajectory, strip_identity=strip_identity)
         tokens = estimate_tokens(text)
 
     truncated = dropped_observations > 0 or dropped_trajectory > 0
@@ -317,6 +336,6 @@ def serialize_context(
     return SerializedContext(text=text, truncation=truncation, estimated_tokens=tokens)
 
 
-def render_context(context: ActionContext) -> str:
+def render_context(context: ActionContext, *, strip_identity: bool = False) -> str:
     """Convenience wrapper returning only the rendered text, at the default budget."""
-    return serialize_context(context).text
+    return serialize_context(context, strip_identity=strip_identity).text

@@ -1,0 +1,32 @@
+trainer:
+  runtime_name: "torch-runtime"
+  project_name: "forecheck"
+  experiment_name: "eval-guardian-baselines"
+
+  ecr_image: "812836555640.dkr.ecr.us-east-2.amazonaws.com/ai/fin-base-training:latest"
+
+  command: >-
+    bash -c 'set -euo pipefail &&
+    cd /workspace/forecheck-job &&
+    pip install -q --no-cache-dir -e ".[torch]" &&
+    test -f /opt/ml/fsx/forecheck/data/v2/train.jsonl &&
+    for m in granite-guardian-3.3-8b gpt-oss-safeguard-20b; do n=2000; [ "$m" = gpt-oss-safeguard-20b ] && n=400;
+      forecheck evaluate --backend guardian --backend-config configs/baselines/${m}.yaml --run /opt/ml/fsx/forecheck/runs/baselines/${m} --data /opt/ml/fsx/forecheck/data/v2 --split test --class synthetic_in_distribution --threshold-split none --max-examples $n --out /opt/ml/fsx/forecheck/runs/baselines/${m}/reports/test &&
+      forecheck evaluate --backend guardian --backend-config configs/baselines/${m}.yaml --run /opt/ml/fsx/forecheck/runs/baselines/${m} --data /opt/ml/fsx/forecheck/data/v2 --split test --class synthetic_in_distribution --threshold-split none --max-examples $n --strip-identity --out /opt/ml/fsx/forecheck/runs/baselines/${m}/reports/test-noid &&
+      forecheck evaluate --backend guardian --backend-config configs/baselines/${m}.yaml --run /opt/ml/fsx/forecheck/runs/baselines/${m} --data /opt/ml/fsx/forecheck/data/v2 --split heldout_family --class synthetic_heldout_adversarial --threshold-split none --max-examples $n --out /opt/ml/fsx/forecheck/runs/baselines/${m}/reports/heldout_family &&
+      forecheck evaluate --backend guardian --backend-config configs/baselines/${m}.yaml --run /opt/ml/fsx/forecheck/runs/baselines/${m} --data /opt/ml/fsx/forecheck/data/v2 --split heldout_family --class synthetic_heldout_adversarial --threshold-split none --max-examples $n --strip-identity --out /opt/ml/fsx/forecheck/runs/baselines/${m}/reports/heldout_family-noid;
+    done'
+
+  env_vars:
+    FORECHECK_TRACKING_BACKEND: "local"
+    HF_HOME: "/opt/ml/fsx/forecheck/hf_cache"
+    TOKENIZERS_PARALLELISM: "false"
+    PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+
+  nnodes: 1
+
+  resources:
+    worker:
+      instance_type: ml.p6-b200.48xlarge
+      gpus_per_pod: 1
+      cpus_per_pod: 2

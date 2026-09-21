@@ -1,0 +1,6 @@
+model_id: ibm-granite/granite-guardian-3.3-8b
+family: granite_guardian
+dtype: bf16
+max_tokens: 4096
+batch_size: 8
+dimension_definitions: {}

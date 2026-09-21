@@ -178,6 +178,47 @@ def test_encoder_backend_score_batch_produces_one_score_per_context() -> None:
 
 
 @requires_torch
+def test_encoder_backend_strip_identity_shrinks_prompt_tokens() -> None:
+    import torch
+
+    from forecheck.contracts import AgentIdentity, Principal
+    from forecheck.inference.encoder import EncoderBackend, EncoderBackendConfig
+
+    hidden_size = 8
+    backbone = _ToyEncoder(vocab_size=64, hidden_size=hidden_size)
+    backbone.eval()
+    tokenizer = _ToyEncoderTokenizer()
+
+    def _build(strip_identity: bool) -> EncoderBackend:
+        backend = EncoderBackend(
+            EncoderBackendConfig(
+                model_id="toy-encoder",
+                run_dir=Path("unused-run-dir"),
+                strip_identity=strip_identity,
+            )
+        )
+        backend._backbone = backbone
+        backend._tokenizer = tokenizer
+        backend._device = "cpu"
+        backend._head_weight = torch.zeros((len(RiskDimension), hidden_size))
+        backend._head_bias = torch.zeros(len(RiskDimension))
+        backend._dimension_order = tuple(RiskDimension)
+        backend._serialization_contract_hash = "deadbeef"
+        return backend
+
+    context = make_context(
+        principal=Principal(id="user-1", entitlements=["billing:refund:<=500", "billing:view"]),
+        agent=AgentIdentity(id="agent-1", delegated_scopes=["billing:refund"]),
+    )
+
+    full_result = _build(strip_identity=False).score_batch([context])[0]
+    stripped_result = _build(strip_identity=True).score_batch([context])[0]
+
+    assert stripped_result.prompt_tokens is not None and full_result.prompt_tokens is not None
+    assert stripped_result.prompt_tokens < full_result.prompt_tokens
+
+
+@requires_torch
 def test_encoder_backend_score_single_matches_score_batch() -> None:
     import torch
 

@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import difflib
+
 from forecheck.contracts import (
     ActionContext,
+    AgentIdentity,
     Limits,
     Observation,
+    PolicyStatement,
+    Principal,
     ProposedAction,
     TrajectoryStep,
     TrustLevel,
@@ -129,3 +134,59 @@ def test_render_context_type_is_action_context() -> None:
     context = make_context()
     assert isinstance(context, ActionContext)
     assert isinstance(render_context(context), str)
+
+
+def _identity_context() -> ActionContext:
+    return make_context(
+        principal=Principal(id="user-1", entitlements=["billing:refund:<=500"]),
+        agent=AgentIdentity(
+            id="agent-1", delegated_scopes=["billing:refund"], on_behalf_of="user-1"
+        ),
+        policies=[PolicyStatement(id="pol-1", text="Refunds over $500 require manager approval.")],
+    )
+
+
+def test_strip_identity_omits_entitlements_scopes_delegation_and_policy_text() -> None:
+    context = _identity_context()
+    stripped = render_context(context, strip_identity=True)
+
+    assert "billing:refund:<=500" not in stripped
+    assert "billing:refund" not in stripped
+    assert "on_behalf_of" not in stripped
+    assert "Refunds over $500 require manager approval." not in stripped
+
+
+def test_strip_identity_changes_nothing_else() -> None:
+    context = _identity_context()
+    full = render_context(context)
+    stripped = render_context(context, strip_identity=True)
+
+    removed_lines = [
+        line
+        for line in difflib.unified_diff(full.splitlines(), stripped.splitlines(), lineterm="")
+        if line.startswith("-") and not line.startswith("---")
+    ]
+    removed_text = "\n".join(removed_lines)
+
+    assert "entitlements:" in removed_text
+    assert "delegated_scopes:" in removed_text
+    assert "on_behalf_of:" in removed_text
+    assert "Refunds over $500 require manager approval." in removed_text
+    assert len(removed_lines) == 4
+
+
+def test_strip_identity_keeps_policy_id_and_metadata() -> None:
+    context = _identity_context()
+    stripped = render_context(context, strip_identity=True)
+    assert "id=pol-1" in stripped
+
+
+def test_strip_identity_default_is_false_and_unchanged_output() -> None:
+    context = _identity_context()
+    assert render_context(context) == render_context(context, strip_identity=False)
+
+
+def test_serialize_context_strip_identity_preserves_truncation_behaviour() -> None:
+    context = _identity_context()
+    result = serialize_context(context, strip_identity=True)
+    assert result.truncation.truncated is False

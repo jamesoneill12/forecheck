@@ -5,6 +5,12 @@ from __future__ import annotations
 from forecheck.inference.base import BackendCapabilities, BaseBackend, ClassifierBackend, RawScores
 from forecheck.inference.classifier import AbstainPolicy, Classifier
 from forecheck.inference.encoder import EncoderBackend, EncoderBackendConfig
+from forecheck.inference.guardian import (
+    GuardianBackend,
+    GuardianBackendConfig,
+    GuardianFamily,
+    load_guardian_config,
+)
 from forecheck.inference.hf import HFBackend, HFBackendConfig
 from forecheck.inference.mock import MockBackend
 from forecheck.inference.prompt import (
@@ -25,11 +31,15 @@ __all__ = [
     "ClassifierBackend",
     "EncoderBackend",
     "EncoderBackendConfig",
+    "GuardianBackend",
+    "GuardianBackendConfig",
+    "GuardianFamily",
     "HFBackend",
     "HFBackendConfig",
     "MockBackend",
     "RawScores",
     "SerializedContext",
+    "load_guardian_config",
     "prompt_contract_hash",
     "render_context",
     "serialization_contract_hash",
