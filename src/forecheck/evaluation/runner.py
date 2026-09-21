@@ -181,8 +181,15 @@ def _build_threshold_selection(
     threshold_selection_examples: Sequence[Example],
     dims: Sequence[RiskDimension],
     calibrators: Mapping[RiskDimension, Calibrator] | None,
+    precomputed: Sequence[RawScores] | None = None,
+    on_scored: Callable[[Sequence[RawScores]], None] | None = None,
 ) -> ThresholdSelectionArrays:
-    sel_raw = _score_examples(backend, threshold_selection_examples, dims)
+    if precomputed is not None and len(precomputed) == len(threshold_selection_examples):
+        sel_raw = list(precomputed)
+    else:
+        sel_raw = _score_examples(backend, threshold_selection_examples, dims)
+        if on_scored is not None:
+            on_scored(sel_raw)
     sel_probabilities = _probability_matrix(sel_raw, dims, calibrators)
     threshold_selection: ThresholdSelectionArrays = {}
     for dimension in dims:
@@ -313,6 +320,8 @@ def evaluate(
     training_tool_names: frozenset[str] | None = None,
     dataset_sha256: str | None = None,
     identity_stripped: bool = False,
+    threshold_selection_scores: Sequence[RawScores] | None = None,
+    on_threshold_selection_scored: Callable[[Sequence[RawScores]], None] | None = None,
 ) -> EvaluationReport:
     """Run a full evaluation of ``backend`` on ``examples`` and return a report.
 
@@ -325,7 +334,14 @@ def evaluate(
     probabilities = _probability_matrix(raw, dims, calibrators)
 
     threshold_selection = (
-        _build_threshold_selection(backend, threshold_selection_examples, dims, calibrators)
+        _build_threshold_selection(
+            backend,
+            threshold_selection_examples,
+            dims,
+            calibrators,
+            precomputed=threshold_selection_scores,
+            on_scored=on_threshold_selection_scored,
+        )
         if threshold_selection_examples
         else None
     )

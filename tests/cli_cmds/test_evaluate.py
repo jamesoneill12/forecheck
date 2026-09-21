@@ -221,3 +221,35 @@ def test_resolve_data_dir_reads_encoder_run_config(tmp_path: Path) -> None:
     )
 
     assert resolve_data_dir(None, run_dir) == Path("/data/v2")
+
+
+def test_evaluate_command_caches_threshold_selection_scores(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    _write_split(data_dir, "dev")
+    _write_split(data_dir, "test")
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    kwargs: dict[str, object] = {
+        "run": run_dir,
+        "split": "test",
+        "evaluation_class": EvaluationClass.SYNTHETIC_IN_DISTRIBUTION,
+        "backend": "mock",
+        "backend_config": None,
+        "strip_identity": False,
+        "data": data_dir,
+    }
+
+    evaluate_command(**kwargs)
+    first = json.loads((run_dir / "reports" / "test" / "report.json").read_text())
+    cache_files = list((run_dir / "cache").glob("raw-scores-dev-*.json"))
+    assert len(cache_files) == 1
+
+    evaluate_command(**kwargs)
+    out = capsys.readouterr().out
+    second = json.loads((run_dir / "reports" / "test" / "report.json").read_text())
+
+    assert "reusing cached dev scores" in out
+    assert first["dimensions"] == second["dimensions"]

@@ -18,6 +18,7 @@ from forecheck.cli_cmds._common import (
 from forecheck.data.io import read_jsonl, sha256_file
 from forecheck.evaluation.report import EvaluationClass
 from forecheck.evaluation.runner import evaluate
+from forecheck.evaluation.score_cache import load_raw_scores, save_raw_scores, score_cache_path
 
 __all__ = ["evaluate_command"]
 
@@ -106,6 +107,24 @@ def evaluate_command(
             )
     engine = load_policy_engine_by_name_or_path(bundle) if bundle is not None else None
 
+    selection_scores = None
+    on_selection_scored = None
+    if selection_examples is not None and threshold_split != "none":
+        info = backend_instance.model_info
+        cache_path = score_cache_path(
+            run,
+            split=threshold_split,
+            dataset_sha256=sha256_file(data_dir / f"{threshold_split}.jsonl"),
+            model_id=info.model_id,
+            prompt_contract_hash=info.prompt_contract_hash,
+            strip_identity=strip_identity,
+        )
+        selection_scores = load_raw_scores(cache_path, len(selection_examples))
+        if selection_scores is not None:
+            typer.echo(f"reusing cached {threshold_split} scores from {cache_path}")
+        else:
+            on_selection_scored = lambda raw: save_raw_scores(cache_path, raw)  # noqa: E731
+
     try:
         report = evaluate(
             backend_instance,
@@ -117,6 +136,8 @@ def evaluate_command(
             dataset_sha256=sha256_file(split_path),
             threshold_selection_examples=selection_examples,
             identity_stripped=strip_identity,
+            threshold_selection_scores=selection_scores,
+            on_threshold_selection_scored=on_selection_scored,
         )
     finally:
         backend_instance.close()
