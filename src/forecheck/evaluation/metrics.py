@@ -297,6 +297,8 @@ def get_metric(dm: DimensionMetrics, metric: MetricName) -> float | None:
         return dm.at_threshold.recall if dm.at_threshold is not None else None
     if metric == "f1":
         return dm.at_threshold.f1 if dm.at_threshold is not None else None
+    if metric == "f1@selected":
+        return dm.at_optimal_threshold.f1 if dm.at_optimal_threshold is not None else None
     if metric in {"auprc", "auroc", "brier", "nll", "ece", "adaptive_ece", "positive_rate"}:
         return getattr(dm, metric)  # type: ignore[no-any-return]
     raise KeyError(f"unknown metric name: {metric!r}")

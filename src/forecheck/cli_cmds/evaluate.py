@@ -29,6 +29,13 @@ def evaluate_command(
     bundle: Annotated[str | None, typer.Option(help="Policy bundle name or path.")] = None,
     data: Annotated[Path | None, typer.Option(help="Dataset directory.")] = None,
     out: Annotated[Path | None, typer.Option(help="Report output directory.")] = None,
+    threshold_split: Annotated[
+        str,
+        typer.Option(
+            help="Split used to select per-dimension decision thresholds; 'none' disables. "
+            "Must differ from --split."
+        ),
+    ] = "dev",
 ) -> None:
     """Score ``split`` with ``backend``, apply any fitted calibration, and write reports."""
     data_dir = resolve_data_dir(data, run)
@@ -36,6 +43,14 @@ def evaluate_command(
     examples = read_jsonl(split_path)
     if not examples:
         raise typer.BadParameter(f"no examples found at {split_path}")
+    selection_examples = None
+    if threshold_split != "none":
+        if threshold_split == split:
+            raise typer.BadParameter("--threshold-split must differ from --split")
+        selection_path = data_dir / f"{threshold_split}.jsonl"
+        if not selection_path.exists():
+            raise typer.BadParameter(f"threshold split not found at {selection_path}")
+        selection_examples = read_jsonl(selection_path)
 
     backend_instance = resolve_backend(backend, run)
     calibrator_bundle = None
@@ -55,6 +70,7 @@ def evaluate_command(
             calibrator_bundle=calibrator_bundle,
             engine=engine,
             dataset_sha256=sha256_file(split_path),
+            threshold_selection_examples=selection_examples,
         )
     finally:
         backend_instance.close()

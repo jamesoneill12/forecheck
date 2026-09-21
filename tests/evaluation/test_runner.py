@@ -8,7 +8,7 @@ from conftest import (
     make_paraphrase_pair,
 )
 
-from forecheck.contracts import DifficultyTier, LabelValue, RiskDimension
+from forecheck.contracts import DifficultyTier, LabelValue, RiskDimension, Split
 from forecheck.evaluation.report import EvaluationClass
 from forecheck.evaluation.runner import evaluate
 
@@ -167,6 +167,7 @@ def test_evaluate_with_threshold_selection_examples_sets_optimal_threshold() -> 
                     )
                 }
             ),
+            split=Split.DEV,
         )
         for i in range(4)
     ]
@@ -179,6 +180,20 @@ def test_evaluate_with_threshold_selection_examples_sets_optimal_threshold() -> 
     )
     dm = report.dimensions[RiskDimension.FINANCIAL_COMMITMENT]
     assert dm.optimal_threshold is not None
+    assert report.threshold_selection_split is Split.DEV
+    assert report.macro["f1@selected"] is not None
+
+
+def test_evaluate_without_threshold_selection_examples_leaves_selected_metrics_na() -> None:
+    backend = StubBackend(default_score=0.5)
+    report = evaluate(
+        backend, _examples(), evaluation_class=EvaluationClass.SYNTHETIC_IN_DISTRIBUTION, n_boot=5
+    )
+    assert report.threshold_selection_split is None
+    assert report.macro["f1@selected"] is None
+    for dm in report.dimensions.values():
+        assert dm.at_optimal_threshold is None
+        assert dm.optimal_threshold is None
 
 
 def test_evaluate_respects_explicit_dimensions_subset() -> None:

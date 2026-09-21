@@ -37,6 +37,11 @@ __all__ = [
 
 _SYNTHETIC_DISCLAIMER = "Synthetic data. No real-world safety claim is made."
 
+THRESHOLD_SELECTION_CRITERION = (
+    "F1-optimal threshold (argmax F1 over the precision-recall curve), "
+    "selected on a split disjoint from the one being reported"
+)
+
 
 class EvaluationClass(StrEnum):
     SYNTHETIC_IN_DISTRIBUTION = "synthetic_in_distribution"
@@ -82,6 +87,7 @@ class EvaluationReport(BaseModel):
     calibration: CalibrationInfo | None = None
     seed: int
     created_at: datetime
+    threshold_selection_split: Split | None = None
     dimensions: dict[RiskDimension, DimensionMetrics]
     macro: dict[str, float | None]
     worst_slice: dict[str, tuple[str, float] | None]
@@ -111,17 +117,32 @@ class EvaluationReport(BaseModel):
         lines.append(f"Seed: {self.seed}. Generated at: {self.created_at.isoformat()}.")
         if self.model is not None:
             lines.append(f"Model: {self.model.backend}/{self.model.model_id}")
+        selection_split = (
+            self.threshold_selection_split.value if self.threshold_selection_split else "n/a"
+        )
+        lines.append(
+            f"Threshold selection: {THRESHOLD_SELECTION_CRITERION}. "
+            f"Selection split: {selection_split}. Reported split: {self.dataset.split}."
+        )
         lines.append("")
         lines.append("## Per-dimension metrics")
         lines.append("")
-        lines.append("| dimension | n_evaluable | positive_rate | f1 | auprc | auroc | ece |")
-        lines.append("|---|---|---|---|---|---|---|")
+        lines.append(
+            "| dimension | n_evaluable | positive_rate | f1@0.5 | selected_threshold | "
+            "precision@selected | recall@selected | f1@selected | auprc | auroc | ece |"
+        )
+        lines.append("|---|---|---|---|---|---|---|---|---|---|---|")
         for dimension, metric in self.dimensions.items():
-            f1 = metric.at_threshold.f1 if metric.at_threshold is not None else None
+            f1_at_threshold = metric.at_threshold.f1 if metric.at_threshold is not None else None
+            optimal = metric.at_optimal_threshold
             lines.append(
                 f"| {dimension.value} | {metric.n_evaluable} | "
-                f"{_fmt(metric.positive_rate)} | {_fmt(f1)} | {_fmt(metric.auprc)} | "
-                f"{_fmt(metric.auroc)} | {_fmt(metric.ece)} |"
+                f"{_fmt(metric.positive_rate)} | {_fmt(f1_at_threshold)} | "
+                f"{_fmt(metric.optimal_threshold)} | "
+                f"{_fmt(optimal.precision if optimal is not None else None)} | "
+                f"{_fmt(optimal.recall if optimal is not None else None)} | "
+                f"{_fmt(optimal.f1 if optimal is not None else None)} | "
+                f"{_fmt(metric.auprc)} | {_fmt(metric.auroc)} | {_fmt(metric.ece)} |"
             )
         lines.append("")
         lines.append("## Macro / worst slice")

@@ -72,6 +72,7 @@ DEFAULT_MACRO_METRICS: tuple[str, ...] = (
     "precision",
     "recall",
     "f1",
+    "f1@selected",
     "auprc",
     "auroc",
     "brier",
@@ -398,6 +399,9 @@ def evaluate(
         latency_report = measure_latency(backend, examples)
 
     split = examples[0].split if examples else None
+    threshold_selection_split = (
+        threshold_selection_examples[0].split if threshold_selection_examples else None
+    )
     return EvaluationReport(
         evaluation_class=evaluation_class,
         dataset=DatasetIdentity(split=split, n=len(examples), sha256=dataset_sha256),
@@ -405,6 +409,7 @@ def evaluate(
         calibration=calibration_info,
         seed=seed,
         created_at=datetime.now(UTC),
+        threshold_selection_split=threshold_selection_split,
         dimensions=dimension_metrics,
         macro=macro,
         worst_slice=worst_slice_by_metric,
