@@ -18,7 +18,7 @@ approval.
 
 ## Submit
 
-Stage only what the job needs (the upload is scanned, and `docs/`/`tests/` are not required on the node):
+Stage only what the job needs into a directory named exactly `forecheck-job` — ai-infra uploads the directory itself, so the code lands at `/opt/ml/code/forecheck-job/`, which is where the recipe command `cd`s (the upload is scanned, and `docs/`/`tests/` are not required on the node):
 
 ```bash
 rm -rf /tmp/forecheck-job && mkdir -p /tmp/forecheck-job && cp -R pyproject.toml uv.lock README.md LICENSE NOTICE src configs policies scripts /tmp/forecheck-job/
@@ -27,7 +27,7 @@ rm -rf /tmp/forecheck-job && mkdir -p /tmp/forecheck-job && cp -R pyproject.toml
 Then submit. The 2B recipe trains on a single GPU, so it requests 1 GPU / 16 CPU / 200 Gi and, with no `--custom-label`, schedules onto any unlabelled B200 node in us-east-2a that has a spare GPU (labelled pools such as `pretraining-tests` are excluded by ai-infra when no label is given):
 
 ```bash
-ai-infra eks submit-job /tmp/forecheck-job --recipe configs/eks/train-2b-b200-recipe.yaml --name forecheck-train-2b --gpu-type B200 --instance-type ml.p6-b200.48xlarge --az us-east-2a --gpus-per-pod 1 --cpus-per-pod 16 --memory-per-pod 200 --efas 0 --region us-east-2 --cluster eks-fsdp-cluster --fsx-id fs-0979a8395b825c774 --follow-logs
+ai-infra eks submit-job /tmp/forecheck-job --recipe configs/eks/train-2b-b200-recipe.yaml --name forecheck-train-2b --gpu-type B200 --instance-type ml.p6-b200.48xlarge --az us-east-2a --gpus-per-pod 1 --cpus-per-pod 6 --memory-per-pod 100 --efas 0 --region us-east-2 --cluster eks-fsdp-cluster --fsx-id fs-0979a8395b825c774 --follow-logs
 ```
 
 Swap the recipe/name for `configs/eks/train-8b-b200-recipe.yaml` /

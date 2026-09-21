@@ -9,7 +9,7 @@ trainer:
 
   command: >-
     bash -c 'set -euo pipefail &&
-    cd /opt/ml/code &&
+    cd /opt/ml/code/forecheck-job &&
     pip install -q --no-cache-dir -e ".[train]" &&
     forecheck data generate --offline --config configs/data/train_medium.yaml --out /opt/ml/fsx/forecheck/data/v1 &&
     forecheck data split /opt/ml/fsx/forecheck/data/v1 &&
@@ -30,4 +30,4 @@ trainer:
     worker:
       instance_type: ml.p6-b200.48xlarge
       gpus_per_pod: 1
-      cpus_per_pod: 16
+      cpus_per_pod: 6
