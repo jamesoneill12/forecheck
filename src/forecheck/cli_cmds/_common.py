@@ -128,9 +128,12 @@ def resolve_backend(
 def resolve_data_dir(data: Path | None, run: Path) -> Path:
     if data is not None:
         return data
-    train_config = load_resolved_train_config(run)
-    if train_config is not None:
-        return train_config.data.dir
+    path = run / "config.resolved.yaml"
+    if path.exists():
+        raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        data_dir = (raw.get("data") or {}).get("dir")
+        if data_dir:
+            return Path(data_dir)
     raise typer.BadParameter("pass --data <dir>: no config.resolved.yaml found under --run")
 
 

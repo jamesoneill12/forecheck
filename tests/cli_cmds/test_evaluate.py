@@ -207,3 +207,17 @@ def test_evaluate_command_max_examples_subsamples_split(
     assert "seeded subsample of 5 rows" in capsys.readouterr().out
     report = json.loads((run_dir / "reports" / "test" / "report.json").read_text())
     assert report["dataset"]["n"] == 5
+
+
+def test_resolve_data_dir_reads_encoder_run_config(tmp_path: Path) -> None:
+    from forecheck.cli_cmds._common import resolve_data_dir
+
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "config.resolved.yaml").write_text(
+        "model:\n  base_id: toy\n  pooling: mean\n  max_tokens: 64\n"
+        "data:\n  dir: /data/v2\noptim:\n  backbone_lr: 1.0e-5\n",
+        encoding="utf-8",
+    )
+
+    assert resolve_data_dir(None, run_dir) == Path("/data/v2")
