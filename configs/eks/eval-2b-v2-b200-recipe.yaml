@@ -1,9 +1,9 @@
-# Eval-only follow-up for a v2 run whose test report already exists.
+# Eval-only follow-up for a v2 run whose training and calibration already finished.
 # Submission command and prerequisites: configs/eks/README.md
 trainer:
   runtime_name: "torch-runtime"
   project_name: "forecheck"
-  experiment_name: "eval-2b-synthetic-v2-heldout"
+  experiment_name: "eval-2b-synthetic-v2"
 
   ecr_image: "812836555640.dkr.ecr.us-east-2.amazonaws.com/ai/fin-base-training:latest"
 
@@ -12,6 +12,7 @@ trainer:
     cd /workspace/forecheck-job &&
     pip install -q --no-cache-dir -e ".[train]" &&
     test -f /opt/ml/fsx/forecheck/runs/2b-synthetic-v2/calibration/bundle.json &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v2 --split test --class synthetic_in_distribution &&
     forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v2 --split heldout_family --class synthetic_heldout_adversarial &&
     forecheck evaluate --backend rule_baseline --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v2 --split test --class synthetic_in_distribution --out /opt/ml/fsx/forecheck/runs/2b-synthetic-v2/reports/rule_baseline/test &&
     forecheck evaluate --backend rule_baseline --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v2 --split heldout_family --class synthetic_heldout_adversarial --out /opt/ml/fsx/forecheck/runs/2b-synthetic-v2/reports/rule_baseline/heldout_family'
