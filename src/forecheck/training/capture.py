@@ -22,6 +22,7 @@ from forecheck.inference.prompt import (
     PROMPT_CONTRACT_HASH,
     QUESTIONS,
     SECTION_ORDER,
+    SERIALIZATION_CONTRACT_HASH,
     SYSTEM_PREAMBLE,
 )
 from forecheck.version import PROMPT_CONTRACT_VERSION, __version__
@@ -29,7 +30,7 @@ from forecheck.version import PROMPT_CONTRACT_VERSION, __version__
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from forecheck.training.config import TrainConfig
+    from forecheck.training.config import EncoderTrainConfig, TrainConfig
 
 __all__ = [
     "capture_env",
@@ -53,6 +54,7 @@ def capture_prompt_contract() -> dict[str, Any]:
     return {
         "version": PROMPT_CONTRACT_VERSION,
         "hash": PROMPT_CONTRACT_HASH,
+        "serialization_contract_hash": SERIALIZATION_CONTRACT_HASH,
         "system_preamble": SYSTEM_PREAMBLE,
         "section_order": list(SECTION_ORDER),
         "questions": {dimension.value: text for dimension, text in QUESTIONS.items()},
@@ -125,7 +127,9 @@ def compute_data_hashes(data_dir: Path, splits: Iterable[Split]) -> dict[str, st
     return hashes
 
 
-def write_run_capture(run_dir: Path, config: TrainConfig, *, repo_dir: Path | None = None) -> Path:
+def write_run_capture(
+    run_dir: Path, config: TrainConfig | EncoderTrainConfig, *, repo_dir: Path | None = None
+) -> Path:
     """Write the resolved config, data hashes, prompt contract and env into ``run_dir``."""
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "config.resolved.yaml").write_text(config.to_yaml(), encoding="utf-8")

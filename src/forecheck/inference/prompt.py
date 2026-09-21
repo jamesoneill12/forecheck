@@ -25,9 +25,11 @@ __all__ = [
     "PROMPT_CONTRACT_HASH",
     "QUESTIONS",
     "SECTION_ORDER",
+    "SERIALIZATION_CONTRACT_HASH",
     "SYSTEM_PREAMBLE",
     "USE_CHAT_TEMPLATE_DEFAULT",
     "prompt_contract_hash",
+    "serialization_contract_hash",
 ]
 
 USE_CHAT_TEMPLATE_DEFAULT: Final[bool] = True
@@ -137,3 +139,27 @@ PROMPT_CONTRACT_HASH: Final[str] = _compute_prompt_contract_hash()
 def prompt_contract_hash() -> str:
     """Return the sha256 identifying this template, question set and version."""
     return PROMPT_CONTRACT_HASH
+
+
+def _compute_serialization_contract_hash() -> str:
+    """Hash of only what :func:`forecheck.inference.serialization.serialize_context`
+    actually renders: the system preamble and section order. Unlike
+    :data:`PROMPT_CONTRACT_HASH`, this excludes ``QUESTIONS`` and
+    ``USE_CHAT_TEMPLATE_DEFAULT``, which the encoder classifier arm never sees -- it
+    scores the serialized context directly, with no appended question and no chat
+    template."""
+    digest = hashlib.sha256()
+    digest.update(SYSTEM_PREAMBLE.encode("utf-8"))
+    digest.update(b"\x00")
+    digest.update("|".join(SECTION_ORDER).encode("utf-8"))
+    return digest.hexdigest()
+
+
+SERIALIZATION_CONTRACT_HASH: Final[str] = _compute_serialization_contract_hash()
+
+
+def serialization_contract_hash() -> str:
+    """Return the sha256 identifying the serialization-only contract (no per-dimension
+    questions, no chat template) that the encoder classifier arm trains and serves
+    against."""
+    return SERIALIZATION_CONTRACT_HASH

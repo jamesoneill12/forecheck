@@ -130,6 +130,70 @@ shared-prefill sequence and its 11-question block-diagonal attention) within an
 `max_prompt_tokens` assumes longer contexts are more likely to matter at that size —
 lower it to 4096 if a run OOMs.
 
+## Encoder classifier arm
+
+`encoder-modernbert-large.yaml` and `encoder-granite-embedding-r2.yaml` train the
+second, non-decoder arm: a pooled-embedding encoder backbone plus a linear head
+emitting 11 logits (one per `RiskDimension`), trained with masked BCE-with-logits
+(`NOT_APPLICABLE` cells excluded). Unlike the decoder arm, there is no question and no
+chat template — the backbone only ever sees `serialize_context`'s rendered text. Both
+bases are Apache-2.0:
+
+| `model.base_id` | Architecture | Pooling | Licence |
+|---|---|---|---|
+| `answerdotai/ModernBERT-large` | ModernBERT, 395M | mean | Apache-2.0 |
+| `ibm-granite/granite-embedding-english-r2` | ModernBERT, 149M | CLS (first-token) | Apache-2.0 |
+
+Granite Embedding R2's model card states it uses CLS pooling
+(`model_output[0][:, 0]`), unlike the mean-pooling convention of IBM's R1 embedding
+family — verified from the card before writing `encoder-granite-embedding-r2.yaml`.
+
+**Arctic-Embed was considered and rejected.** Snowflake's `arctic-embed` family is
+initialized from BAAI's `bge-m3`, a Chinese-origin model; the org's restricted-AI-models
+policy (see `forecheck-project` memory / `restricted-ai-models-policy-no-qwen`) bars
+Chinese-origin lineage from training infra, so it was never a candidate here regardless
+of its otherwise-competitive retrieval benchmarks.
+
+Train it the same way as the decoder arm, with `forecheck train-encoder`:
+
+```
+forecheck train-encoder --config configs/training/encoder-modernbert-large.yaml data.dir=/opt/ml/fsx/forecheck/data/v1 output.dir=/opt/ml/fsx/forecheck/runs/encoder-modernbert-large-v1
+```
+
+A run directory gets the same layout as the decoder arm (`config.resolved.yaml`,
+`params.json`, `env.json`, `data_hashes.json`, `prompt_contract.json`,
+`metrics.jsonl`), plus `checkpoints/best/`: `backbone/` (the encoder saved via
+`save_pretrained`, including its tokenizer), `head.safetensors` (the linear head's
+weight and bias), `head_config.json` (dimension order, pooling, `model_id`,
+`max_tokens`, and the serialization contract hash), and `trainer_state.json`. It is
+overwritten every time dev macro-AUPRC improves, so the run directory always holds the
+best checkpoint rather than every intermediate one.
+
+`forecheck calibrate --backend encoder --run <run>` and
+`forecheck evaluate --backend encoder --run <run> ...` resolve straight from
+`checkpoints/best/head_config.json` with no other flags — the same `resolve_backend`
+helper the decoder arm uses.
+
+### Local CPU smoke (encoder arm)
+
+Real-model, real-download smoke on `data/fixtures` with the small 47M-parameter
+`ibm-granite/granite-embedding-small-english-r2` (fast enough for CPU):
+
+```
+forecheck train-encoder --config configs/training/encoder-modernbert-large.yaml model.base_id=ibm-granite/granite-embedding-small-english-r2 model.pooling=mean model.max_tokens=512 model.dtype=fp32 optim.micro_batch_size=8 optim.max_steps=20 optim.epochs=20 train.eval_every=10 data.dir=data/fixtures output.dir=/tmp/forecheck-encoder-smoke
+forecheck calibrate --backend encoder --run /tmp/forecheck-encoder-smoke --split calibration --data data/fixtures
+forecheck evaluate --backend encoder --run /tmp/forecheck-encoder-smoke --split test --class synthetic_in_distribution --data data/fixtures
+```
+
+Run inside `/tmp/fc-torch` (the torch-enabled venv), e.g.
+`/tmp/fc-torch/bin/python -m forecheck.cli ...` or activate it first. `model.dtype=fp32`
+is a Mac/MPS-only workaround — the MPS backend's matmul kernel rejects mixed-dtype
+bf16 operands on this checkpoint; bf16 (the config default) is fine on CUDA. Observed
+result on `data/fixtures`: 20 steps in ~18s wall on Apple Silicon CPU/MPS, dev
+macro-AUPRC 0.268 → 0.278 across the two `eval_every=10` checkpoints, test-split macro
+AUPRC 0.228 (macro ECE 0.199), `heldout_family` macro AUPRC 0.311 (macro ECE 0.175) —
+sane numbers for 20 steps on a 47M-parameter backbone, not a claim of quality.
+
 ## Running the CPU smoke train
 
 Once `uv sync --extra train` has installed `torch`/`transformers`/`peft`:

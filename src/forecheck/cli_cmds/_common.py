@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -10,7 +11,14 @@ import yaml
 
 from forecheck.calibration.methods import calibrator_for_method
 from forecheck.contracts import ErrorCode, ForecheckError, RiskDimension
-from forecheck.inference import HFBackend, HFBackendConfig, MockBackend
+from forecheck.inference import (
+    EncoderBackend,
+    EncoderBackendConfig,
+    HFBackend,
+    HFBackendConfig,
+    MockBackend,
+)
+from forecheck.inference.encoder import HEAD_CONFIG_FILE, head_checkpoint_dir
 from forecheck.policies.builtin import available_bundle_names, load_builtin_engine
 from forecheck.policies.loader import load_policy_engine
 
@@ -78,7 +86,22 @@ def resolve_backend(name: str, run: Path) -> ClassifierBackend:
             adapter_id=str(adapter_dir) if adapter_dir is not None else None,
         )
         return HFBackend(config)
-    raise typer.BadParameter(f"unknown backend {name!r}, expected mock|hf|rule_baseline")
+    if name == "encoder":
+        head_config_path = head_checkpoint_dir(run) / HEAD_CONFIG_FILE
+        if not head_config_path.exists():
+            raise typer.BadParameter(
+                f"--backend encoder requires {head_config_path} (an encoder-trained run); "
+                "pass --backend mock or --backend rule_baseline otherwise"
+            )
+        head_config = json.loads(head_config_path.read_text(encoding="utf-8"))
+        encoder_config = EncoderBackendConfig(
+            model_id=head_config["model_id"],
+            run_dir=run,
+            pooling=head_config["pooling"],
+            max_tokens=head_config["max_tokens"],
+        )
+        return EncoderBackend(encoder_config)
+    raise typer.BadParameter(f"unknown backend {name!r}, expected mock|hf|rule_baseline|encoder")
 
 
 def resolve_data_dir(data: Path | None, run: Path) -> Path:

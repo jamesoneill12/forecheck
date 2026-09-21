@@ -4,9 +4,15 @@ from __future__ import annotations
 
 from forecheck.inference.base import BackendCapabilities, BaseBackend, ClassifierBackend, RawScores
 from forecheck.inference.classifier import AbstainPolicy, Classifier
+from forecheck.inference.encoder import EncoderBackend, EncoderBackendConfig
 from forecheck.inference.hf import HFBackend, HFBackendConfig
 from forecheck.inference.mock import MockBackend
-from forecheck.inference.prompt import PROMPT_CONTRACT_HASH, QUESTIONS, prompt_contract_hash
+from forecheck.inference.prompt import (
+    PROMPT_CONTRACT_HASH,
+    QUESTIONS,
+    prompt_contract_hash,
+    serialization_contract_hash,
+)
 from forecheck.inference.serialization import SerializedContext, render_context, serialize_context
 
 __all__ = [
@@ -17,6 +23,8 @@ __all__ = [
     "BaseBackend",
     "Classifier",
     "ClassifierBackend",
+    "EncoderBackend",
+    "EncoderBackendConfig",
     "HFBackend",
     "HFBackendConfig",
     "MockBackend",
@@ -24,5 +32,6 @@ __all__ = [
     "SerializedContext",
     "prompt_contract_hash",
     "render_context",
+    "serialization_contract_hash",
     "serialize_context",
 ]

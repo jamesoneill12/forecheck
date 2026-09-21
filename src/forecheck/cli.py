@@ -17,6 +17,7 @@ from forecheck.cli_cmds.evaluate import evaluate_command
 from forecheck.cli_cmds.model_card import model_card_command
 from forecheck.cli_cmds.policy import policy_app
 from forecheck.cli_cmds.train import train_command
+from forecheck.cli_cmds.train_encoder import train_encoder_command
 from forecheck.contracts import LABEL_SCHEMA_VERSION, SCHEMA_VERSION
 from forecheck.version import PROMPT_CONTRACT_VERSION, __version__
 
@@ -29,6 +30,7 @@ app = typer.Typer(
 app.add_typer(data_app, name="data")
 app.add_typer(policy_app, name="policy")
 app.command("train")(train_command)
+app.command("train-encoder")(train_encoder_command)
 app.command("calibrate")(calibrate_command)
 app.command("evaluate")(evaluate_command)
 app.command("model-card")(model_card_command)

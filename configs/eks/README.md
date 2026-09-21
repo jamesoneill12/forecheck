@@ -31,7 +31,19 @@ ai-infra eks submit-job /tmp/forecheck-job --recipe configs/eks/train-2b-b200-re
 ```
 
 Swap the recipe/name for `configs/eks/train-8b-b200-recipe.yaml` /
-`forecheck-train-8b` to run the Nimble-parity Granite-3.3-8B recipe instead.
+`forecheck-train-8b` to run the Nimble-parity Granite-3.3-8B recipe instead, or for
+`configs/eks/train-encoder-b200-recipe.yaml` / `forecheck-train-encoders` to train both
+encoder-classifier-arm configs (`encoder-modernbert-large.yaml`,
+`encoder-granite-embedding-r2.yaml`) back to back, using the same flags:
+
+```bash
+ai-infra eks submit-job /tmp/forecheck-job --recipe configs/eks/train-encoder-b200-recipe.yaml --name forecheck-train-encoders --gpu-type B200 --instance-type ml.p6-b200.48xlarge --az us-east-2a --gpus-per-pod 1 --cpus-per-pod 6 --memory-per-pod 100 --efas 0 --region us-east-2 --cluster eks-fsdp-cluster --fsx-id fs-0979a8395b825c774 --follow-logs
+```
+
+Unlike the decoder recipes, the encoder recipe does not regenerate or split the
+dataset -- it guards on `/opt/ml/fsx/forecheck/data/v2/train.jsonl` already existing
+(run `train-2b-b200-recipe.yaml` or `forecheck data generate`/`split` first if it does
+not) and trains/calibrates/evaluates both encoder configs against it.
 
 Job names are prefixed with your username by ai-infra and limited to 63 characters.
 
@@ -46,6 +58,10 @@ fits calibration
 on the `calibration` split, and writes two evaluation reports
 (`synthetic_in_distribution` on `test`, `synthetic_heldout_adversarial` on
 `heldout_family`) under `/opt/ml/fsx/forecheck/runs/<run>/`.
+
+`train-encoder-b200-recipe.yaml` instead trains the encoder classifier arm (a pooled
+backbone plus an 11-logit head, see `configs/training/README.md`) against an
+already-generated dataset, for both configured bases, calibrating and evaluating each.
 
 ## Before a production run
 

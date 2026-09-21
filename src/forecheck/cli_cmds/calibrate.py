@@ -19,7 +19,7 @@ __all__ = ["calibrate_command"]
 def calibrate_command(
     run: Annotated[Path, typer.Option(exists=True, file_okay=False)],
     split: Annotated[str, typer.Option()] = "calibration",
-    backend: Annotated[str, typer.Option(help="mock | hf | rule_baseline")] = "hf",
+    backend: Annotated[str, typer.Option(help="mock | hf | rule_baseline | encoder")] = "hf",
     data: Annotated[Path | None, typer.Option(help="Dataset directory.")] = None,
     method: Annotated[CalibrationMethod, typer.Option()] = CalibrationMethod.TEMPERATURE,
 ) -> None:

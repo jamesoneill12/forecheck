@@ -28,6 +28,11 @@ separately — see ADR 0002.
   card, model card template, seven ADRs.
 - Base-model selection: Granite 3.3 (2B/8B), Granite 4.0 Micro (3B), OLMo 3 7B — all
   Apache-2.0.
+- Encoder classifier arm (ADR 0008): `EncoderBackend` pools an encoder backbone
+  (ModernBERT-large or granite-embedding-english-r2, both Apache-2.0) and reads all
+  eleven dimensions off one linear head; `forecheck train-encoder` trains it with
+  masked BCE-with-logits; plugs into `calibrate`/`evaluate` via the existing
+  `resolve_backend` protocol with no changes to either.
 
 ### Not yet
 - Published trained weights.

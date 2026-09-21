@@ -20,6 +20,11 @@ from forecheck.inference.prompt import USE_CHAT_TEMPLATE_DEFAULT
 
 __all__ = [
     "DataConfig",
+    "EncoderLossConfig",
+    "EncoderModelConfig",
+    "EncoderOptimConfig",
+    "EncoderTrainConfig",
+    "EncoderTrainLoopConfig",
     "LoraConfig",
     "ModelConfig",
     "OptimConfig",
@@ -29,11 +34,14 @@ __all__ = [
     "TrainLoopConfig",
     "apply_dotted_overrides",
     "load_config",
+    "load_encoder_config",
 ]
 
 DType = Literal["auto", "bf16", "fp16", "fp32"]
 Scheduler = Literal["linear", "cosine", "constant"]
 TrackingBackend = Literal["local", "mlflow"]
+Pooling = Literal["mean", "cls"]
+PosWeightMode = Literal["none", "balanced"]
 
 _DATA_SPLITS: frozenset[Split] = frozenset({Split.TRAIN, Split.DEV})
 
@@ -160,3 +168,59 @@ def load_config(path: Path, overrides: list[str] | None = None) -> TrainConfig:
     if overrides:
         data = apply_dotted_overrides(data, overrides)
     return TrainConfig.model_validate(data)
+
+
+class EncoderModelConfig(_Strict):
+    base_id: str
+    pooling: Pooling = "mean"
+    max_tokens: int = Field(default=2048, gt=0)
+    dtype: DType = "auto"
+
+
+class EncoderOptimConfig(_Strict):
+    backbone_lr: float = Field(default=2e-5, gt=0.0)
+    head_lr: float = Field(default=1e-3, gt=0.0)
+    weight_decay: float = Field(default=0.0, ge=0.0)
+    warmup_ratio: float = Field(default=0.03, ge=0.0, lt=1.0)
+    epochs: int = Field(default=3, gt=0)
+    max_steps: int | None = Field(default=None, gt=0)
+    micro_batch_size: int = Field(default=32, gt=0)
+    grad_clip: float = Field(default=1.0, gt=0.0)
+    scheduler: Scheduler = "cosine"
+
+
+class EncoderLossConfig(_Strict):
+    pos_weight_mode: PosWeightMode = "none"
+
+
+class EncoderTrainLoopConfig(_Strict):
+    seed: int = 0
+    eval_every: int = Field(default=50, gt=0)
+    save_every: int = Field(default=50, gt=0)
+    early_stop_patience: int = Field(default=3, gt=0)
+    freeze_backbone: bool = False
+    resume_from: Path | None = None
+
+
+class EncoderTrainConfig(_Strict):
+    model: EncoderModelConfig
+    data: DataConfig
+    optim: EncoderOptimConfig = Field(default_factory=EncoderOptimConfig)
+    train: EncoderTrainLoopConfig = Field(default_factory=EncoderTrainLoopConfig)
+    loss: EncoderLossConfig = Field(default_factory=EncoderLossConfig)
+    tracking: TrackingConfig = Field(default_factory=TrackingConfig)
+    output: OutputConfig
+
+    def to_yaml(self) -> str:
+        return yaml.safe_dump(self.model_dump(mode="json"), sort_keys=True)
+
+
+def load_encoder_config(path: Path, overrides: list[str] | None = None) -> EncoderTrainConfig:
+    """Load an :class:`EncoderTrainConfig` from YAML, apply dotted overrides, validate."""
+    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise ValueError(f"config file {path} did not parse to a mapping")
+    data: dict[str, object] = raw
+    if overrides:
+        data = apply_dotted_overrides(data, overrides)
+    return EncoderTrainConfig.model_validate(data)

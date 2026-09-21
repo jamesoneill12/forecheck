@@ -1,0 +1,40 @@
+# CLS pooling per the model card (unlike the R1 family's mean pooling) -- see configs/training/README.md.
+model:
+  base_id: ibm-granite/granite-embedding-english-r2
+  pooling: cls
+  max_tokens: 2048
+  dtype: bf16
+
+data:
+  dir: /opt/ml/fsx/forecheck/data/v2
+  train_split: train
+  dev_split: dev
+  max_prompt_tokens: 2048
+  dimension_weights: {}
+
+optim:
+  backbone_lr: 0.00002
+  head_lr: 0.001
+  weight_decay: 0.01
+  warmup_ratio: 0.03
+  epochs: 3
+  micro_batch_size: 32
+  grad_clip: 1.0
+  scheduler: cosine
+
+train:
+  seed: 0
+  eval_every: 200
+  save_every: 200
+  early_stop_patience: 5
+  freeze_backbone: false
+
+loss:
+  pos_weight_mode: balanced
+
+tracking:
+  backend: local
+  run_name: encoder-granite-embedding-r2
+
+output:
+  dir: /opt/ml/fsx/forecheck/runs/encoder-granite-embedding-r2-v2

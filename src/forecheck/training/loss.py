@@ -24,7 +24,16 @@ from forecheck.contracts import LabelValue, RiskDimension
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
-__all__ = ["LossOutput", "candidate_cross_entropy", "resolve_candidate_ids"]
+    from forecheck.contracts import Example
+
+__all__ = [
+    "LossOutput",
+    "MaskedBCEOutput",
+    "candidate_cross_entropy",
+    "masked_bce_with_logits",
+    "resolve_candidate_ids",
+    "resolve_pos_weight",
+]
 
 _MASKED_LABELS: frozenset[LabelValue] = frozenset(
     {LabelValue.NOT_APPLICABLE, LabelValue.UNDETERMINED}
@@ -119,3 +128,63 @@ def candidate_cross_entropy(
             per_dimension_loss[dimension] = float(term)
     n_terms = int((weight > 0).sum().item())
     return LossOutput(loss=loss, n_terms=n_terms, per_dimension_loss=per_dimension_loss)
+
+
+@dataclass(frozen=True, slots=True)
+class MaskedBCEOutput:
+    loss: Any
+    n_terms: int
+
+
+def masked_bce_with_logits(
+    logits: Any,
+    targets: Any,
+    mask: Any,
+    *,
+    pos_weight: Any | None = None,
+) -> MaskedBCEOutput:
+    """Mean BCE-with-logits over ``(batch, n_dimensions)``, excluding masked cells.
+
+    ``mask`` is ``1.0`` for a ``YES``/``NO`` cell and ``0.0`` for
+    ``NOT_APPLICABLE``/``UNDETERMINED``, matching :func:`candidate_cross_entropy`'s
+    convention for the decoder loss. ``pos_weight`` is an optional per-dimension
+    ``(n_dimensions,)`` tensor from :func:`resolve_pos_weight`.
+    """
+    torch = _require_torch()
+    per_elem = torch.nn.functional.binary_cross_entropy_with_logits(
+        logits, targets, pos_weight=pos_weight, reduction="none"
+    )
+    masked = per_elem * mask
+    denom = mask.sum()
+    loss = masked.sum() / denom if float(denom) > 0.0 else masked.new_zeros(())
+    n_terms = int(mask.sum().item())
+    return MaskedBCEOutput(loss=loss, n_terms=n_terms)
+
+
+def resolve_pos_weight(
+    examples: Sequence[Example],
+    dimension_order: Sequence[RiskDimension],
+    mode: str,
+) -> Any | None:
+    """Compute a per-dimension positive-class weight for :func:`masked_bce_with_logits`.
+
+    ``mode="none"`` returns ``None`` (no weighting). ``mode="balanced"`` returns
+    ``n_negative / n_positive`` per dimension (the standard inverse-frequency
+    correction for BCE), counting only ``YES``/``NO`` cells; a dimension with zero
+    positives in the training split gets weight ``1.0`` rather than a division by zero.
+    """
+    if mode == "none":
+        return None
+    torch = _require_torch()
+    weights: list[float] = []
+    for dimension in dimension_order:
+        n_pos = 0
+        n_neg = 0
+        for example in examples:
+            label = example.labels.values[dimension]
+            if label is LabelValue.YES:
+                n_pos += 1
+            elif label is LabelValue.NO:
+                n_neg += 1
+        weights.append(n_neg / n_pos if n_pos > 0 else 1.0)
+    return torch.tensor(weights, dtype=torch.float32)

@@ -155,6 +155,7 @@ module = [
   "datasets.*",
   "bitsandbytes.*",
   "prometheus_client.*",
+  "safetensors.*",
 ]
 ignore_missing_imports = true
 
