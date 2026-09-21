@@ -16,7 +16,7 @@ thresholds selected on `dev`. Sections marked *pending* are filled in as jobs fi
 |---|---|---|---|
 | decoder 2B | `ibm-granite/granite-3.3-2b-instruct` + LoRA r16, candidate-token logits | 3,200 steps, best dev step 2,200, dev macro AUPRC 0.907 | evaluate pending |
 | encoder ModernBERT-large | `answerdotai/ModernBERT-large`, mean pooling, linear 11-logit head | 2,412 steps, best dev step 2,400, dev macro AUPRC 0.808 | done |
-| encoder granite-embedding-r2 | `ibm-granite/granite-embedding-english-r2`, same head | running | pending |
+| encoder granite-embedding-r2 | `ibm-granite/granite-embedding-english-r2`, same head | 2,412 steps, best dev step 2,400, dev macro AUPRC 0.833 | done |
 | rule baseline | deterministic field lookups, no model | none | pending |
 | Granite Guardian 3.3 8B zero-shot | `ibm-granite/granite-guardian-3.3-8b`, one custom criterion per dimension, yes/no logits | none | done (2,000-row subsample per split) |
 | gpt-oss-safeguard 20B zero-shot | `openai/gpt-oss-safeguard-20b`, policy in system prompt, greedy verdict | none | running (400-row subsample) |
@@ -28,6 +28,8 @@ thresholds selected on `dev`. Sections marked *pending* are filled in as jobs fi
 |---|---|---|---|---|
 | encoder ModernBERT-large | test | 0.814 | 0.057 | 0.816 |
 | encoder ModernBERT-large | heldout_family | 0.813 | 0.057 | |
+| encoder granite-embedding-r2 | test | 0.843 | 0.047 | 0.845 |
+| encoder granite-embedding-r2 | heldout_family | 0.841 | 0.049 | 0.791 |
 | Granite Guardian 3.3 zero-shot | test | 0.243 | 0.143 | |
 | Granite Guardian 3.3 zero-shot, identity stripped | test | 0.249 | 0.147 | |
 | Granite Guardian 3.3 zero-shot | heldout_family | 0.257 | 0.142 | |
@@ -73,6 +75,36 @@ Two remain weak:
 Heldout_family tracks test within 0.01 macro AUPRC, so the encoder is not memorising
 tool names.
 
+## Encoder granite-embedding-english-r2 vs ModernBERT-large (test AUPRC)
+
+| dimension | granite-embedding-r2 | ModernBERT-large |
+|---|---|---|
+| prompt_injection_influence | 0.814 | 0.813 |
+| unauthorized_scope | 0.999 | 0.998 |
+| sensitive_data_exposure | 0.999 | 0.974 |
+| untrusted_destination | 0.994 | 0.999 |
+| privilege_escalation | 0.495 | 0.498 |
+| destructive_or_irreversible_action | 0.997 | 0.991 |
+| financial_commitment | 1.000 | 1.000 |
+| external_communication | 1.000 | 0.993 |
+| policy_conflict | 0.433 | 0.423 |
+| suspicious_action_sequence | 0.871 | 0.627 |
+| insufficient_context | 0.667 | 0.642 |
+
+Reading. The two encoders agree everywhere except `suspicious_action_sequence`, where
+granite-embedding-r2 is far ahead (0.87 vs 0.63). That dimension depends on the order of
+trajectory steps, and the retrieval-trained backbone keeps more of that ordering under
+mean pooling. Both encoders show the same two failures, which makes them a property of the
+task encoding rather than of a backbone:
+
+- `privilege_escalation` has AUROC 0.99 but AUPRC 0.49 on both. The ranking is almost
+  perfect on the bulk of the data yet precision collapses at the top, which is the
+  signature of a subset of positives that are textually indistinguishable from negatives.
+  The rule baseline on this dimension decides whether that subset is a generator defect
+  (deciding latent not rendered) or a genuinely hard case.
+- `policy_conflict` sits at 0.42 to 0.43 for both, with the worst calibration. Reading a
+  clause and checking it against the action is not something a pooled embedding does.
+
 ## Granite Guardian 3.3 8B zero-shot baseline
 
 Prompt: our serialised context as the user turn, the proposed tool call as the assistant
@@ -113,7 +145,8 @@ AUROC. Numbers are uncalibrated (ECE 0.14).
 
 - decoder 2B v2 test and heldout reports and the rule baseline on the same splits
   (job `forecheck-eval-2b-v2`); the rule baseline decides which dimensions are lookup.
-- granite-embedding-english-r2 encoder arm.
+- identity ablation of the trained arms (decoder 2B, ModernBERT, rule baseline with
+  `--strip-identity`), job `forecheck-idablate-v2`.
 - gpt-oss-safeguard 20B zero-shot on 400 rows, with and without identity.
 - v3: policy-generalisation data (seven new policy kinds, four paraphrases each) with
   `heldout_policy_kind` (2,247 rows) and `heldout_policy_phrasing` (3,294 rows) splits,
