@@ -14,7 +14,9 @@ separately — see ADR 0002.
   renderer; contrastive-pair construction across fourteen axes; family-level
   leakage-safe splitting with checksummed manifests.
 - Mock backend (heuristic, not a model) and Hugging Face candidate-logit backend with
-  shared-prefill scoring and a verified fallback.
+  shared-prefill scoring and a verified fallback; `ChatPrefillPlanner` caches the
+  per-context prefix and the per-question suffix/verdict so scoring renders the chat
+  template once per row instead of twice per question.
 - Post-hoc calibration (temperature, vector, isotonic, beta) fitted on a dedicated
   split and persisted separately from weights.
 - Evaluation suite: per-dimension and calibration metrics with bootstrap CIs, slices,

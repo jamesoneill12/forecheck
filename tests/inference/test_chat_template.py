@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 
 from forecheck.inference.chat_template import (
+    ChatPrefillPlanner,
     apply_chat_template,
     build_chat_messages,
     plan_chat_prefill,
@@ -138,6 +139,27 @@ class _WordTokenizer:
         return _tag_aware_encode(text)
 
 
+class _CountingWordTokenizer(_WordTokenizer):
+    """A ``_WordTokenizer`` that counts ``apply_chat_template`` calls, to verify the
+    planner's caching actually avoids re-rendering."""
+
+    def __init__(self) -> None:
+        self.apply_chat_template_calls = 0
+
+    def apply_chat_template(
+        self,
+        messages: list[dict[str, str]],
+        *,
+        add_generation_prompt: bool,
+        tokenize: bool,
+        **kwargs: Any,
+    ) -> str:
+        self.apply_chat_template_calls += 1
+        return super().apply_chat_template(
+            messages, add_generation_prompt=add_generation_prompt, tokenize=tokenize, **kwargs
+        )
+
+
 def test_plan_chat_prefill_splits_and_verifies_a_clean_boundary() -> None:
     tokenizer = _WordTokenizer()
     plan = plan_chat_prefill(tokenizer, "some context here", "Is this risky?")
@@ -156,6 +178,27 @@ def test_plan_chat_prefill_prefix_is_stable_across_questions() -> None:
     assert plan_a is not None
     assert plan_b is not None
     assert plan_a.prefix_ids == plan_b.prefix_ids
+
+
+def test_chat_prefill_planner_matches_the_free_function_on_a_toy_tokenizer() -> None:
+    planner = ChatPrefillPlanner(_WordTokenizer())
+
+    from_planner = planner.plan("some context here", "Is this risky?")
+    from_function = plan_chat_prefill(_WordTokenizer(), "some context here", "Is this risky?")
+
+    assert from_planner == from_function
+
+
+def test_chat_prefill_planner_does_not_re_render_a_repeated_context_and_question() -> None:
+    tokenizer = _CountingWordTokenizer()
+    planner = ChatPrefillPlanner(tokenizer)
+
+    planner.plan("some context here", "Is this risky?")
+    calls_after_first = tokenizer.apply_chat_template_calls
+
+    planner.plan("some context here", "Is this risky?")
+
+    assert tokenizer.apply_chat_template_calls == calls_after_first
 
 
 class _BoundaryMergingTokenizer:
@@ -197,6 +240,40 @@ def test_plan_chat_prefill_returns_none_when_boundary_tokenization_diverges() ->
     plan = plan_chat_prefill(tokenizer, "ctx", "Is it risky?")
 
     assert plan is None
+
+
+class _CountingBoundaryMergingTokenizer(_BoundaryMergingTokenizer):
+    """A ``_BoundaryMergingTokenizer`` that counts ``apply_chat_template`` calls, to
+    verify a negative verdict is cached rather than re-verified on every call."""
+
+    def __init__(self) -> None:
+        self.apply_chat_template_calls = 0
+
+    def apply_chat_template(
+        self,
+        messages: list[dict[str, str]],
+        *,
+        add_generation_prompt: bool,
+        tokenize: bool,
+        **kwargs: Any,
+    ) -> str:
+        self.apply_chat_template_calls += 1
+        return super().apply_chat_template(
+            messages, add_generation_prompt=add_generation_prompt, tokenize=tokenize, **kwargs
+        )
+
+
+def test_chat_prefill_planner_caches_a_negative_verdict_without_re_rendering() -> None:
+    tokenizer = _CountingBoundaryMergingTokenizer()
+    planner = ChatPrefillPlanner(tokenizer)
+
+    first = planner.plan("ctx", "Is it risky?")
+    calls_after_first = tokenizer.apply_chat_template_calls
+    second = planner.plan("ctx", "Is it risky?")
+
+    assert first is None
+    assert second is None
+    assert tokenizer.apply_chat_template_calls == calls_after_first
 
 
 def test_plan_chat_prefill_succeeds_for_the_same_tokenizer_without_a_boundary_merge() -> None:

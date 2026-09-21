@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any
 
 from forecheck.contracts import LABEL_SCHEMA_VERSION, Limits, ModelInfo, RiskDimension
 from forecheck.inference.base import BackendCapabilities, BaseBackend, RawScores
-from forecheck.inference.chat_template import plan_chat_prefill, render_full_chat_text
+from forecheck.inference.chat_template import ChatPrefillPlanner, render_full_chat_text
 from forecheck.inference.hf_loading import LoadClass, load_model, load_tokenizer
 from forecheck.inference.prompt import QUESTIONS, USE_CHAT_TEMPLATE_DEFAULT, prompt_contract_hash
 from forecheck.inference.serialization import serialize_context
@@ -121,6 +121,7 @@ class HFBackend(BaseBackend):
         self._yes_ids: set[int] | None = None
         self._no_ids: set[int] | None = None
         self._supports_cache_reuse: bool = False
+        self._chat_planner: ChatPrefillPlanner | None = None
 
     def _load_model_and_tokenizer(self, torch: Any) -> tuple[Any, Any, str]:
         device = self._config.device or _auto_device(torch)
@@ -156,6 +157,7 @@ class HFBackend(BaseBackend):
         self._yes_ids = yes_ids
         self._no_ids = no_ids
         self._supports_cache_reuse = _detect_cache_reuse_support(model)
+        self._chat_planner = ChatPrefillPlanner(tokenizer)
 
     def warmup(self) -> None:
         self._ensure_loaded()
@@ -258,9 +260,10 @@ class HFBackend(BaseBackend):
         scores: dict[RiskDimension, float] = {}
         cached_prefix_ids: tuple[int, ...] | None = None
         cached_prefix_out: Any = None
+        assert self._chat_planner is not None
         for dim in dims:
             question = QUESTIONS[dim]
-            plan = plan_chat_prefill(tokenizer, context_text, question) if use_shared else None
+            plan = self._chat_planner.plan(context_text, question) if use_shared else None
             if plan is not None:
                 if cached_prefix_ids != plan.prefix_ids:
                     cached_prefix_ids = plan.prefix_ids

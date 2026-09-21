@@ -17,6 +17,12 @@ can straddle (observed on ``granite-3.3-2b-instruct`` for a question starting "I
 :func:`plan_chat_prefill` still verifies the split by re-tokenizing prefix and suffix
 separately and comparing to the full tokenization, returning ``None`` -- triggering a
 non-shared fallback -- on any mismatch, as a safety net.
+
+:class:`ChatPrefillPlanner` caches that sentinel render per context (single entry,
+since callers iterate questions inside a context loop) and the prefix-match verdict
+per ``(question, template_tail)`` with no eviction on context change, since the
+verdict depends only on the tokenizer's template and the question, never on context
+text. ``plan_chat_prefill`` wraps a fresh, single-use planner.
 """
 
 from __future__ import annotations
@@ -28,6 +34,7 @@ from forecheck.inference.prompt import CONTEXT_ACK, SYSTEM_PREAMBLE
 
 __all__ = [
     "ChatPrefillPlan",
+    "ChatPrefillPlanner",
     "apply_chat_template",
     "build_chat_messages",
     "plan_chat_prefill",
@@ -104,6 +111,72 @@ class ChatPrefillPlan:
     full_ids: tuple[int, ...]
 
 
+class ChatPrefillPlanner:
+    """Plans :class:`ChatPrefillPlan` splits for many questions against a sequence of
+    contexts, at a fraction of :func:`plan_chat_prefill`'s per-call rendering cost.
+
+    Holds a single-entry cache of the last context's sentinel render (prefix_text,
+    prefix_ids, template_tail), refreshed only when ``context_text`` changes, plus a
+    ``(question, template_tail)``-keyed cache of ``suffix_ids`` and the prefix-match
+    verdict that is never evicted on context change, since that verdict does not
+    depend on context (see the module docstring).
+    """
+
+    def __init__(self, tokenizer: Any) -> None:
+        self._tokenizer = tokenizer
+        self._context_text: str | None = None
+        self._prefix_ids: tuple[int, ...] | None = None
+        self._template_tail: str | None = None
+        self._suffix_ids_cache: dict[tuple[str, str], tuple[int, ...]] = {}
+        self._verdicts: dict[tuple[str, str], bool] = {}
+
+    def _load_context(self, context_text: str) -> None:
+        self._context_text = context_text
+        sentinel_text = render_full_chat_text(self._tokenizer, context_text, _SENTINEL)
+        split_at = sentinel_text.find(_SENTINEL)
+        if split_at == -1:
+            self._prefix_ids = None
+            self._template_tail = None
+            return
+        prefix_text = sentinel_text[:split_at]
+        self._prefix_ids = tuple(self._tokenizer.encode(prefix_text, add_special_tokens=False))
+        self._template_tail = sentinel_text[split_at + len(_SENTINEL) :]
+
+    def plan(self, context_text: str, question: str) -> ChatPrefillPlan | None:
+        """Split the chat-templated prompt just before the question turn's content.
+
+        See :func:`plan_chat_prefill` for the splitting and verification strategy;
+        this only adds caching around the same logic.
+        """
+        if context_text != self._context_text:
+            self._load_context(context_text)
+        prefix_ids = self._prefix_ids
+        template_tail = self._template_tail
+        if prefix_ids is None or template_tail is None:
+            return None
+
+        cache_key = (question, template_tail)
+        if self._verdicts.get(cache_key) is False:
+            return None
+
+        suffix_ids = self._suffix_ids_cache.get(cache_key)
+        if suffix_ids is None:
+            suffix_text = question + template_tail
+            suffix_ids = tuple(self._tokenizer.encode(suffix_text, add_special_tokens=False))
+            self._suffix_ids_cache[cache_key] = suffix_ids
+
+        if cache_key not in self._verdicts:
+            full_text = render_full_chat_text(self._tokenizer, context_text, question)
+            full_ids = tuple(self._tokenizer.encode(full_text, add_special_tokens=False))
+            self._verdicts[cache_key] = prefix_ids + suffix_ids == full_ids
+
+        if not self._verdicts[cache_key]:
+            return None
+        return ChatPrefillPlan(
+            prefix_ids=prefix_ids, suffix_ids=suffix_ids, full_ids=prefix_ids + suffix_ids
+        )
+
+
 def plan_chat_prefill(tokenizer: Any, context_text: str, question: str) -> ChatPrefillPlan | None:
     """Split the chat-templated prompt just before the question turn's content.
 
@@ -111,21 +184,8 @@ def plan_chat_prefill(tokenizer: Any, context_text: str, question: str) -> ChatP
     the question, then verified by checking that separately tokenizing the prefix and
     the (question + template tail) suffix reproduces the full rendered text's token
     ids exactly. Returns ``None`` when that check fails, signalling that shared-prefix
-    caching is not safe for this (tokenizer, template, question) combination.
+    caching is not safe for this (tokenizer, template, question) combination. Builds a
+    fresh, single-use :class:`ChatPrefillPlanner` per call; callers planning more than
+    one (context, question) pair should build their own planner and reuse it instead.
     """
-    sentinel_text = render_full_chat_text(tokenizer, context_text, _SENTINEL)
-    split_at = sentinel_text.find(_SENTINEL)
-    if split_at == -1:
-        return None
-    prefix_text = sentinel_text[:split_at]
-    template_tail = sentinel_text[split_at + len(_SENTINEL) :]
-    suffix_text = question + template_tail
-
-    full_text = render_full_chat_text(tokenizer, context_text, question)
-    prefix_ids = tuple(tokenizer.encode(prefix_text, add_special_tokens=False))
-    suffix_ids = tuple(tokenizer.encode(suffix_text, add_special_tokens=False))
-    full_ids = tuple(tokenizer.encode(full_text, add_special_tokens=False))
-
-    if prefix_ids + suffix_ids != full_ids:
-        return None
-    return ChatPrefillPlan(prefix_ids=prefix_ids, suffix_ids=suffix_ids, full_ids=full_ids)
+    return ChatPrefillPlanner(tokenizer).plan(context_text, question)

@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Protocol
 
 from forecheck.contracts import Example, LabelValue, Limits, RiskDimension, Split, UsageRestriction
 from forecheck.data.io import read_jsonl
-from forecheck.inference.chat_template import plan_chat_prefill, render_full_chat_text
+from forecheck.inference.chat_template import ChatPrefillPlanner, render_full_chat_text
 from forecheck.inference.prompt import QUESTIONS
 from forecheck.inference.serialization import render_context
 
@@ -163,7 +163,7 @@ def _encode_naive(
 
 def _encode_shared_chat(
     example: Example,
-    tokenizer: TokenizerLike,
+    planner: ChatPrefillPlanner,
     context_text: str,
     max_prompt_tokens: int,
 ) -> EncodedSequence:
@@ -172,7 +172,7 @@ def _encode_shared_chat(
     targets: list[QuestionTarget] = []
     shared_prefix_ids: tuple[int, ...] | None = None
     for block_index, dimension in enumerate(DIMENSION_ORDER, start=1):
-        plan = plan_chat_prefill(tokenizer, context_text, QUESTIONS[dimension])
+        plan = planner.plan(context_text, QUESTIONS[dimension])
         if plan is None:
             raise DataDisciplineError(
                 f"example {example.example_id!r}: chat-template prefix/suffix split is "
@@ -236,6 +236,7 @@ def encode_example(
     shared_prefill: bool = True,
     max_prompt_tokens: int = Limits.MAX_PROMPT_TOKENS,
     use_chat_template: bool = False,
+    planner: ChatPrefillPlanner | None = None,
 ) -> list[EncodedSequence]:
     """Encode one example: one sequence if ``shared_prefill``, else eleven.
 
@@ -244,12 +245,16 @@ def encode_example(
     loss is :mod:`forecheck.training.loss`'s job, not this module's. ``use_chat_template``
     routes context+question through :mod:`forecheck.inference.chat_template`, the same
     helper :mod:`forecheck.inference.hf` uses to serve, so train and serve stay in sync;
-    that module derives the thinking-toggle kwarg from the tokenizer itself.
+    that module derives the thinking-toggle kwarg from the tokenizer itself. ``planner``
+    lets a caller encoding many rows (e.g. :class:`TrainableExampleDataset`) share one
+    :class:`~forecheck.inference.chat_template.ChatPrefillPlanner`, which caches the
+    sentinel render across rows; a single-use planner is built when omitted.
     """
     context_text = render_context(example.context)
     if use_chat_template:
         if shared_prefill:
-            return [_encode_shared_chat(example, tokenizer, context_text, max_prompt_tokens)]
+            shared_planner = planner if planner is not None else ChatPrefillPlanner(tokenizer)
+            return [_encode_shared_chat(example, shared_planner, context_text, max_prompt_tokens)]
         return [
             _encode_naive_chat(example, tokenizer, context_text, dimension, max_prompt_tokens)
             for dimension in DIMENSION_ORDER
@@ -284,6 +289,7 @@ class TrainableExampleDataset:
         self._shared_prefill = shared_prefill
         self._max_prompt_tokens = max_prompt_tokens
         self._use_chat_template = use_chat_template
+        self._planner = ChatPrefillPlanner(tokenizer) if use_chat_template else None
         self._cache: dict[int, list[EncodedSequence]] = {}
 
     def __len__(self) -> int:
@@ -299,6 +305,7 @@ class TrainableExampleDataset:
             shared_prefill=self._shared_prefill,
             max_prompt_tokens=self._max_prompt_tokens,
             use_chat_template=self._use_chat_template,
+            planner=self._planner,
         )
         self._cache[index] = encoded
         return encoded
