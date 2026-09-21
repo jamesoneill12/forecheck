@@ -3,12 +3,12 @@
   "path": "data/fixtures/heldout_family.jsonl",
   "n_examples": 252,
   "n_families": 10,
-  "sha256": "2d52a76ce9fb36292fe5e4e773e15d4ddd6eec665be99c9f7cdc647e49d1e826",
+  "sha256": "03185c57198b83a6adbf3c63cf37e3b8e833fa7a8e9de860a8bf59e4d119f0a2",
   "label_schema_version": "1.0",
   "generator_versions": [
     "1.0.0"
   ],
-  "created_at": "2026-09-21T21:06:59.845860Z",
+  "created_at": "2026-09-21T23:07:07.780747Z",
   "positive_rate": {
     "prompt_injection_influence": 0.09523809523809523,
     "unauthorized_scope": 0.13636363636363635,

@@ -207,3 +207,13 @@ AUROC. Numbers are uncalibrated (ECE 0.14).
   decoder 2B trained on it, evaluated on unseen policy kinds and phrasings.
 - Multi-policy stacking table (independent OR-stack vs merged bundle vs expected-cost
   joint rule) on the decoder's calibrated probabilities.
+
+## Known data defect: privilege_escalation (affects every v2/v3 number above)
+
+`authority_before` / `authority_after`, the latent fields the label is derived from, were
+never rendered into the tool call, so 78 of 79 dev positives were indistinguishable in text
+from an in-scope re-grant. That is why every arm shows AUROC 0.95 to 0.99 with AUPRC 0.46
+to 0.53 on this dimension: the models learn "GRANT/REVOKE is risky" and cannot separate
+the 112 benign re-grants from the 79 escalations. Fixed in the renderer (both values are
+now emitted as arguments when the tool changes authority); v4 data regenerates with the fix.
+Details in `docs/results/notes/privilege-escalation-diagnosis.md`.

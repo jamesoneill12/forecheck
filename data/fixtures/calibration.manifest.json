@@ -3,12 +3,12 @@
   "path": "data/fixtures/calibration.jsonl",
   "n_examples": 171,
   "n_families": 49,
-  "sha256": "4adb96fd29dc1f70724b7602f2e3058ae73f4e9076e3c56a58822b70450c1b99",
+  "sha256": "a39c90a4d3e49bdd88ae14a56d628329e241f54ca0652870d6b040f0e235f245",
   "label_schema_version": "1.0",
   "generator_versions": [
     "1.0.0"
   ],
-  "created_at": "2026-09-21T21:06:59.832440Z",
+  "created_at": "2026-09-21T23:07:07.767841Z",
   "positive_rate": {
     "prompt_injection_influence": 0.07602339181286549,
     "unauthorized_scope": 0.12345679012345678,

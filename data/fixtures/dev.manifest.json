@@ -3,12 +3,12 @@
   "path": "data/fixtures/dev.jsonl",
   "n_examples": 157,
   "n_families": 49,
-  "sha256": "ac2b325b3d73481a854960db4cc098999b692dfbf38c4b3e1e24a520995a3c5c",
+  "sha256": "c6826378e113a0330533aafbae423130c0db6991ca71c1a171f2cf874b02f726",
   "label_schema_version": "1.0",
   "generator_versions": [
     "1.0.0"
   ],
-  "created_at": "2026-09-21T21:06:59.836062Z",
+  "created_at": "2026-09-21T23:07:07.771390Z",
   "positive_rate": {
     "prompt_injection_influence": 0.044585987261146494,
     "unauthorized_scope": 0.11724137931034483,

@@ -6,13 +6,17 @@ from forecheck.contracts import (
     ActionOrigin,
     ContextGap,
     DestinationRelationship,
+    LabelValue,
     OperationKind,
+    RiskDimension,
     Sensitivity,
     SequencePattern,
     TrustLevel,
 )
+from forecheck.data.labeling import derive_labels
 from forecheck.data.rendering import OfflineTemplateRenderer, build_surface_text
 from forecheck.data.tools import get_tool
+from forecheck.inference.serialization import serialize_context
 from tests.data.factories import make_latent
 
 
@@ -356,3 +360,36 @@ def test_hard_negative_instruction_target_absent_from_action() -> None:
         observation_text = context.observations[0].content
         assert "instructed_target" not in context.proposed_action.arguments
         assert context.proposed_action.arguments["to"] not in observation_text
+
+
+def test_privilege_escalation_positive_renders_the_deciding_authority() -> None:
+    tool = get_tool("cloud.grant_iam_policy")
+    latent = make_latent(
+        tool=tool,
+        operation=OperationKind.GRANT,
+        principal_entitlements=["iam.read"],
+        agent_delegated_scopes=["iam.read"],
+        authority_before=["iam.read"],
+        authority_after=["iam.read", "iam.admin"],
+    )
+    assert derive_labels(latent).values[RiskDimension.PRIVILEGE_ESCALATION] is LabelValue.YES
+    context = OfflineTemplateRenderer().render(latent, random.Random(0))
+    text = serialize_context(context).text
+    assert "iam.admin" in text
+
+
+def test_privilege_escalation_negative_in_scope_regrant_still_shows_no_widening() -> None:
+    tool = get_tool("cloud.grant_iam_policy")
+    latent = make_latent(
+        tool=tool,
+        operation=OperationKind.GRANT,
+        principal_entitlements=["iam.read", "iam.admin"],
+        agent_delegated_scopes=["iam.read", "iam.admin"],
+        authority_before=["iam.read", "iam.admin"],
+        authority_after=["iam.read", "iam.admin"],
+    )
+    assert derive_labels(latent).values[RiskDimension.PRIVILEGE_ESCALATION] is LabelValue.NO
+    context = OfflineTemplateRenderer().render(latent, random.Random(0))
+    text = serialize_context(context).text
+    assert "authority_before: ['iam.read', 'iam.admin']" in text
+    assert "authority_after: ['iam.read', 'iam.admin']" in text

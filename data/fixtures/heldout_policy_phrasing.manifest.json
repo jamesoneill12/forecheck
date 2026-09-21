@@ -3,12 +3,12 @@
   "path": "data/fixtures/heldout_policy_phrasing.jsonl",
   "n_examples": 156,
   "n_families": 52,
-  "sha256": "18657c5167b7d809acbecc0fced393e66ba6e3440247626b167cf885b3c5b0a6",
+  "sha256": "e88e525fb304c7a22f86e73b912e2adf500a966cfa35c6984db99859b70d7b9e",
   "label_schema_version": "1.0",
   "generator_versions": [
     "1.0.0"
   ],
-  "created_at": "2026-09-21T21:06:59.854386Z",
+  "created_at": "2026-09-21T23:07:07.789173Z",
   "positive_rate": {
     "prompt_injection_influence": 0.08974358974358974,
     "unauthorized_scope": 0.17105263157894737,

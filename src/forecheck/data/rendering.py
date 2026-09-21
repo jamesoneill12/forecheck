@@ -465,6 +465,10 @@ def _build_arguments(
     if surface.injected_target is not None:
         args["to"] = surface.injected_target
         args["instructed_target"] = surface.injected_target
+    if latent.tool.changes_authority:
+        # Without this, an in-scope re-grant renders identically to a real escalation.
+        args["authority_before"] = list(latent.authority_before)
+        args["authority_after"] = list(latent.authority_after)
     return args
 
 
