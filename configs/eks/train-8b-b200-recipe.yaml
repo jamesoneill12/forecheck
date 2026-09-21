@@ -12,10 +12,7 @@ trainer:
     pip install -q --no-cache-dir -e ".[train]" &&
     forecheck data generate --offline --config configs/data/train_medium.yaml --out /opt/ml/fsx/forecheck/data/v1 &&
     forecheck data split /opt/ml/fsx/forecheck/data/v1 &&
-    forecheck train --config configs/training/8b.yaml
-      data.dir=/opt/ml/fsx/forecheck/data/v1
-      output.dir=/opt/ml/fsx/forecheck/runs/8b-synthetic-v1
-      tracking.backend=local &&
+    forecheck train --config configs/training/8b.yaml data.dir=/opt/ml/fsx/forecheck/data/v1 output.dir=/opt/ml/fsx/forecheck/runs/8b-synthetic-v1 tracking.backend=local &&
     forecheck calibrate --run /opt/ml/fsx/forecheck/runs/8b-synthetic-v1 --split calibration &&
     forecheck evaluate --run /opt/ml/fsx/forecheck/runs/8b-synthetic-v1 --split test --class synthetic_in_distribution &&
     forecheck evaluate --run /opt/ml/fsx/forecheck/runs/8b-synthetic-v1 --split heldout_family --class synthetic_heldout_adversarial'
