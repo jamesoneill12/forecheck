@@ -63,3 +63,24 @@ for the `enable_thinking` or `thinking` variable name and passes the matching kw
 changes the literal rendered text versus the old direct-kwarg-only attempt whenever
 that tokenizer's template uses the `thinking` convention (Granite 3.3) rather than
 `enable_thinking`, so `PROMPT_CONTRACT_VERSION` is bumped to `1.2.0`.
+
+## Amendment 2026-09-21 (b): four-message layout for a stable prefill split
+
+A real training run hit `DataDisciplineError` on every `ibm-granite/granite-3.3-2b-instruct`
+example for `QUESTIONS[RiskDimension.PROMPT_INJECTION_INFLUENCE]` ("Is the proposed
+action..."). `build_chat_messages` packed context and question into one user message
+(`f"{context_text}\n\n{question}"`); Granite's tokenizer BPE-merges across the `\n\n` +
+`Is` boundary, so `plan_chat_prefill`'s prefix/suffix retokenization no longer
+reproduced the full tokenization, and `_encode_shared_chat` raised rather than
+building a shared-prefill sequence.
+
+`build_chat_messages` now renders four messages: `[system: SYSTEM_PREAMBLE] [user:
+context_text] [assistant: CONTEXT_ACK] [user: question]`, where `CONTEXT_ACK` is a
+fixed short string ("Understood. Ask your question about this action.") defined next
+to `SYSTEM_PREAMBLE` in `forecheck.inference.prompt` and folded into
+`PROMPT_CONTRACT_HASH`. The prefix/suffix split now falls on the second user turn's
+role-header special token rather than on plain rendered text, so a BPE merge cannot
+cross it on any tokenizer with special role tokens. `plan_chat_prefill` keeps its
+sentinel-render-and-retokenize verification and its `None` fallback to a non-shared
+forward pass unchanged, as the safety net for tokenizers where this still fails.
+`PROMPT_CONTRACT_VERSION` is bumped to `1.3.0`.

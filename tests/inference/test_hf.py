@@ -182,9 +182,8 @@ def _build_toy_model_and_tokenizer(vocab_size: int = 64, dim: int = 8) -> tuple[
             tokenize: bool = False,
             **kwargs: object,
         ) -> str:
-            system = next(m["content"] for m in messages if m["role"] == "system")
-            user = next(m["content"] for m in messages if m["role"] == "user")
-            text = f"{system} {user}"
+            system, user_context, assistant_ack, user_question = (m["content"] for m in messages)
+            text = f"{system} {user_context} {assistant_ack} {user_question}"
             if add_generation_prompt:
                 text += " GEN"
             return text
@@ -311,10 +310,12 @@ def test_shared_prefill_chat_template_matches_naive_fallback_numerically() -> No
 
 
 class _BoundaryMergingToyTokenizer:
-    """Same character-level ``\\nI`` merge as ``_BoundaryMergingTokenizer`` in
-    ``test_chat_template.py``, sized for the toy model's vocabulary, so a real
-    ``HFBackend.score()`` call exercises the shared-cache branch for one dimension and
-    the non-shared fallback branch for another in the same request."""
+    """Same ``>I`` boundary merge as ``_BoundaryMergingTokenizer`` in
+    ``test_chat_template.py`` -- the second user turn's role marker (``>``) merges with
+    an immediately following ``I`` in joint tokenization -- sized for the toy model's
+    vocabulary, so a real ``HFBackend.score()`` call exercises the shared-cache branch
+    for one dimension and the non-shared fallback branch for another in the same
+    request."""
 
     def __init__(self, vocab_size: int, yes_id: int, no_id: int) -> None:
         self._vocab_size = vocab_size
@@ -329,9 +330,8 @@ class _BoundaryMergingToyTokenizer:
         tokenize: bool = False,
         **kwargs: object,
     ) -> str:
-        system = next(m["content"] for m in messages if m["role"] == "system")
-        user = next(m["content"] for m in messages if m["role"] == "user")
-        text = f"{system}|{user}"
+        system, user_context, assistant_ack, user_question = (m["content"] for m in messages)
+        text = f"{system}|{user_context}|{assistant_ack}|>{user_question}"
         if add_generation_prompt:
             text += "|GEN"
         return text
@@ -350,7 +350,7 @@ class _BoundaryMergingToyTokenizer:
         ids: list[int] = []
         i = 0
         while i < len(text):
-            if text[i : i + 2] == "\nI":
+            if text[i : i + 2] == ">I":
                 ids.append(self._id_for("<MERGED>"))
                 i += 2
                 continue
@@ -364,7 +364,7 @@ class _BoundaryMergingToyTokenizer:
 
 @requires_torch
 def test_score_falls_back_to_non_shared_for_a_question_with_an_unstable_boundary() -> None:
-    """PROMPT_INJECTION_INFLUENCE ("Is...") hits the tokenizer's \\nI merge and falls
+    """PROMPT_INJECTION_INFLUENCE ("Is...") hits the tokenizer's >I merge and falls
     back to a non-shared forward pass; FINANCIAL_COMMITMENT ("Does...") does not and
     uses the shared-cache branch -- both must still score correctly."""
     import torch

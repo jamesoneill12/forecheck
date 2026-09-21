@@ -173,9 +173,9 @@ def test_shared_and_naive_chat_template_encodings_produce_equivalent_targets(
 
 
 class _BoundaryMergingChatTokenizer:
-    """Merges a newline immediately followed by ``I`` into one token, simulating a
-    BPE merge that only happens when the context/question boundary is tokenized
-    jointly -- exactly the case :func:`plan_chat_prefill` must detect and reject."""
+    """Merges the second user turn's role marker (``>``) with an immediately
+    following ``I`` into one token, simulating a role-header token that is not truly
+    atomic -- exactly the case :func:`plan_chat_prefill` must detect and reject."""
 
     def apply_chat_template(
         self,
@@ -185,9 +185,8 @@ class _BoundaryMergingChatTokenizer:
         tokenize: bool = False,
         **kwargs: object,
     ) -> str:
-        system = next(m["content"] for m in messages if m["role"] == "system")
-        user = next(m["content"] for m in messages if m["role"] == "user")
-        text = f"{system}|{user}"
+        system, user_context, assistant_ack, user_question = (m["content"] for m in messages)
+        text = f"{system}|{user_context}|{assistant_ack}|>{user_question}"
         if add_generation_prompt:
             text += "|GEN"
         return text
@@ -196,7 +195,7 @@ class _BoundaryMergingChatTokenizer:
         ids: list[int] = []
         i = 0
         while i < len(text):
-            if text[i : i + 2] == "\nI":
+            if text[i : i + 2] == ">I":
                 ids.append(-1)
                 i += 2
                 continue

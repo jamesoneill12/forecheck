@@ -2,22 +2,21 @@
 
 Post-trained instruction models score correctly only via their own chat template.
 Both :mod:`forecheck.inference.hf` and :mod:`forecheck.training.dataset` import from
-here so the serve and train paths cannot drift. See ADR 0004, Amendments 2026-09-20
-and 2026-09-21.
+here so the serve and train paths cannot drift. See ADR 0004, Amendments 2026-09-20,
+2026-09-21 (a) and 2026-09-21 (b).
 
-:func:`thinking_kwargs` resolves the thinking-toggle keyword (``enable_thinking``,
-``thinking``, or none) from the tokenizer's own template text, since the selected
-bases disagree on the keyword; an unrecognised kwarg is silently ignored by
-transformers, but resolving the right one keeps the prompt contract explicit.
+:func:`thinking_kwargs` resolves the thinking-toggle keyword from the tokenizer's own
+template text, since the selected bases disagree on it.
 
-:func:`build_chat_messages` always supplies an explicit system message so a
-template's own date-embedding default (e.g. Granite's) is never reached, keeping the
-rendered prompt stable across days.
+:func:`build_chat_messages` renders four messages -- system, user (context), assistant
+(fixed acknowledgement), user (question) -- instead of packing context and question
+into one user turn, so the shared-prefill split in :func:`plan_chat_prefill` lands on
+the second user turn's role-header special token rather than on plain text a BPE merge
+can straddle (observed on ``granite-3.3-2b-instruct`` for a question starting "Is").
 
-:func:`plan_chat_prefill` verifies shared-prefill KV-cache reuse is safe by checking
-that tokenizing the prefix and suffix separately reproduces the full text's token ids
-exactly (a BPE merge can straddle the split point); it returns ``None`` when that
-check fails, and callers fall back to a single non-shared forward pass.
+:func:`plan_chat_prefill` still verifies the split by re-tokenizing prefix and suffix
+separately and comparing to the full tokenization, returning ``None`` -- triggering a
+non-shared fallback -- on any mismatch, as a safety net.
 """
 
 from __future__ import annotations
@@ -25,7 +24,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from forecheck.inference.prompt import SYSTEM_PREAMBLE
+from forecheck.inference.prompt import CONTEXT_ACK, SYSTEM_PREAMBLE
 
 __all__ = [
     "ChatPrefillPlan",
@@ -40,14 +39,21 @@ _SENTINEL = "FORECHECK_QUESTION_SENTINEL"
 
 
 def build_chat_messages(context_text: str, question: str) -> list[dict[str, str]]:
-    """Build the two-message chat payload scored for every dimension.
+    """Build the four-message chat payload scored for every dimension.
 
-    The system message is always present, so a template's own default system message
-    (which may embed the current date) is never reached.
+    ``[system: SYSTEM_PREAMBLE] [user: context_text] [assistant: CONTEXT_ACK] [user:
+    question]``. The system message is always present, so a template's own default
+    system message (which may embed the current date) is never reached. Splitting the
+    context and question across two user turns, with a fixed assistant turn between
+    them, puts the shared-prefill boundary on the second user turn's role-header
+    special token instead of on plain text, so a BPE merge cannot straddle it (see the
+    module docstring).
     """
     return [
         {"role": "system", "content": SYSTEM_PREAMBLE},
-        {"role": "user", "content": f"{context_text}\n\n{question}"},
+        {"role": "user", "content": context_text},
+        {"role": "assistant", "content": CONTEXT_ACK},
+        {"role": "user", "content": question},
     ]
 
 
@@ -99,7 +105,7 @@ class ChatPrefillPlan:
 
 
 def plan_chat_prefill(tokenizer: Any, context_text: str, question: str) -> ChatPrefillPlan | None:
-    """Split the chat-templated prompt at the end of the rendered context.
+    """Split the chat-templated prompt just before the question turn's content.
 
     The split point is located by rendering the template with a sentinel in place of
     the question, then verified by checking that separately tokenizing the prefix and

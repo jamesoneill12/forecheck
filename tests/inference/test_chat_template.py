@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import pytest
@@ -11,14 +12,18 @@ from forecheck.inference.chat_template import (
     render_full_chat_text,
     thinking_kwargs,
 )
-from forecheck.inference.prompt import SYSTEM_PREAMBLE
+from forecheck.inference.prompt import CONTEXT_ACK, SYSTEM_PREAMBLE
 
 
-def test_build_chat_messages_wraps_system_and_user() -> None:
+def test_build_chat_messages_is_four_messages_system_user_assistant_user() -> None:
     messages = build_chat_messages("ctx", "question?")
 
-    assert messages[0] == {"role": "system", "content": SYSTEM_PREAMBLE}
-    assert messages[1] == {"role": "user", "content": "ctx\n\nquestion?"}
+    assert messages == [
+        {"role": "system", "content": SYSTEM_PREAMBLE},
+        {"role": "user", "content": "ctx"},
+        {"role": "assistant", "content": CONTEXT_ACK},
+        {"role": "user", "content": "question?"},
+    ]
 
 
 class _CapturingTokenizer:
@@ -90,8 +95,27 @@ def test_render_full_chat_text_passes_system_message_first() -> None:
     assert tokenizer.calls[-1]["messages"][0]["role"] == "system"
 
 
+_TAG_RE = re.compile(r"(<[^>]+>)")
+
+
+def _tag_aware_encode(text: str) -> list[int]:
+    """Tokenize ``text`` by treating each ``<tag>`` as one atomic token and splitting
+    everything else on whitespace -- a stand-in for a real tokenizer's role-header
+    special tokens, which never merge with surrounding text."""
+    ids: list[int] = []
+    for chunk in _TAG_RE.split(text):
+        if not chunk:
+            continue
+        if chunk.startswith("<") and chunk.endswith(">"):
+            ids.append(hash(chunk) % 10_000)
+        else:
+            ids.extend(hash(w) % 10_000 for w in chunk.split())
+    return ids or [0]
+
+
 class _WordTokenizer:
-    """A whitespace-splitting toy tokenizer with a real (non-merging) chat template."""
+    """A toy tokenizer with a real (non-merging) chat template: renders all four
+    message roles with distinct tag markers, and tokenizes those tags atomically."""
 
     def apply_chat_template(
         self,
@@ -101,15 +125,17 @@ class _WordTokenizer:
         tokenize: bool,
         **kwargs: Any,
     ) -> str:
-        system = next(m["content"] for m in messages if m["role"] == "system")
-        user = next(m["content"] for m in messages if m["role"] == "user")
-        text = f"<sys>{system}</sys><user>{user}</user>"
+        system, user_context, assistant_ack, user_question = (m["content"] for m in messages)
+        text = (
+            f"<sys>{system}</sys><user>{user_context}</user>"
+            f"<asst>{assistant_ack}</asst><user>{user_question}</user>"
+        )
         if add_generation_prompt:
             text += "<assistant>"
         return text
 
     def encode(self, text: str, add_special_tokens: bool = False) -> list[int]:
-        return [hash(w) % 10_000 for w in text.split()] or [0]
+        return _tag_aware_encode(text)
 
 
 def test_plan_chat_prefill_splits_and_verifies_a_clean_boundary() -> None:
@@ -133,10 +159,10 @@ def test_plan_chat_prefill_prefix_is_stable_across_questions() -> None:
 
 
 class _BoundaryMergingTokenizer:
-    """A toy tokenizer whose template puts the question directly against the
-    rendered context (no template-owned separator), and whose ``encode`` merges a
-    newline immediately followed by ``Q`` into one token -- a stand-in for a BPE merge
-    that only happens when the boundary is tokenized jointly rather than split."""
+    """A toy tokenizer whose second user role marker (``>``) still merges with an
+    immediately following ``I`` when tokenized jointly -- modeling a tokenizer whose
+    role-header token is not truly atomic, which is exactly the case
+    ``plan_chat_prefill``'s runtime prefix/suffix check must catch and reject."""
 
     def apply_chat_template(
         self,
@@ -146,9 +172,8 @@ class _BoundaryMergingTokenizer:
         tokenize: bool,
         **kwargs: Any,
     ) -> str:
-        system = next(m["content"] for m in messages if m["role"] == "system")
-        user = next(m["content"] for m in messages if m["role"] == "user")
-        text = f"{system}|{user}"
+        system, user_context, assistant_ack, user_question = (m["content"] for m in messages)
+        text = f"{system}|{user_context}|{assistant_ack}|>{user_question}"
         if add_generation_prompt:
             text += "|GEN"
         return text
@@ -157,7 +182,7 @@ class _BoundaryMergingTokenizer:
         ids: list[int] = []
         i = 0
         while i < len(text):
-            if text[i : i + 2] == "\nQ":
+            if text[i : i + 2] == ">I":
                 ids.append(9999)
                 i += 2
                 continue
@@ -169,7 +194,7 @@ class _BoundaryMergingTokenizer:
 def test_plan_chat_prefill_returns_none_when_boundary_tokenization_diverges() -> None:
     tokenizer = _BoundaryMergingTokenizer()
 
-    plan = plan_chat_prefill(tokenizer, "ctx", "Q?")
+    plan = plan_chat_prefill(tokenizer, "ctx", "Is it risky?")
 
     assert plan is None
 

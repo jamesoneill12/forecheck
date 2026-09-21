@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 
 import pytest
@@ -57,9 +58,16 @@ class FakeTokenizer:
         return 0
 
 
+_TAG_RE = re.compile(r"(<[^>]+>)")
+
+
 class FakeChatTokenizer(FakeTokenizer):
     """A :class:`FakeTokenizer` with a real (non-merging) chat template, for exercising
-    ``use_chat_template=True`` without a real tokenizer's ``apply_chat_template``."""
+    ``use_chat_template=True`` without a real tokenizer's ``apply_chat_template``.
+
+    Tokenizes ``<tag>`` markers atomically and everything else by whitespace, modeling
+    how real role-header special tokens never merge with surrounding text.
+    """
 
     def apply_chat_template(
         self,
@@ -69,12 +77,27 @@ class FakeChatTokenizer(FakeTokenizer):
         tokenize: bool = False,
         **kwargs: object,
     ) -> str:
-        system = next(m["content"] for m in messages if m["role"] == "system")
-        user = next(m["content"] for m in messages if m["role"] == "user")
-        text = f"<sys>{system}</sys><user>{user}</user>"
+        system, user_context, assistant_ack, user_question = (m["content"] for m in messages)
+        text = (
+            f"<sys>{system}</sys><user>{user_context}</user>"
+            f"<asst>{assistant_ack}</asst><user>{user_question}</user>"
+        )
         if add_generation_prompt:
             text += "<assistant>"
         return text
+
+    def encode(self, text: str, add_special_tokens: bool = True) -> list[int]:
+        ids: list[int] = []
+        for chunk in _TAG_RE.split(text):
+            if not chunk:
+                continue
+            if chunk.startswith("<") and chunk.endswith(">"):
+                ids.append(self._id_for(chunk))
+            else:
+                ids.extend(self._id_for(w) for w in chunk.split())
+        if add_special_tokens:
+            return [self._id_for("<bos>"), *ids]
+        return ids
 
 
 @pytest.fixture
