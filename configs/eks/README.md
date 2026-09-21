@@ -31,7 +31,9 @@ Job names are prefixed with your username by ai-infra and limited to 63 characte
 
 ## What the recipe does
 
-Installs `forecheck[train]` into a stock NGC PyTorch image, generates a medium synthetic
+Installs `forecheck[train]` into the team's `ai/fin-base-training:latest` ECR image
+(NGC PyTorch 26.02 base, Python 3.12; ai-infra rejects non-ECR image references),
+generates a medium synthetic
 dataset offline onto FSx, splits it (family-level, leakage-checked), LoRA-trains the
 configured size (`configs/training/2b.yaml`, `4b.yaml`, or `8b.yaml`), fits calibration
 on the `calibration` split, and writes two evaluation reports

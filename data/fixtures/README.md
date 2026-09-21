@@ -10,13 +10,12 @@ call. Labels are derived deterministically from the latent scenario by
 
 ## Contents
 
-- `train.jsonl`, `calibration.jsonl`, `dev.jsonl`, `test.jsonl`, `heldout_family.jsonl`
-  — one `Example` per line, split leakage-safely by
-  `forecheck.data.splitting.split_examples` (grouped by scenario-family / template
-  ancestry, never by row; both halves of a contrastive pair always land together, and
-  both halves carry the same `contrastive_pair_id`). This seed produced no rows for the
-  `adversarial` split; that is an expected outcome of the same deterministic assignment
-  used everywhere else, not a special case.
+- `train.jsonl`, `calibration.jsonl`, `dev.jsonl`, `test.jsonl`, `heldout_family.jsonl`,
+  `adversarial.jsonl` — one `Example` per line, split leakage-safely by
+  `forecheck.data.splitting.split_examples`: whole tools are withheld for
+  `heldout_family`; every other split is grouped by base scenario (template lineage
+  root), never by row; both halves of a contrastive pair always land together and carry
+  the same `contrastive_pair_id`.
 - `<split>.manifest.json` — a `DatasetManifest` per split, produced by
   `forecheck.data.io.build_manifest`, recording row/family counts, a `sha256` of the
   JSONL file, and per-dimension positive rates. Verify with
@@ -24,11 +23,12 @@ call. Labels are derived deterministically from the latent scenario by
 
 ## Summary
 
-- 748 examples total: 720 bulk scenarios (12 tool families x 60) plus 14 contrastive
-  pairs, one per `ContrastiveAxis` member (28 rows).
+- 1912 examples total: 1800 bulk scenarios (12 tool families x 150) plus 56 contrastive
+  pairs, four per `ContrastiveAxis` member (112 rows).
 - All 12 `ToolFamily` members and all 14 `ContrastiveAxis` members are represented.
-- 46.9% of rows have an all-`NO`/`NOT_APPLICABLE` label set (benign hard negatives).
-- Split sizes: train 455, calibration 61, dev 113, test 95, heldout_family 24.
+- 43.4% of rows have an all-`NO`/`NOT_APPLICABLE` label set (benign hard negatives).
+- Split sizes: train 1172, calibration 182, dev 194, test 191, heldout_family 88,
+  adversarial 85.
 
 ## Regenerating
 

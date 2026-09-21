@@ -4,7 +4,7 @@ trainer:
   project_name: "forecheck"
   experiment_name: "train-9b-lora-nimble-parity-v1"
 
-  ecr_image: "nvcr.io/nvidia/pytorch:25.06-py3"
+  ecr_image: "812836555640.dkr.ecr.us-east-2.amazonaws.com/ai/fin-base-training:latest"
 
   command: >-
     bash -c 'set -euo pipefail &&
