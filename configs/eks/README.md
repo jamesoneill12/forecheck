@@ -21,7 +21,7 @@ approval.
 From the forecheck repo root:
 
 ```bash
-ai-infra eks submit-job scripts --recipe configs/eks/train-2b-b200-recipe.yaml --name forecheck-train-2b --gpu-type B200 --instance-type p6-b200.48xlarge --az us-east-2a --custom-label pretraining-tests --region us-east-2 --cluster eks-fsdp-cluster --use-fsx --follow-logs
+ai-infra eks submit-job scripts --recipe configs/eks/train-2b-b200-recipe.yaml --name forecheck-train-2b --gpu-type B200 --instance-type ml.p6-b200.48xlarge --az us-east-2a --custom-label pretraining-tests --region us-east-2 --cluster eks-fsdp-cluster --use-fsx --follow-logs
 ```
 
 Swap the recipe/name for `configs/eks/train-8b-b200-recipe.yaml` /

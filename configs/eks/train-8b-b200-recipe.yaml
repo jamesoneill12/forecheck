@@ -27,6 +27,6 @@ trainer:
 
   resources:
     worker:
-      instance_type: p6-b200.48xlarge
+      instance_type: ml.p6-b200.48xlarge
       gpus_per_pod: 8
       cpus_per_pod: 96
