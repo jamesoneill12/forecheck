@@ -28,6 +28,8 @@ thresholds selected on `dev`. Sections marked *pending* are filled in as jobs fi
 |---|---|---|---|---|
 | encoder ModernBERT-large | test | 0.814 | 0.057 | 0.816 |
 | encoder ModernBERT-large | heldout_family | 0.813 | 0.057 | |
+| encoder ModernBERT-large, identity stripped | test | 0.717 | 0.027 | |
+| encoder ModernBERT-large, identity stripped | heldout_family | 0.712 | 0.027 | |
 | encoder granite-embedding-r2 | test | 0.843 | 0.047 | 0.845 |
 | encoder granite-embedding-r2 | heldout_family | 0.841 | 0.049 | 0.791 |
 | Granite Guardian 3.3 zero-shot | test | 0.243 | 0.143 | |
@@ -40,6 +42,7 @@ thresholds selected on `dev`. Sections marked *pending* are filled in as jobs fi
 | decoder 2B v2, identity stripped | heldout_family | 0.736 | 0.040 | |
 | rule baseline | test | 0.609 | 0.119 | |
 | rule baseline | heldout_family | 0.614 | 0.122 | |
+| rule baseline, identity stripped | heldout_family | 0.614 | 0.122 | |
 
 Reference: decoder 2B v1 (30k rows, pre-fix generator) scored 0.820 / 0.826 macro AUPRC
 on test / heldout, see `../2b-synthetic-v1/`.
@@ -64,7 +67,11 @@ entitlements, delegated scopes, on_behalf_of and policy text removed from the co
 | external_communication | 1.000 | 1.000 | 1.000 | lookup |
 | privilege_escalation | 0.460 | 0.468 | 0.327 | weak for every arm, see below |
 
-Test split gives the same picture (0.918 vs 0.742 vs 0.609 macro).
+Test split gives the same picture (0.918 vs 0.742 vs 0.609 macro). The ModernBERT encoder
+shows the identical collapse when stripped: heldout `unauthorized_scope` 0.987 to 0.116,
+`policy_conflict` 0.399 to 0.376 (it never learned it), `insufficient_context` 0.664 to
+0.441; macro 0.813 to 0.712. The rule baseline is unchanged by stripping (0.614 either way)
+because its rules only read the action and destination fields.
 
 Reading. This is the experiment the plan was waiting on. Three dimensions collapse to
 chance the moment identity and policy context are removed, and the rule baseline cannot
@@ -193,7 +200,6 @@ AUROC. Numbers are uncalibrated (ECE 0.14).
 
 ## What is still to land
 
-- identity ablation for the encoder arm and the rule baseline (decoder done above).
 - `privilege_escalation` diagnosis: every arm has AUROC above 0.95 but AUPRC near 0.5.
 - gpt-oss-safeguard 20B zero-shot on 400 rows, with and without identity.
 - v3: policy-generalisation data (seven new policy kinds, four paraphrases each) with
