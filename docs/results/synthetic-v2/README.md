@@ -14,10 +14,10 @@ thresholds selected on `dev`. Sections marked *pending* are filled in as jobs fi
 
 | arm | model | training | status |
 |---|---|---|---|
-| decoder 2B | `ibm-granite/granite-3.3-2b-instruct` + LoRA r16, candidate-token logits | 3,200 steps, best dev step 2,200, dev macro AUPRC 0.907 | evaluate pending |
+| decoder 2B | `ibm-granite/granite-3.3-2b-instruct` + LoRA r16, candidate-token logits | 3,200 steps, best dev step 2,200, dev macro AUPRC 0.907 | done |
 | encoder ModernBERT-large | `answerdotai/ModernBERT-large`, mean pooling, linear 11-logit head | 2,412 steps, best dev step 2,400, dev macro AUPRC 0.808 | done |
 | encoder granite-embedding-r2 | `ibm-granite/granite-embedding-english-r2`, same head | 2,412 steps, best dev step 2,400, dev macro AUPRC 0.833 | done |
-| rule baseline | deterministic field lookups, no model | none | pending |
+| rule baseline | deterministic field lookups, no model | none | done |
 | Granite Guardian 3.3 8B zero-shot | `ibm-granite/granite-guardian-3.3-8b`, one custom criterion per dimension, yes/no logits | none | done (2,000-row subsample per split) |
 | gpt-oss-safeguard 20B zero-shot | `openai/gpt-oss-safeguard-20b`, policy in system prompt, greedy verdict | none | running (400-row subsample) |
 | Llama Guard 4 12B | gated repository, no token on the cluster | | not run |
@@ -34,11 +34,61 @@ thresholds selected on `dev`. Sections marked *pending* are filled in as jobs fi
 | Granite Guardian 3.3 zero-shot, identity stripped | test | 0.249 | 0.147 | |
 | Granite Guardian 3.3 zero-shot | heldout_family | 0.257 | 0.142 | |
 | Granite Guardian 3.3 zero-shot, identity stripped | heldout_family | 0.271 | 0.146 | |
-| decoder 2B v2 | test | pending | | |
-| rule baseline | test | pending | | |
+| decoder 2B v2 | test | 0.918 | 0.002 | |
+| decoder 2B v2 | heldout_family | 0.915 | 0.004 | |
+| decoder 2B v2, identity stripped | test | 0.742 | 0.026 | |
+| decoder 2B v2, identity stripped | heldout_family | 0.736 | 0.040 | |
+| rule baseline | test | 0.609 | 0.119 | |
+| rule baseline | heldout_family | 0.614 | 0.122 | |
 
 Reference: decoder 2B v1 (30k rows, pre-fix generator) scored 0.820 / 0.826 macro AUPRC
 on test / heldout, see `../2b-synthetic-v1/`.
+
+## Decoder 2B v2: what is learned, what is lookup, what needs identity
+
+Heldout_family AUPRC per dimension for the decoder, the same decoder with principal
+entitlements, delegated scopes, on_behalf_of and policy text removed from the context
+(`--strip-identity`, calibration bundle not applied), and the deterministic rule baseline.
+
+| dimension | decoder | decoder, identity stripped | rule baseline | reading |
+|---|---|---|---|---|
+| unauthorized_scope | 1.000 | 0.116 | 0.512 | needs identity; chance without it |
+| policy_conflict | 0.999 | 0.345 | 0.315 | needs policy text; chance without it |
+| insufficient_context | 0.849 | 0.418 | 0.235 | mostly needs identity |
+| sensitive_data_exposure | 1.000 | 1.000 | 0.764 | learned, partly lookup |
+| suspicious_action_sequence | 0.952 | 0.950 | 0.334 | learned from trajectory order |
+| prompt_injection_influence | 0.810 | 0.810 | 0.301 | learned from observations |
+| destructive_or_irreversible_action | 0.993 | 0.993 | 0.962 | lookup |
+| untrusted_destination | 1.000 | 0.996 | 1.000 | lookup |
+| financial_commitment | 1.000 | 1.000 | 1.000 | lookup |
+| external_communication | 1.000 | 1.000 | 1.000 | lookup |
+| privilege_escalation | 0.460 | 0.468 | 0.327 | weak for every arm, see below |
+
+Test split gives the same picture (0.918 vs 0.742 vs 0.609 macro).
+
+Reading. This is the experiment the plan was waiting on. Three dimensions collapse to
+chance the moment identity and policy context are removed, and the rule baseline cannot
+recover them either: `unauthorized_scope` (is the action inside the principal's
+entitlements and the agent's delegated scope), `policy_conflict` (does the action violate
+a stated policy clause) and, to a lesser degree, `insufficient_context`. Those are the
+delegated-authority dimensions, and the off-the-shelf guardian baseline is at chance on
+them with or without identity. Four dimensions are pure lookup (the rule baseline ties the
+model), so their near-perfect scores are not evidence of anything. Three are learned from
+the trajectory and observations and do not need identity.
+
+Calibration: ECE 0.002 on test and 0.004 on heldout after temperature scaling on the
+calibration split; pair consistency 0.981 over 106 directional pairs; surface-paraphrase
+invariance mean |dp| 0.003.
+
+Decoder vs encoders: the decoder beats the best encoder by 0.07 macro AUPRC, and the
+whole gap is `policy_conflict` (1.00 vs 0.43) plus `insufficient_context` and
+`privilege_escalation`. Reading a clause and checking it against an action is where the
+candidate-token decoder earns its cost.
+
+Caveats. Synthetic labels; the generator wrote the policy clauses and the entitlement
+lists, so the model may be exploiting template regularities that real policies will not
+have. The v3 splits (`heldout_policy_kind`, `heldout_policy_phrasing`) test the first
+part of that objection.
 
 ## Encoder ModernBERT-large, per dimension (test)
 
@@ -143,10 +193,8 @@ AUROC. Numbers are uncalibrated (ECE 0.14).
 
 ## What is still to land
 
-- decoder 2B v2 test and heldout reports and the rule baseline on the same splits
-  (job `forecheck-eval-2b-v2`); the rule baseline decides which dimensions are lookup.
-- identity ablation of the trained arms (decoder 2B, ModernBERT, rule baseline with
-  `--strip-identity`), job `forecheck-idablate-v2`.
+- identity ablation for the encoder arm and the rule baseline (decoder done above).
+- `privilege_escalation` diagnosis: every arm has AUROC above 0.95 but AUPRC near 0.5.
 - gpt-oss-safeguard 20B zero-shot on 400 rows, with and without identity.
 - v3: policy-generalisation data (seven new policy kinds, four paraphrases each) with
   `heldout_policy_kind` (2,247 rows) and `heldout_policy_phrasing` (3,294 rows) splits,
