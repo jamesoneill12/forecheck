@@ -166,17 +166,13 @@ def _encode_shared_chat(
     tokenizer: TokenizerLike,
     context_text: str,
     max_prompt_tokens: int,
-    *,
-    enable_thinking: bool,
 ) -> EncodedSequence:
     input_ids: list[int] = []
     block_ids: list[int] = []
     targets: list[QuestionTarget] = []
     shared_prefix_ids: tuple[int, ...] | None = None
     for block_index, dimension in enumerate(DIMENSION_ORDER, start=1):
-        plan = plan_chat_prefill(
-            tokenizer, context_text, QUESTIONS[dimension], enable_thinking=enable_thinking
-        )
+        plan = plan_chat_prefill(tokenizer, context_text, QUESTIONS[dimension])
         if plan is None:
             raise DataDisciplineError(
                 f"example {example.example_id!r}: chat-template prefix/suffix split is "
@@ -216,12 +212,8 @@ def _encode_naive_chat(
     context_text: str,
     dimension: RiskDimension,
     max_prompt_tokens: int,
-    *,
-    enable_thinking: bool,
 ) -> EncodedSequence:
-    full_text = render_full_chat_text(
-        tokenizer, context_text, QUESTIONS[dimension], enable_thinking=enable_thinking
-    )
+    full_text = render_full_chat_text(tokenizer, context_text, QUESTIONS[dimension])
     input_ids = list(tokenizer.encode(full_text, add_special_tokens=False))
     _check_budget(example.example_id, len(input_ids), max_prompt_tokens)
     target = QuestionTarget(
@@ -244,7 +236,6 @@ def encode_example(
     shared_prefill: bool = True,
     max_prompt_tokens: int = Limits.MAX_PROMPT_TOKENS,
     use_chat_template: bool = False,
-    enable_thinking: bool = False,
 ) -> list[EncodedSequence]:
     """Encode one example: one sequence if ``shared_prefill``, else eleven.
 
@@ -252,29 +243,15 @@ def encode_example(
     unchanged, including ``NOT_APPLICABLE``/``UNDETERMINED``; masking those out of the
     loss is :mod:`forecheck.training.loss`'s job, not this module's. ``use_chat_template``
     routes context+question through :mod:`forecheck.inference.chat_template`, the same
-    helper :mod:`forecheck.inference.hf` uses to serve, so train and serve stay in sync.
+    helper :mod:`forecheck.inference.hf` uses to serve, so train and serve stay in sync;
+    that module derives the thinking-toggle kwarg from the tokenizer itself.
     """
     context_text = render_context(example.context)
     if use_chat_template:
         if shared_prefill:
-            return [
-                _encode_shared_chat(
-                    example,
-                    tokenizer,
-                    context_text,
-                    max_prompt_tokens,
-                    enable_thinking=enable_thinking,
-                )
-            ]
+            return [_encode_shared_chat(example, tokenizer, context_text, max_prompt_tokens)]
         return [
-            _encode_naive_chat(
-                example,
-                tokenizer,
-                context_text,
-                dimension,
-                max_prompt_tokens,
-                enable_thinking=enable_thinking,
-            )
+            _encode_naive_chat(example, tokenizer, context_text, dimension, max_prompt_tokens)
             for dimension in DIMENSION_ORDER
         ]
     context_ids = list(tokenizer.encode(context_text))
@@ -301,14 +278,12 @@ class TrainableExampleDataset:
         shared_prefill: bool = True,
         max_prompt_tokens: int = Limits.MAX_PROMPT_TOKENS,
         use_chat_template: bool = False,
-        enable_thinking: bool = False,
     ) -> None:
         self._examples = examples
         self._tokenizer = tokenizer
         self._shared_prefill = shared_prefill
         self._max_prompt_tokens = max_prompt_tokens
         self._use_chat_template = use_chat_template
-        self._enable_thinking = enable_thinking
         self._cache: dict[int, list[EncodedSequence]] = {}
 
     def __len__(self) -> int:
@@ -324,7 +299,6 @@ class TrainableExampleDataset:
             shared_prefill=self._shared_prefill,
             max_prompt_tokens=self._max_prompt_tokens,
             use_chat_template=self._use_chat_template,
-            enable_thinking=self._enable_thinking,
         )
         self._cache[index] = encoded
         return encoded

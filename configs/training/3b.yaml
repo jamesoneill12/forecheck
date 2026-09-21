@@ -1,30 +1,29 @@
 model:
-  base_id: ibm-granite/granite-3.3-8b-instruct
+  base_id: ibm-granite/granite-4.0-micro
   dtype: bf16
   attn_implementation: sdpa
-  load_class: auto
 
 lora:
-  r: 16
-  alpha: 32
+  r: 32
+  alpha: 64
   dropout: 0.05
-  target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+  target_modules: [q_proj, k_proj, v_proj, o_proj]
   qlora: false
 
 data:
   dir: /opt/ml/fsx/forecheck/data/v1
   train_split: train
   dev_split: dev
-  max_prompt_tokens: 8192
+  max_prompt_tokens: 4096
   dimension_weights: {}
 
 optim:
-  lr: 0.00005
+  lr: 0.0001
   weight_decay: 0.01
   warmup_ratio: 0.03
-  epochs: 1
+  epochs: 3
   micro_batch_size: 8
-  grad_accum: 1
+  grad_accum: 2
   grad_clip: 1.0
   scheduler: cosine
 
@@ -34,11 +33,10 @@ train:
   save_every: 200
   early_stop_patience: 5
   shared_prefill: true
-  use_chat_template: true
 
 tracking:
   backend: local
-  run_name: train-8b
+  run_name: train-3b
 
 output:
-  dir: /opt/ml/fsx/forecheck/runs/8b-synthetic-v1
+  dir: /opt/ml/fsx/forecheck/runs/3b-synthetic-v1

@@ -1,17 +1,13 @@
 """Model/tokenizer loading shared by the HF backend and the training loop.
 
-Some post-trained hybrid/multimodal models (Qwen3.5 among them: config type
-``qwen3_5``, architecture ``Qwen3_5ForConditionalGeneration``) are registered in
-transformers only under the ``AutoModelForImageTextToText`` mapping, even for
-otherwise text-only checkpoints, because the architecture always carries a vision
-tower. ``load_class="auto"`` tries the causal-LM mapping first (the common case) and
-falls back to the image-text-to-text mapping on failure, so callers do not need to
-know in advance which mapping a given ``base_id`` needs; the resulting model's
-``.logits`` shape at the final position is unchanged, so scoring code needs no other
-adjustment. The fallback loads the *full* model, including its vision tower -- there
-is no public, architecture-independent transformers API to load only the text tower's
-weights, so that extra memory cost is accepted rather than reached for via private
-attributes. See ``configs/training/README.md`` for the size estimate.
+Some checkpoints register in transformers only under the ``AutoModelForImageTextToText``
+mapping, even when used text-only, because their architecture always carries a vision
+tower. ``load_class="auto"`` tries the causal-LM mapping first and falls back to the
+image-text-to-text mapping on failure, so callers do not need to know in advance which
+mapping a given ``base_id`` needs; the resulting model's ``.logits`` shape at the final
+position is unchanged either way. The fallback loads the *full* model, including its
+vision tower -- there is no public, architecture-independent transformers API to load
+only the text tower's weights.
 """
 
 from __future__ import annotations

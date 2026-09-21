@@ -9,6 +9,7 @@ from forecheck.inference.chat_template import (
     build_chat_messages,
     plan_chat_prefill,
     render_full_chat_text,
+    thinking_kwargs,
 )
 from forecheck.inference.prompt import SYSTEM_PREAMBLE
 
@@ -20,49 +21,73 @@ def test_build_chat_messages_wraps_system_and_user() -> None:
     assert messages[1] == {"role": "user", "content": "ctx\n\nquestion?"}
 
 
-class _DirectKwargTokenizer:
+class _CapturingTokenizer:
+    """Records the messages and kwargs a caller passed to ``apply_chat_template``."""
+
+    def __init__(self, chat_template: str) -> None:
+        self.chat_template = chat_template
+        self.calls: list[dict[str, Any]] = []
+
     def apply_chat_template(
         self,
         messages: list[dict[str, str]],
         *,
         add_generation_prompt: bool,
         tokenize: bool,
-        enable_thinking: bool,
+        **kwargs: Any,
     ) -> str:
-        return f"direct:{enable_thinking}"
+        self.calls.append({"messages": messages, **kwargs})
+        return "rendered"
+
+    def encode(self, text: str, add_special_tokens: bool = False) -> list[int]:
+        return [hash(w) % 10_000 for w in text.split()] or [0]
 
 
-class _NestedKwargTokenizer:
-    def apply_chat_template(
-        self,
-        messages: list[dict[str, str]],
-        *,
-        add_generation_prompt: bool,
-        tokenize: bool,
-        chat_template_kwargs: dict[str, Any] | None = None,
-    ) -> str:
-        thinking = (chat_template_kwargs or {}).get("enable_thinking")
-        return f"nested:{thinking}"
+@pytest.mark.parametrize(
+    ("chat_template", "expected"),
+    [
+        ("{% if enable_thinking %}...{% endif %}", {"enable_thinking": False}),
+        ("{% if thinking %}...{% endif %}", {"thinking": False}),
+        ("{{ messages }}", {}),
+        ("", {}),
+    ],
+)
+def test_thinking_kwargs_resolves_per_template_convention(
+    chat_template: str, expected: dict[str, bool]
+) -> None:
+    assert thinking_kwargs(_CapturingTokenizer(chat_template)) == expected
 
 
-class _PlainTokenizer:
-    def apply_chat_template(
-        self, messages: list[dict[str, str]], *, add_generation_prompt: bool, tokenize: bool
-    ) -> str:
-        return "plain"
+def test_thinking_kwargs_missing_chat_template_attribute_returns_empty() -> None:
+    class _NoTemplateAttr:
+        pass
+
+    assert thinking_kwargs(_NoTemplateAttr()) == {}
 
 
-def test_apply_chat_template_prefers_direct_enable_thinking_kwarg() -> None:
-    assert apply_chat_template(_DirectKwargTokenizer(), [], enable_thinking=False) == "direct:False"
+def test_apply_chat_template_passes_resolved_thinking_kwarg() -> None:
+    tokenizer = _CapturingTokenizer("{% if enable_thinking %}...{% endif %}")
+
+    apply_chat_template(tokenizer, [{"role": "system", "content": "s"}])
+
+    assert tokenizer.calls[-1]["enable_thinking"] is False
 
 
-def test_apply_chat_template_falls_back_to_chat_template_kwargs() -> None:
-    result = apply_chat_template(_NestedKwargTokenizer(), [], enable_thinking=False)
-    assert result == "nested:False"
+def test_apply_chat_template_passes_no_kwarg_when_template_has_no_toggle() -> None:
+    tokenizer = _CapturingTokenizer("{{ messages }}")
+
+    apply_chat_template(tokenizer, [{"role": "system", "content": "s"}])
+
+    assert "enable_thinking" not in tokenizer.calls[-1]
+    assert "thinking" not in tokenizer.calls[-1]
 
 
-def test_apply_chat_template_falls_back_to_plain_rendering() -> None:
-    assert apply_chat_template(_PlainTokenizer(), [], enable_thinking=False) == "plain"
+def test_render_full_chat_text_passes_system_message_first() -> None:
+    tokenizer = _CapturingTokenizer("")
+
+    render_full_chat_text(tokenizer, "ctx", "question?")
+
+    assert tokenizer.calls[-1]["messages"][0]["role"] == "system"
 
 
 class _WordTokenizer:

@@ -29,16 +29,19 @@ supported by the model or cache implementation; support is detected, not assumed
 
 ## Amendment 2026-09-20: chat-template scoring
 
-The selected base family, Qwen3.5 (see `configs/training/README.md`), is post-trained
-to expect its own chat template and defaults to thinking mode. Scoring or training it
-with the raw prompt-contract text (as if it were a base model) reads logits at a
-position the model was never post-trained to answer at, so `prompt.use_chat_template`
-(default `true` for the HF backend and training) now renders `[{"role": "system",
+The selected base models (see `configs/training/README.md`) are post-trained
+instruction models expecting their own chat template. Scoring or training one with the
+raw prompt-contract text (as if it were a base model) reads logits at a position the
+model was never post-trained to answer at, so `prompt.use_chat_template` (default
+`true` for the HF backend and training) now renders `[{"role": "system",
 SYSTEM_PREAMBLE}, {"role": "user", context + "\n\n" + question}]` through
-`tokenizer.apply_chat_template(..., add_generation_prompt=True, enable_thinking=False)`
-and scores the first assistant token, via one helper
-(`forecheck.inference.chat_template`) imported by both `forecheck.inference.hf` and
-`forecheck.training.dataset` so the two paths cannot drift apart.
+`tokenizer.apply_chat_template(..., add_generation_prompt=True, **thinking_kwargs)` and
+scores the first assistant token, via one helper (`forecheck.inference.chat_template`)
+imported by both `forecheck.inference.hf` and `forecheck.training.dataset` so the two
+paths cannot drift apart. `thinking_kwargs` is derived per tokenizer from its chat
+template text, since the four selected bases disagree on whether a thinking toggle
+exists and, when it does, what keyword selects it (see the chat_template module
+docstring).
 
 Shared-prefill KV-cache reuse still applies: the prefix ends where the rendered
 context does, located by rendering the template with a sentinel in place of the
@@ -49,3 +52,14 @@ single non-shared forward pass for it rather than trusting an unverified split.
 `PROMPT_CONTRACT_VERSION` is bumped to `1.1.0` and `use_chat_template`'s default now
 participates in `PROMPT_CONTRACT_HASH`, since it changes the literal text a model
 sees for the same context.
+
+## Amendment 2026-09-21: base-model swap and per-tokenizer thinking detection
+
+The base-model selection changed to Granite 3.3 (2B/8B), Granite 4.0 Micro (3B) and
+OLMo 3 7B (see `configs/training/README.md`); `forecheck.inference.chat_template` now
+exposes `thinking_kwargs(tokenizer)`, which inspects the tokenizer's chat template text
+for the `enable_thinking` or `thinking` variable name and passes the matching kwarg
+(or none) instead of the previous three-way trial-and-error. For a given tokenizer this
+changes the literal rendered text versus the old direct-kwarg-only attempt whenever
+that tokenizer's template uses the `thinking` convention (Granite 3.3) rather than
+`enable_thinking`, so `PROMPT_CONTRACT_VERSION` is bumped to `1.2.0`.

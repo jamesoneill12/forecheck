@@ -82,11 +82,15 @@ def test_load_model_auto_falls_back_to_image_text_to_text_on_valueerror(
     )
     from forecheck.inference.hf_loading import load_model
 
-    result = load_model("Qwen/Qwen3.5-9B", load_class="auto", torch_dtype="bf16")
+    result = load_model("some-org/some-vision-chat-model", load_class="auto", torch_dtype="bf16")
 
     assert result == "image-text-to-text-model"
-    assert _FailingAutoModelForCausalLM.calls == [("Qwen/Qwen3.5-9B", {"torch_dtype": "bf16"})]
-    assert _FakeAutoModelForImageTextToText.calls == [("Qwen/Qwen3.5-9B", {"torch_dtype": "bf16"})]
+    assert _FailingAutoModelForCausalLM.calls == [
+        ("some-org/some-vision-chat-model", {"torch_dtype": "bf16"})
+    ]
+    assert _FakeAutoModelForImageTextToText.calls == [
+        ("some-org/some-vision-chat-model", {"torch_dtype": "bf16"})
+    ]
 
 
 def test_load_model_causal_lm_never_tries_image_text_to_text(

@@ -1,23 +1,23 @@
 """Chat-template rendering shared by inference and training.
 
-Post-trained instruction models such as Qwen3.5 score correctly only when the context
-and question are wrapped in the model's own chat template (and, for Qwen3.5, with
-thinking mode explicitly turned off) -- feeding raw context+question text the way
-:mod:`forecheck.inference.prompt` alone renders it silently shifts the score
-distribution away from what the model was post-trained to expect. Both
-:mod:`forecheck.inference.hf` and :mod:`forecheck.training.dataset` import
-:func:`plan_chat_prefill`/:func:`render_full_chat_text` from here so the serve and
-train paths cannot drift apart. See ADR 0004, Amendment 2026-09-20.
+Post-trained instruction models score correctly only via their own chat template.
+Both :mod:`forecheck.inference.hf` and :mod:`forecheck.training.dataset` import from
+here so the serve and train paths cannot drift. See ADR 0004, Amendments 2026-09-20
+and 2026-09-21.
 
-Shared-prefill KV-cache reuse requires that tokenizing ``prefix_text`` and then
-tokenizing the per-question suffix produces the same token ids, concatenated, as
-tokenizing the full rendered text in one pass. This does not hold for every
-tokenizer/template pair -- a BPE merge can straddle the split point -- so the split is
-verified before it is trusted: a sentinel is rendered in place of the question to
-locate the split point textually, and the resulting prefix/suffix token ids are
-checked to reproduce the ids of tokenizing the real, full rendered text exactly. When
-the check fails, :func:`plan_chat_prefill` returns ``None`` and callers must fall back
-to a single, non-shared forward pass for that question.
+:func:`thinking_kwargs` resolves the thinking-toggle keyword (``enable_thinking``,
+``thinking``, or none) from the tokenizer's own template text, since the selected
+bases disagree on the keyword; an unrecognised kwarg is silently ignored by
+transformers, but resolving the right one keeps the prompt contract explicit.
+
+:func:`build_chat_messages` always supplies an explicit system message so a
+template's own date-embedding default (e.g. Granite's) is never reached, keeping the
+rendered prompt stable across days.
+
+:func:`plan_chat_prefill` verifies shared-prefill KV-cache reuse is safe by checking
+that tokenizing the prefix and suffix separately reproduces the full text's token ids
+exactly (a BPE merge can straddle the split point); it returns ``None`` when that
+check fails, and callers fall back to a single non-shared forward pass.
 """
 
 from __future__ import annotations
@@ -33,62 +33,59 @@ __all__ = [
     "build_chat_messages",
     "plan_chat_prefill",
     "render_full_chat_text",
+    "thinking_kwargs",
 ]
 
-_SENTINEL = "FORECHECK_QUESTION_SENTINEL"
+_SENTINEL = "FORECHECK_QUESTION_SENTINEL"
 
 
 def build_chat_messages(context_text: str, question: str) -> list[dict[str, str]]:
-    """Build the two-message chat payload scored for every dimension."""
+    """Build the two-message chat payload scored for every dimension.
+
+    The system message is always present, so a template's own default system message
+    (which may embed the current date) is never reached.
+    """
     return [
         {"role": "system", "content": SYSTEM_PREAMBLE},
         {"role": "user", "content": f"{context_text}\n\n{question}"},
     ]
 
 
-def apply_chat_template(
-    tokenizer: Any, messages: list[dict[str, str]], *, enable_thinking: bool = False
-) -> str:
-    """Render ``messages`` to text with the generation prompt open, thinking disabled.
+def thinking_kwargs(tokenizer: Any) -> dict[str, bool]:
+    """Resolve the thinking-toggle keyword, if any, this tokenizer's template accepts.
 
-    ``enable_thinking`` is passed three ways in order, so this works whether a
-    template accepts it as a direct keyword (Qwen's convention), nested under
-    ``chat_template_kwargs`` (an alternate convention some templates expose), or not
-    at all (in which case the template's own default applies).
+    Inspects ``tokenizer.chat_template`` for the variable name it references:
+    ``enable_thinking`` (checked first, since it contains ``thinking`` as a
+    substring), then bare ``thinking``, else an empty mapping when the template has no
+    thinking toggle at all.
     """
-    try:
-        return str(
-            tokenizer.apply_chat_template(
-                messages,
-                add_generation_prompt=True,
-                tokenize=False,
-                enable_thinking=enable_thinking,
-            )
-        )
-    except TypeError:
-        pass
-    try:
-        return str(
-            tokenizer.apply_chat_template(
-                messages,
-                add_generation_prompt=True,
-                tokenize=False,
-                chat_template_kwargs={"enable_thinking": enable_thinking},
-            )
-        )
-    except TypeError:
-        return str(
-            tokenizer.apply_chat_template(messages, add_generation_prompt=True, tokenize=False)
-        )
+    template = getattr(tokenizer, "chat_template", "") or ""
+    if "enable_thinking" in template:
+        return {"enable_thinking": False}
+    if "thinking" in template:
+        return {"thinking": False}
+    return {}
 
 
-def render_full_chat_text(
-    tokenizer: Any, context_text: str, question: str, *, enable_thinking: bool = False
-) -> str:
-    """Render the full chat-templated prompt for one (context, question) pair."""
-    return apply_chat_template(
-        tokenizer, build_chat_messages(context_text, question), enable_thinking=enable_thinking
+def apply_chat_template(tokenizer: Any, messages: list[dict[str, str]]) -> str:
+    """Render ``messages`` to text with the generation prompt open.
+
+    Thinking mode is disabled via whichever keyword (if any) :func:`thinking_kwargs`
+    resolves for this tokenizer's template.
+    """
+    return str(
+        tokenizer.apply_chat_template(
+            messages,
+            add_generation_prompt=True,
+            tokenize=False,
+            **thinking_kwargs(tokenizer),
+        )
     )
+
+
+def render_full_chat_text(tokenizer: Any, context_text: str, question: str) -> str:
+    """Render the full chat-templated prompt for one (context, question) pair."""
+    return apply_chat_template(tokenizer, build_chat_messages(context_text, question))
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,9 +98,7 @@ class ChatPrefillPlan:
     full_ids: tuple[int, ...]
 
 
-def plan_chat_prefill(
-    tokenizer: Any, context_text: str, question: str, *, enable_thinking: bool = False
-) -> ChatPrefillPlan | None:
+def plan_chat_prefill(tokenizer: Any, context_text: str, question: str) -> ChatPrefillPlan | None:
     """Split the chat-templated prompt at the end of the rendered context.
 
     The split point is located by rendering the template with a sentinel in place of
@@ -112,9 +107,7 @@ def plan_chat_prefill(
     ids exactly. Returns ``None`` when that check fails, signalling that shared-prefix
     caching is not safe for this (tokenizer, template, question) combination.
     """
-    sentinel_text = render_full_chat_text(
-        tokenizer, context_text, _SENTINEL, enable_thinking=enable_thinking
-    )
+    sentinel_text = render_full_chat_text(tokenizer, context_text, _SENTINEL)
     split_at = sentinel_text.find(_SENTINEL)
     if split_at == -1:
         return None
@@ -122,9 +115,7 @@ def plan_chat_prefill(
     template_tail = sentinel_text[split_at + len(_SENTINEL) :]
     suffix_text = question + template_tail
 
-    full_text = render_full_chat_text(
-        tokenizer, context_text, question, enable_thinking=enable_thinking
-    )
+    full_text = render_full_chat_text(tokenizer, context_text, question)
     prefix_ids = tuple(tokenizer.encode(prefix_text, add_special_tokens=False))
     suffix_ids = tuple(tokenizer.encode(suffix_text, add_special_tokens=False))
     full_ids = tuple(tokenizer.encode(full_text, add_special_tokens=False))

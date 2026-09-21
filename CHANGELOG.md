@@ -24,6 +24,8 @@ separately — see ADR 0002.
 - FastAPI service, Python SDK, middleware and MCP interceptor examples.
 - Research landscape, threat model, product spec, architecture, evaluation plan, data
   card, model card template, seven ADRs.
+- Base-model selection: Granite 3.3 (2B/8B), Granite 4.0 Micro (3B), OLMo 3 7B — all
+  Apache-2.0.
 
 ### Not yet
 - Published trained weights.

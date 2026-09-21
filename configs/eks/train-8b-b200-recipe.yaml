@@ -2,7 +2,7 @@
 trainer:
   runtime_name: "torch-runtime"
   project_name: "forecheck"
-  experiment_name: "train-9b-lora-nimble-parity-v1"
+  experiment_name: "train-8b-lora-nimble-parity-v1"
 
   ecr_image: "812836555640.dkr.ecr.us-east-2.amazonaws.com/ai/fin-base-training:latest"
 
@@ -14,11 +14,11 @@ trainer:
     forecheck data split /opt/ml/fsx/forecheck/data/v1 &&
     forecheck train --config configs/training/8b.yaml
       data.dir=/opt/ml/fsx/forecheck/data/v1
-      output.dir=/opt/ml/fsx/forecheck/runs/9b-synthetic-v1
+      output.dir=/opt/ml/fsx/forecheck/runs/8b-synthetic-v1
       tracking.backend=local &&
-    forecheck calibrate --run /opt/ml/fsx/forecheck/runs/9b-synthetic-v1 --split calibration &&
-    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/9b-synthetic-v1 --split test --class synthetic_in_distribution &&
-    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/9b-synthetic-v1 --split heldout_family --class synthetic_heldout_adversarial'
+    forecheck calibrate --run /opt/ml/fsx/forecheck/runs/8b-synthetic-v1 --split calibration &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/8b-synthetic-v1 --split test --class synthetic_in_distribution &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/8b-synthetic-v1 --split heldout_family --class synthetic_heldout_adversarial'
 
   env_vars:
     FORECHECK_TRACKING_BACKEND: "local"

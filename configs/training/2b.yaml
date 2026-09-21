@@ -1,5 +1,5 @@
 model:
-  base_id: Qwen/Qwen3.5-2B
+  base_id: ibm-granite/granite-3.3-2b-instruct
   dtype: bf16
   attn_implementation: sdpa
 

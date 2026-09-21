@@ -260,11 +260,7 @@ class HFBackend(BaseBackend):
         cached_prefix_out: Any = None
         for dim in dims:
             question = QUESTIONS[dim]
-            plan = (
-                plan_chat_prefill(tokenizer, context_text, question, enable_thinking=False)
-                if use_shared
-                else None
-            )
+            plan = plan_chat_prefill(tokenizer, context_text, question) if use_shared else None
             if plan is not None:
                 if cached_prefix_ids != plan.prefix_ids:
                     cached_prefix_ids = plan.prefix_ids
@@ -278,9 +274,7 @@ class HFBackend(BaseBackend):
                 )
                 out = model(suffix_tensor, past_key_values=past, use_cache=True)
             else:
-                full_text = render_full_chat_text(
-                    tokenizer, context_text, question, enable_thinking=False
-                )
+                full_text = render_full_chat_text(tokenizer, context_text, question)
                 full_ids = tokenizer.encode(full_text, add_special_tokens=False)
                 full_tensor = torch.tensor([list(full_ids)], dtype=torch.long, device=self._device)
                 out = model(full_tensor, use_cache=False)

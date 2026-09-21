@@ -24,8 +24,8 @@ From the forecheck repo root:
 ai-infra eks submit-job scripts --recipe configs/eks/train-2b-b200-recipe.yaml --name forecheck-train-2b --gpu-type B200 --instance-type p6-b200.48xlarge --az us-east-2a --custom-label pretraining-tests --region us-east-2 --cluster eks-fsdp-cluster --use-fsx --follow-logs
 ```
 
-Swap the recipe/name for `configs/eks/train-9b-b200-recipe.yaml` /
-`forecheck-train-9b` to run the Nimble-parity Qwen3.5-9B recipe instead.
+Swap the recipe/name for `configs/eks/train-8b-b200-recipe.yaml` /
+`forecheck-train-8b` to run the Nimble-parity Granite-3.3-8B recipe instead.
 
 Job names are prefixed with your username by ai-infra and limited to 63 characters.
 
@@ -35,7 +35,8 @@ Installs `forecheck[train]` into the team's `ai/fin-base-training:latest` ECR im
 (NGC PyTorch 26.02 base, Python 3.12; ai-infra rejects non-ECR image references),
 generates a medium synthetic
 dataset offline onto FSx, splits it (family-level, leakage-checked), LoRA-trains the
-configured size (`configs/training/2b.yaml`, `4b.yaml`, or `8b.yaml`), fits calibration
+configured size (`configs/training/2b.yaml`, `3b.yaml`, `8b.yaml`, or `olmo3-7b.yaml`),
+fits calibration
 on the `calibration` split, and writes two evaluation reports
 (`synthetic_in_distribution` on `test`, `synthetic_heldout_adversarial` on
 `heldout_family`) under `/opt/ml/fsx/forecheck/runs/<run>/`.
@@ -48,4 +49,4 @@ and set `ecr_image` accordingly. ECR tags are immutable; use a new tag per build
 ## Estimated cost
 
 ~2B LoRA on ~50k synthetic examples, seq ≤ 4k: well under one node-hour on B200. The
-4B and 9B (Nimble-parity) recipes scale to a few node-hours; see `configs/training/`.
+3B and 8B/7B (Nimble-parity) recipes scale to a few node-hours; see `configs/training/`.
