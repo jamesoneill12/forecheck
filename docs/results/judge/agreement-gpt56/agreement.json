@@ -1,0 +1,303 @@
+{
+  "model": "gpt-5.6-sol",
+  "n_examples": 600,
+  "dimensions": {
+    "prompt_injection_influence": {
+      "dimension": "prompt_injection_influence",
+      "n_compared": 600,
+      "n_unparseable": 0,
+      "agreement_rate": 0.7833333333333333,
+      "cohen_kappa": 0.39014378533061245,
+      "confusion": {
+        "yes": {
+          "yes": 53,
+          "no": 9,
+          "not_applicable": 1,
+          "unparseable": 0
+        },
+        "no": {
+          "yes": 0,
+          "no": 417,
+          "not_applicable": 120,
+          "unparseable": 0
+        },
+        "not_applicable": {
+          "yes": 0,
+          "no": 0,
+          "not_applicable": 0,
+          "unparseable": 0
+        }
+      }
+    },
+    "unauthorized_scope": {
+      "dimension": "unauthorized_scope",
+      "n_compared": 600,
+      "n_unparseable": 0,
+      "agreement_rate": 0.7883333333333333,
+      "cohen_kappa": 0.42427127249648666,
+      "confusion": {
+        "yes": {
+          "yes": 60,
+          "no": 21,
+          "not_applicable": 0,
+          "unparseable": 0
+        },
+        "no": {
+          "yes": 74,
+          "no": 413,
+          "not_applicable": 0,
+          "unparseable": 0
+        },
+        "not_applicable": {
+          "yes": 25,
+          "no": 7,
+          "not_applicable": 0,
+          "unparseable": 0
+        }
+      }
+    },
+    "sensitive_data_exposure": {
+      "dimension": "sensitive_data_exposure",
+      "n_compared": 600,
+      "n_unparseable": 0,
+      "agreement_rate": 0.38333333333333336,
+      "cohen_kappa": 0.13768994126969325,
+      "confusion": {
+        "yes": {
+          "yes": 8,
+          "no": 39,
+          "not_applicable": 1,
+          "unparseable": 0
+        },
+        "no": {
+          "yes": 15,
+          "no": 101,
+          "not_applicable": 1,
+          "unparseable": 0
+        },
+        "not_applicable": {
+          "yes": 75,
+          "no": 239,
+          "not_applicable": 121,
+          "unparseable": 0
+        }
+      }
+    },
+    "untrusted_destination": {
+      "dimension": "untrusted_destination",
+      "n_compared": 600,
+      "n_unparseable": 0,
+      "agreement_rate": 0.7383333333333333,
+      "cohen_kappa": 0.4943666432278946,
+      "confusion": {
+        "yes": {
+          "yes": 35,
+          "no": 1,
+          "not_applicable": 49,
+          "unparseable": 0
+        },
+        "no": {
+          "yes": 49,
+          "no": 69,
+          "not_applicable": 23,
+          "unparseable": 0
+        },
+        "not_applicable": {
+          "yes": 35,
+          "no": 0,
+          "not_applicable": 339,
+          "unparseable": 0
+        }
+      }
+    },
+    "privilege_escalation": {
+      "dimension": "privilege_escalation",
+      "n_compared": 600,
+      "n_unparseable": 0,
+      "agreement_rate": 0.985,
+      "cohen_kappa": 0.8863253620747726,
+      "confusion": {
+        "yes": {
+          "yes": 38,
+          "no": 0,
+          "not_applicable": 0,
+          "unparseable": 0
+        },
+        "no": {
+          "yes": 7,
+          "no": 553,
+          "not_applicable": 2,
+          "unparseable": 0
+        },
+        "not_applicable": {
+          "yes": 0,
+          "no": 0,
+          "not_applicable": 0,
+          "unparseable": 0
+        }
+      }
+    },
+    "destructive_or_irreversible_action": {
+      "dimension": "destructive_or_irreversible_action",
+      "n_compared": 600,
+      "n_unparseable": 0,
+      "agreement_rate": 0.8966666666666666,
+      "cohen_kappa": 0.5109381573411864,
+      "confusion": {
+        "yes": {
+          "yes": 41,
+          "no": 27,
+          "not_applicable": 0,
+          "unparseable": 0
+        },
+        "no": {
+          "yes": 35,
+          "no": 497,
+          "not_applicable": 0,
+          "unparseable": 0
+        },
+        "not_applicable": {
+          "yes": 0,
+          "no": 0,
+          "not_applicable": 0,
+          "unparseable": 0
+        }
+      }
+    },
+    "financial_commitment": {
+      "dimension": "financial_commitment",
+      "n_compared": 600,
+      "n_unparseable": 0,
+      "agreement_rate": 0.11666666666666667,
+      "cohen_kappa": -0.03735116620453427,
+      "confusion": {
+        "yes": {
+          "yes": 12,
+          "no": 38,
+          "not_applicable": 0,
+          "unparseable": 0
+        },
+        "no": {
+          "yes": 1,
+          "no": 58,
+          "not_applicable": 491,
+          "unparseable": 0
+        },
+        "not_applicable": {
+          "yes": 0,
+          "no": 0,
+          "not_applicable": 0,
+          "unparseable": 0
+        }
+      }
+    },
+    "external_communication": {
+      "dimension": "external_communication",
+      "n_compared": 600,
+      "n_unparseable": 0,
+      "agreement_rate": 0.34,
+      "cohen_kappa": 0.04421703031473245,
+      "confusion": {
+        "yes": {
+          "yes": 18,
+          "no": 3,
+          "not_applicable": 0,
+          "unparseable": 0
+        },
+        "no": {
+          "yes": 19,
+          "no": 2,
+          "not_applicable": 0,
+          "unparseable": 0
+        },
+        "not_applicable": {
+          "yes": 40,
+          "no": 334,
+          "not_applicable": 184,
+          "unparseable": 0
+        }
+      }
+    },
+    "policy_conflict": {
+      "dimension": "policy_conflict",
+      "n_compared": 600,
+      "n_unparseable": 0,
+      "agreement_rate": 0.8416666666666667,
+      "cohen_kappa": 0.698981289310667,
+      "confusion": {
+        "yes": {
+          "yes": 202,
+          "no": 24,
+          "not_applicable": 2,
+          "unparseable": 0
+        },
+        "no": {
+          "yes": 56,
+          "no": 288,
+          "not_applicable": 11,
+          "unparseable": 0
+        },
+        "not_applicable": {
+          "yes": 1,
+          "no": 1,
+          "not_applicable": 15,
+          "unparseable": 0
+        }
+      }
+    },
+    "suspicious_action_sequence": {
+      "dimension": "suspicious_action_sequence",
+      "n_compared": 600,
+      "n_unparseable": 0,
+      "agreement_rate": 0.49833333333333335,
+      "cohen_kappa": 0.23629905277401897,
+      "confusion": {
+        "yes": {
+          "yes": 40,
+          "no": 9,
+          "not_applicable": 0,
+          "unparseable": 0
+        },
+        "no": {
+          "yes": 34,
+          "no": 59,
+          "not_applicable": 0,
+          "unparseable": 0
+        },
+        "not_applicable": {
+          "yes": 46,
+          "no": 212,
+          "not_applicable": 200,
+          "unparseable": 0
+        }
+      }
+    },
+    "insufficient_context": {
+      "dimension": "insufficient_context",
+      "n_compared": 600,
+      "n_unparseable": 0,
+      "agreement_rate": 0.8433333333333334,
+      "cohen_kappa": 0.059498399146211356,
+      "confusion": {
+        "yes": {
+          "yes": 8,
+          "no": 50,
+          "not_applicable": 0,
+          "unparseable": 0
+        },
+        "no": {
+          "yes": 44,
+          "no": 498,
+          "not_applicable": 0,
+          "unparseable": 0
+        },
+        "not_applicable": {
+          "yes": 0,
+          "no": 0,
+          "not_applicable": 0,
+          "unparseable": 0
+        }
+      }
+    }
+  }
+}
