@@ -14,6 +14,7 @@ import uvicorn
 from forecheck.cli_cmds.calibrate import calibrate_command
 from forecheck.cli_cmds.data import data_app
 from forecheck.cli_cmds.evaluate import evaluate_command
+from forecheck.cli_cmds.external import external_app
 from forecheck.cli_cmds.feedback import feedback_app
 from forecheck.cli_cmds.judge import judge_app
 from forecheck.cli_cmds.model_card import model_card_command
@@ -33,6 +34,7 @@ app.add_typer(data_app, name="data")
 app.add_typer(policy_app, name="policy")
 app.add_typer(feedback_app, name="feedback")
 app.add_typer(judge_app, name="judge")
+app.add_typer(external_app, name="external")
 app.command("train")(train_command)
 app.command("train-encoder")(train_encoder_command)
 app.command("calibrate")(calibrate_command)

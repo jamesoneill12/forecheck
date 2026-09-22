@@ -33,7 +33,7 @@ coverage.xml
 # Generation cache and generated artifacts (fixtures under data/fixtures ARE committed)
 .cache/
 data/generated/
-data/external/
+data/external/*
 outputs/
 runs/
 checkpoints/
@@ -50,3 +50,4 @@ wandb/
 .idea/
 .vscode/
 data/fixtures/raw.jsonl
+!data/external/agentdojo/

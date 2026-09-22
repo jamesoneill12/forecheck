@@ -11,7 +11,7 @@ from pathlib import Path
 import matplotlib
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
+import matplotlib.pyplot as plt
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_DIR = REPO_ROOT / "docs" / "results" / "synthetic-v2"
@@ -215,8 +215,15 @@ def fig_identity_ablation() -> None:
     v4_trained_stripped_a = series(v4_trained_stripped)
     pos_rate = series(v2_full, "positive_rate")
     for d, f, s, r, f4, s4, ts4, p in zip(
-        dims, v2_full_a, v2_stripped_a, v2_rule_a, v4_full_a, v4_stripped_a,
-        v4_trained_stripped_a, pos_rate, strict=True
+        dims,
+        v2_full_a,
+        v2_stripped_a,
+        v2_rule_a,
+        v4_full_a,
+        v4_stripped_a,
+        v4_trained_stripped_a,
+        pos_rate,
+        strict=True,
     ):
         log(
             f"  {d}: v2_full={f:.4f} v2_stripped={s:.4f} rule={r:.4f} "
@@ -231,13 +238,19 @@ def fig_identity_ablation() -> None:
         ax_v2.bar([i - width for i in x], v2_full_a, width, label="Full", color=COLORS["blue"])
         ax_v2.bar(x, v2_stripped_a, width, label="Identity-stripped", color=COLORS["vermillion"])
         ax_v2.bar(
-            [i + width for i in x], v2_rule_a, width, label="Rule baseline",
+            [i + width for i in x],
+            v2_rule_a,
+            width,
+            label="Rule baseline",
             color=COLORS["bluish_green"],
         )
         for i, p in enumerate(pos_rate):
             ax_v2.plot(
-                [i - 1.5 * width, i + 1.5 * width], [p, p], linestyle="--",
-                color=COLORS["black"], linewidth=0.8,
+                [i - 1.5 * width, i + 1.5 * width],
+                [p, p],
+                linestyle="--",
+                color=COLORS["black"],
+                linewidth=0.8,
                 label="Positive rate (chance)" if i == 0 else None,
             )
         ax_v2.set_xticks(list(x))
@@ -248,21 +261,33 @@ def fig_identity_ablation() -> None:
 
         width2 = 0.26
         ax_v4.bar(
-            [i - width2 for i in x], v4_full_a, width2, label="Full (v4)",
+            [i - width2 for i in x],
+            v4_full_a,
+            width2,
+            label="Full (v4)",
             color=COLORS["blue"],
         )
         ax_v4.bar(
-            x, v4_stripped_a, width2, label="Identity-stripped (v4)",
+            x,
+            v4_stripped_a,
+            width2,
+            label="Identity-stripped (v4)",
             color=COLORS["vermillion"],
         )
         ax_v4.bar(
-            [i + width2 for i in x], v4_trained_stripped_a, width2,
-            label="Trained stripped (v4)", color=COLORS["reddish_purple"],
+            [i + width2 for i in x],
+            v4_trained_stripped_a,
+            width2,
+            label="Trained stripped (v4)",
+            color=COLORS["reddish_purple"],
         )
         for i, p in enumerate(pos_rate):
             ax_v4.plot(
-                [i - 1.5 * width2, i + 1.5 * width2], [p, p], linestyle="--",
-                color=COLORS["black"], linewidth=0.8,
+                [i - 1.5 * width2, i + 1.5 * width2],
+                [p, p],
+                linestyle="--",
+                color=COLORS["black"],
+                linewidth=0.8,
             )
         ax_v4.set_xticks(list(x))
         ax_v4.set_xticklabels([DIM_SHORT[d] for d in dims], rotation=35, ha="right", fontsize=7)
@@ -273,8 +298,12 @@ def fig_identity_ablation() -> None:
         handles += v4_handles[:3]
         labels += v4_labels[:3]
         fig.legend(
-            handles, labels, loc="upper center", ncol=3,
-            bbox_to_anchor=(0.5, 1.22), frameon=False,
+            handles,
+            labels,
+            loc="upper center",
+            ncol=3,
+            bbox_to_anchor=(0.5, 1.22),
+            frameon=False,
         )
         savefig(fig, "fig_identity_ablation.pdf")
 
@@ -305,16 +334,27 @@ def fig_policy_generalisation() -> None:
         fig, ax = plt.subplots(figsize=(5.5, 2.6))
         x = list(range(len(splits)))
         width = 0.19
-        ax.bar([i - 1.5 * width for i in x], v3, width, label="v3 (2B)",
-               color=COLORS["sky_blue"])
-        ax.bar([i - 0.5 * width for i in x], v4, width, label="v4 (2B)",
-               color=COLORS["orange"])
-        ax.bar([i + 0.5 * width for i in x], v5, width, label="v5 (2B, 30 kinds)",
-               color=COLORS["bluish_green"])
-        ax.bar([i + 1.5 * width for i in x], b8, width, label="v4 (8B)",
-               color=COLORS["reddish_purple"])
-        ax.plot(x, rule, color=COLORS["black"], marker="o",
-                 markersize=3, linewidth=1.0, label="Rule baseline")
+        ax.bar([i - 1.5 * width for i in x], v3, width, label="v3 (2B)", color=COLORS["sky_blue"])
+        ax.bar([i - 0.5 * width for i in x], v4, width, label="v4 (2B)", color=COLORS["orange"])
+        ax.bar(
+            [i + 0.5 * width for i in x],
+            v5,
+            width,
+            label="v5 (2B, 30 kinds)",
+            color=COLORS["bluish_green"],
+        )
+        ax.bar(
+            [i + 1.5 * width for i in x], b8, width, label="v4 (8B)", color=COLORS["reddish_purple"]
+        )
+        ax.plot(
+            x,
+            rule,
+            color=COLORS["black"],
+            marker="o",
+            markersize=3,
+            linewidth=1.0,
+            label="Rule baseline",
+        )
         ax.set_xticks(x)
         ax.set_xticklabels(split_labels)
         ax.set_ylabel("policy_conflict AUPRC")
@@ -361,14 +401,40 @@ def fig_stacking() -> None:
         for strat in ("independent", "joint", "expected_cost_joint"):
             ks, fprs = series(dec_rows, strat, "fpr")
             _, fnrs = series(dec_rows, strat, "fnr")
-            ax_fpr.plot(ks, fprs, marker="o", markersize=2.5, linewidth=1.0,
-                        color=strat_colors[strat], label=strat_labels[strat])
-            ax_fnr.plot(ks, fnrs, marker="o", markersize=2.5, linewidth=1.0,
-                        color=strat_colors[strat], label=strat_labels[strat])
-        ax_fpr.plot(enc_ks, enc_fprs, linestyle=":", color=COLORS["reddish_purple"],
-                    linewidth=1.2, label="encoder expected_cost_joint")
-        ax_fnr.plot(enc_ks, enc_fnrs, linestyle=":", color=COLORS["reddish_purple"],
-                    linewidth=1.2, label="encoder expected_cost_joint")
+            ax_fpr.plot(
+                ks,
+                fprs,
+                marker="o",
+                markersize=2.5,
+                linewidth=1.0,
+                color=strat_colors[strat],
+                label=strat_labels[strat],
+            )
+            ax_fnr.plot(
+                ks,
+                fnrs,
+                marker="o",
+                markersize=2.5,
+                linewidth=1.0,
+                color=strat_colors[strat],
+                label=strat_labels[strat],
+            )
+        ax_fpr.plot(
+            enc_ks,
+            enc_fprs,
+            linestyle=":",
+            color=COLORS["reddish_purple"],
+            linewidth=1.2,
+            label="encoder expected_cost_joint",
+        )
+        ax_fnr.plot(
+            enc_ks,
+            enc_fnrs,
+            linestyle=":",
+            color=COLORS["reddish_purple"],
+            linewidth=1.2,
+            label="encoder expected_cost_joint",
+        )
         ax_fpr.set_xlabel("$k$ stacked policies")
         ax_fnr.set_xlabel("$k$ stacked policies")
         ax_fpr.set_ylabel("FPR")
@@ -387,7 +453,11 @@ def fig_approval_curve() -> None:
     v4_test = parse_approval_reweighted(RESULTS_DIR / "decoder-2b-v4" / "test-approval-report.md")
 
     log("=== fig_approval_curve ===")
-    for name, rows in (("v2 heldout_family", v2), ("v4 heldout_family", v4_hf), ("v4 test", v4_test)):
+    for name, rows in (
+        ("v2 heldout_family", v2),
+        ("v4 heldout_family", v4_hf),
+        ("v4 test", v4_test),
+    ):
         for r in rows:
             log(f"  {name}: budget={r['budget_pct']}% eliminated={r['eliminated']}")
 
@@ -400,8 +470,9 @@ def fig_approval_curve() -> None:
         ):
             budgets = [r["budget_pct"] for r in rows]
             elim = [r["eliminated"] for r in rows]
-            ax.plot(budgets, elim, marker=marker, markersize=3, linewidth=1.0,
-                    color=color, label=label)
+            ax.plot(
+                budgets, elim, marker=marker, markersize=3, linewidth=1.0, color=color, label=label
+            )
         ax.set_xscale("log")
         ax.set_xlabel("incident budget (%, reweighted to 5%)")
         ax.set_ylabel("approvals eliminated")
@@ -423,23 +494,43 @@ def fig_self_judgment() -> None:
     agent_s_auprc = [agent_stripped[d]["auprc"] for d in dims]
     decoder_auprc = [decoder[d]["auprc"] for d in dims]
     pos_rate = [agent[d]["positive_rate"] for d in dims]
-    for d, a, s, dec, p in zip(dims, agent_auprc, agent_s_auprc, decoder_auprc, pos_rate, strict=True):
-        log(f"  {d}: agent8b={a:.4f} agent8b_stripped={s:.4f} decoder_v4={dec:.4f} pos_rate={p:.4f}")
+    for d, a, s, dec, p in zip(
+        dims, agent_auprc, agent_s_auprc, decoder_auprc, pos_rate, strict=True
+    ):
+        log(
+            f"  {d}: agent8b={a:.4f} agent8b_stripped={s:.4f} decoder_v4={dec:.4f} pos_rate={p:.4f}"
+        )
 
     with plt.rc_context(RC):
         fig, ax = plt.subplots(figsize=(5.5, 2.6))
         x = range(len(dims))
         width = 0.26
-        ax.bar([i - width for i in x], agent_auprc, width, label="Agent-self 8B",
-               color=COLORS["vermillion"])
-        ax.bar(x, agent_s_auprc, width, label="Agent-self 8B, stripped",
-               color=COLORS["reddish_purple"])
-        ax.bar([i + width for i in x], decoder_auprc, width, label="Decoder 2B v4 (checker)",
-               color=COLORS["blue"])
+        ax.bar(
+            [i - width for i in x],
+            agent_auprc,
+            width,
+            label="Agent-self 8B",
+            color=COLORS["vermillion"],
+        )
+        ax.bar(
+            x, agent_s_auprc, width, label="Agent-self 8B, stripped", color=COLORS["reddish_purple"]
+        )
+        ax.bar(
+            [i + width for i in x],
+            decoder_auprc,
+            width,
+            label="Decoder 2B v4 (checker)",
+            color=COLORS["blue"],
+        )
         for i, p in enumerate(pos_rate):
-            ax.plot([i - 1.5 * width, i + 1.5 * width], [p, p], linestyle="--",
-                    color=COLORS["black"], linewidth=0.8,
-                    label="Positive rate (chance)" if i == 0 else None)
+            ax.plot(
+                [i - 1.5 * width, i + 1.5 * width],
+                [p, p],
+                linestyle="--",
+                color=COLORS["black"],
+                linewidth=0.8,
+                label="Positive rate (chance)" if i == 0 else None,
+            )
         ax.set_xticks(list(x))
         ax.set_xticklabels([DIM_SHORT[d] for d in dims], rotation=35, ha="right", fontsize=7)
         ax.set_ylabel("AUPRC")
@@ -464,10 +555,20 @@ def fig_judge_agreement() -> None:
         fig, ax = plt.subplots(figsize=(5.5, 3.0))
         y = range(len(labels))
         ax.barh(list(y), kappas, color=COLORS["blue"])
-        ax.axvline(0.7, color=COLORS["bluish_green"], linestyle="--", linewidth=1.0,
-                   label="recoverable (0.7)")
-        ax.axvline(0.2, color=COLORS["vermillion"], linestyle="--", linewidth=1.0,
-                   label="not recoverable (0.2)")
+        ax.axvline(
+            0.7,
+            color=COLORS["bluish_green"],
+            linestyle="--",
+            linewidth=1.0,
+            label="recoverable (0.7)",
+        )
+        ax.axvline(
+            0.2,
+            color=COLORS["vermillion"],
+            linestyle="--",
+            linewidth=1.0,
+            label="not recoverable (0.2)",
+        )
         ax.set_yticks(list(y))
         ax.set_yticklabels(labels)
         ax.set_xlabel(r"yes-vs-not-yes $\kappa$ (generator label vs.\ blind LLM judge)")
