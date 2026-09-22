@@ -16,6 +16,7 @@ from pathlib import Path
 from pydantic import BaseModel, ConfigDict, Field
 
 from forecheck.contracts import CalibrationInfo, ModelInfo, RiskDimension, Split
+from forecheck.evaluation.approval_curve import ApprovalElimination
 from forecheck.evaluation.consistency import (
     CounterfactualSensitivityResult,
     InvarianceResult,
@@ -99,6 +100,7 @@ class EvaluationReport(BaseModel):
     decisions: DecisionMetricsResult | None = None
     latency: LatencyReport | None = None
     stacking: StackingReport | None = None
+    approval_elimination: ApprovalElimination | None = None
 
     def to_json(self, path: Path) -> None:
         path.write_text(self.model_dump_json(indent=2))
@@ -188,6 +190,9 @@ class EvaluationReport(BaseModel):
         if self.stacking is not None:
             lines.append("")
             lines.append(self.stacking.to_markdown().rstrip("\n"))
+        if self.approval_elimination is not None:
+            lines.append("")
+            lines.append(self.approval_elimination.to_markdown().rstrip("\n"))
         if self.latency is not None:
             lines.append("")
             lines.append("## Latency")

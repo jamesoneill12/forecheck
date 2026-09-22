@@ -38,6 +38,7 @@ from forecheck.contracts import (
 from forecheck.evaluation import consistency, selective, slices
 from forecheck.evaluation import decisions as decisions_mod
 from forecheck.evaluation import stacking as stacking_mod
+from forecheck.evaluation.approval_curve import ApprovalElimination, approval_elimination_curve
 from forecheck.evaluation.bootstrap import BootstrapResult, bootstrap_ci
 from forecheck.evaluation.latency import LatencyReport, measure_latency
 from forecheck.evaluation.metrics import (
@@ -64,6 +65,7 @@ if TYPE_CHECKING:
     from forecheck.inference.base import ClassifierBackend, RawScores
     from forecheck.policies.base import PolicyEngine
     from forecheck.policies.dsl import PolicyBundle
+    from forecheck.policies.engine import DeterministicPolicyEngine
 
     ThresholdSelectionArrays = dict[RiskDimension, tuple[NDArray[np.int_], NDArray[np.float64]]]
 
@@ -327,6 +329,7 @@ def evaluate(
     on_threshold_selection_scored: Callable[[Sequence[RawScores]], None] | None = None,
     stacking_bundles: Sequence[PolicyBundle] = (),
     stacking_synthetic: bool = False,
+    approval_curve_engine: DeterministicPolicyEngine | None = None,
 ) -> EvaluationReport:
     """Run a full evaluation of ``backend`` on ``examples`` and return a report.
 
@@ -435,6 +438,16 @@ def evaluate(
             )
         stacking_result = stacking_mod.stacking_report(examples, responses, stack_policies)
 
+    approval_elimination_result: ApprovalElimination | None = None
+    if approval_curve_engine is not None:
+        if responses is None:
+            responses = _build_classify_responses(
+                examples, raw, probabilities, dims, backend.model_info, calibration_info
+            )
+        approval_elimination_result = approval_elimination_curve(
+            approval_curve_engine, responses, examples
+        )
+
     latency_report: LatencyReport | None = None
     if include_latency:
         latency_report = measure_latency(backend, examples)
@@ -461,4 +474,5 @@ def evaluate(
         decisions=decision_result,
         latency=latency_report,
         stacking=stacking_result,
+        approval_elimination=approval_elimination_result,
     )

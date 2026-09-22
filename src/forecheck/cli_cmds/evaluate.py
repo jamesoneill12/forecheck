@@ -94,6 +94,14 @@ def evaluate_command(
             "to a jsonl (--backend agent_self only).",
         ),
     ] = None,
+    approval_curve: Annotated[
+        str | None,
+        typer.Option(
+            "--approval-curve",
+            help="Policy bundle name or path to compute the approval-elimination "
+            "curve against (docs/evaluation/approval-elimination.md). Off by default.",
+        ),
+    ] = None,
 ) -> None:
     """Score ``split`` with ``backend``, apply any fitted calibration, and write reports."""
     if backend in ("guardian", "agent_self"):
@@ -139,6 +147,9 @@ def evaluate_command(
                 f"backend is {backend_instance.model_info.model_id!r}"
             )
     engine = load_policy_engine_by_name_or_path(bundle) if bundle is not None else None
+    approval_curve_engine = (
+        load_policy_engine_by_name_or_path(approval_curve) if approval_curve is not None else None
+    )
 
     stack_bundles: list[PolicyBundle] = []
     if stacking_bundles:
@@ -178,6 +189,7 @@ def evaluate_command(
             on_threshold_selection_scored=on_selection_scored,
             stacking_bundles=stack_bundles,
             stacking_synthetic=stacking_synthetic,
+            approval_curve_engine=approval_curve_engine,
         )
         if backend == "agent_self" and dump_n:
             from forecheck.inference.agent_self import AgentSelfBackend

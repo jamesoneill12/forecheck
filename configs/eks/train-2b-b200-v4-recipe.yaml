@@ -15,10 +15,10 @@ trainer:
     forecheck data split /opt/ml/fsx/forecheck/data/v4 &&
     forecheck train --config configs/training/2b.yaml data.dir=/opt/ml/fsx/forecheck/data/v4 output.dir=/opt/ml/fsx/forecheck/runs/2b-synthetic-v4 tracking.backend=local &&
     forecheck calibrate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v4 --split calibration &&
-    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v4 --split test --class synthetic_in_distribution &&
-    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v4 --split heldout_family --class synthetic_heldout_adversarial &&
-    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v4 --split heldout_policy_kind --class synthetic_heldout_adversarial &&
-    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v4 --split heldout_policy_phrasing --class synthetic_heldout_adversarial &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v4 --split test --class synthetic_in_distribution --approval-curve balanced &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v4 --split heldout_family --class synthetic_heldout_adversarial --approval-curve balanced &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v4 --split heldout_policy_kind --class synthetic_heldout_adversarial --approval-curve balanced &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v4 --split heldout_policy_phrasing --class synthetic_heldout_adversarial --approval-curve balanced &&
     forecheck evaluate --backend rule_baseline --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v4 --split test --class synthetic_in_distribution --out /opt/ml/fsx/forecheck/runs/2b-synthetic-v4/reports/rule_baseline/test &&
     forecheck evaluate --backend rule_baseline --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v4 --split heldout_family --class synthetic_heldout_adversarial --out /opt/ml/fsx/forecheck/runs/2b-synthetic-v4/reports/rule_baseline/heldout_family &&
     forecheck evaluate --backend rule_baseline --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v4 --split heldout_policy_kind --class synthetic_heldout_adversarial --out /opt/ml/fsx/forecheck/runs/2b-synthetic-v4/reports/rule_baseline/heldout_policy_kind &&

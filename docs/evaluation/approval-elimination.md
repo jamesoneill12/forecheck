@@ -109,7 +109,51 @@ Every headline point would carry a bootstrap CI per `evaluation-plan.md` §3.10,
 report would print the fixed "synthetic data, no real-world safety claim" line for
 classes 1 and 2, matching every other report in this suite.
 
-## 4. Open questions (left as TODO, not blocking)
+## 4. Implemented shape (`src/forecheck/evaluation/approval_curve.py`)
+
+The curve above (§1-3) is specified as a threshold sweep restricted to the baseline
+`REVIEW` population, with the threshold left an open question (§5's first item). What
+is actually implemented is a related but narrower construction, chosen to be
+computable purely from scores the evaluation runner already has, with no new
+ground-truth or calibration-confidence machinery:
+
+* **Score.** Per example, `expected_costs(bundle, response).allow`
+  (`forecheck.policies.engine.expected_costs`) — the same "expected cost of ALLOW"
+  quantity `decision_mode: expected_cost` computes over the bundle's covered
+  dimensions (`docs/policy-dsl.md` §2.3), regardless of the bundle's own
+  `decision_mode`. This is the expected-cost formulation named in the task that added
+  this section; the max-calibrated-probability alternative was not implemented.
+* **Ground truth.** An example is "risky" if any dimension the bundle's rules
+  reference via a `score` leaf (`bundle_covered_dimensions`) carries a `YES` label.
+* **Population.** All examples in the evaluated split — not the doc's "baseline
+  `REVIEW` absent calibration-confidence gating" population, which would need a
+  counterfactual re-evaluation this layer does not have. This is a simplification, not
+  an equivalence.
+* **Curve and operating points.** Sort examples ascending by score. For allow-set size
+  `k`, `incident_rate(k)` is the fraction of the `k` lowest-score examples that are
+  risky; `allow_fraction(k) = k / n`. The curve is one `(allow_fraction, incident_rate)`
+  point per `k = 1..n`. For each budget `b`, the operating point takes the largest `k`
+  with `incident_rate(k) <= b` (0 if none exists) as `approvals_eliminated`; examples
+  outside that allow-set keep the bundle's own `DENY` decision (`engine.evaluate`),
+  and everything else counts as `review_fraction`.
+* **Not implemented from §3's contract:** `AUEC`, bootstrap CIs on curve points, and
+  the `evaluation_class` synthetic-disclaimer line (the caller's `EvaluationReport`
+  already carries and prints that disclaimer once for the whole report).
+
+### How to run
+
+```
+forecheck evaluate --run <run-dir> --split <split> --class <evaluation_class> --approval-curve balanced
+```
+
+`--approval-curve` accepts a built-in bundle name (`balanced`, `conservative`,
+`permissive`, ...) or a path to a bundle YAML; it is independent of `--bundle`
+(the bundle used for `decisions`/`stacking`) and off by default. The result is
+written to `report.json` under `approval_elimination` and rendered as an "Approval
+elimination" section in `report.md`. It is pure post-processing over scores the run
+already computed, so it is cheap to add to an existing `forecheck evaluate` command.
+
+## 5. Open questions (left as TODO, not blocking)
 
 - Whether "the abstention threshold" sweeps the calibrator's predictive-interval width,
   the per-response `abstain_below_confidence` option, or a synthetic re-parametrization
