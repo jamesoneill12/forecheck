@@ -1,4 +1,4 @@
-\begin{thebibliography}{20}
+\begin{thebibliography}{21}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -115,6 +115,14 @@ John Platt.
 \newblock Probabilistic outputs for support vector machines and comparisons to
   regularized likelihood methods.
 \newblock In \emph{Advances in Large Margin Classifiers}, pp.\  61--74, 1999.
+
+\bibitem[{Pro-GenAI}(2025)]{agentactionguard2025}
+{Pro-GenAI}.
+\newblock Agent action guard: Classifying {AI} agent actions to ensure safety
+  and reliability.
+\newblock Preprint, \url{https://doi.org/10.20944/preprints202510.1415.v2};
+  code \url{https://github.com/Pro-GenAI/Agent-Action-Guard}, 2025.
+\newblock Accessed 2026-09-22.
 
 \bibitem[Ruan et~al.(2023)Ruan, Dong, Wang, Pitis, Zhou, Ba, Dubois, Maddison,
   and Hashimoto]{ruan2023toolemu}

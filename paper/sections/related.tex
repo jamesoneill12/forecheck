@@ -5,7 +5,10 @@
 Guardian \citep{padhi2024graniteguardian}, ShieldGemma
 \citep{zeng2024shieldgemma}, NVIDIA Aegis \citep{ghosh2024aegis}, and
 gpt-oss-safeguard \citep{openai2025gptosssafeguard} are general-purpose
-content/harm classifiers over a conversation turn or action. We do not
+content/harm classifiers over a conversation turn or action; Agent Action
+Guard \citep{agentactionguard2025} is the same idea at small scale, a
+sentence-embedding MLP over the tool name and arguments alone (260 labelled
+rows, one per tool, no identity or policy input). We do not
 claim they fail at their intended purpose; \S\ref{sec:identity} shows they
 are near chance specifically on delegated-authority dimensions
 (\texttt{unauthorized\_scope}, \texttt{policy\_conflict},
