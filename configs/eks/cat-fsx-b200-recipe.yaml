@@ -1,0 +1,21 @@
+# Prints FSx files named in FORECHECK_CAT_PATHS to the pod log; used to pull reports when no forecheck pod is running.
+trainer:
+  runtime_name: "torch-runtime"
+  project_name: "forecheck"
+  experiment_name: "cat-fsx"
+
+  ecr_image: "812836555640.dkr.ecr.us-east-2.amazonaws.com/ai/fin-base-training:latest"
+
+  command: >-
+    bash -c 'for p in $FORECHECK_CAT_PATHS; do echo "=== BEGIN $p"; cat "$p"; echo "=== END $p"; done'
+
+  env_vars:
+    FORECHECK_CAT_PATHS: "/opt/ml/fsx/forecheck/runs/baselines/granite-guardian-3.3-8b/reports/agentdojo/report.md /opt/ml/fsx/forecheck/runs/baselines/agent-self-8b/reports/agentdojo/report.md"
+
+  nnodes: 1
+
+  resources:
+    worker:
+      instance_type: ml.p6-b200.48xlarge
+      gpus_per_pod: 1
+      cpus_per_pod: 2

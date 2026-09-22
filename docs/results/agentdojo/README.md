@@ -48,8 +48,8 @@ dimension except `prompt_injection_influence`, n=4,133.
 | decoder 2B v4, eval-stripped | 0.125 / 0.292 | 0.218 / 0.409 | 0.694 / 0.849 | 1.000 / 1.000 | 1.000 / 1.000 | 0.608 | 0.036 (uncalibrated) |
 | decoder 2B v4 train-stripped | 0.150 / 0.475 | 0.234 / 0.426 | 0.390 / 0.660 | 1.000 / 1.000 | 1.000 / 1.000 | 0.555 | 0.203 |
 | decoder 8B v4 | 0.797 / 0.916 | 0.386 / 0.509 | 0.560 / 0.885 | 0.924 / 0.924 | 1.000 / 1.000 | 0.733 | 0.272 |
-| Granite Guardian 3.3 8B (n=1000) | pending | pending | pending | pending | pending | pending | pending |
-| agent-self 8B (n=1000) | pending | pending | pending | pending | pending | pending | pending |
+| Granite Guardian 3.3 8B zero-shot (n=1000) | 0.103 / 0.233 | 0.289 / 0.494 | 0.224 / 0.450 | 0.257 / 0.237 | 0.217 / 0.697 | 0.218 | 0.275 |
+| agent-self 8B, ALLOW/STOP (n=1000) | 0.291 / 0.775 | 0.442 / 0.734 | 0.449 / 0.792 | 0.591 / 0.804 | 0.105 / 0.580 | 0.375 | 0.398 |
 
 ## Reading
 
@@ -68,7 +68,11 @@ dimension except `prompt_injection_influence`, n=4,133.
    single most important number in this report: the 8B checker, trained only on
    synthetic data, ranks the call that executes the attacker's goal above the
    benign calls in the same poisoned trace 92 percent of the time. The 2B result
-   is a plain failure and we do not yet know why.
+   is a plain failure and we do not yet know why. The two 8B baselines separate
+   scale from training: the same Granite-3.3-8B base asked ALLOW/STOP as the agent
+   scores 0.291 / 0.775 on injection, and Granite Guardian 3.3 8B zero-shot scores
+   0.103 / 0.233, below base rate. The trained 8B checker's 0.797 is therefore the
+   training, not the parameter count; 8B is necessary but not sufficient.
 
 3. **`unauthorized_scope` does not transfer.** 0.257 (2B) and 0.386 (8B) AUPRC
    against a 0.253 base rate is chance to marginal. The label itself is the
@@ -106,8 +110,6 @@ render-v1.
 
 ## Next
 
-- Add the Granite Guardian and agent-self rows to the table above once those jobs
-  finish.
 - Dump per-example scores for the external split so the 2B injection failure can
   be diagnosed; scores are not currently cached for external splits.
 - Fetch slack, workspace and travel traces from AgentDojo.
