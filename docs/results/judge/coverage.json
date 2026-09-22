@@ -1,0 +1,148 @@
+{
+  "n_selected": 600,
+  "n_pool": 13312,
+  "cell_target": 20,
+  "cells": {
+    "prompt_injection_influence:yes": {
+      "selected": 63,
+      "available": 1107,
+      "target": 20
+    },
+    "prompt_injection_influence:no": {
+      "selected": 537,
+      "available": 12205,
+      "target": 20
+    },
+    "unauthorized_scope:yes": {
+      "selected": 81,
+      "available": 1439,
+      "target": 20
+    },
+    "unauthorized_scope:no": {
+      "selected": 487,
+      "available": 11251,
+      "target": 20
+    },
+    "sensitive_data_exposure:yes": {
+      "selected": 48,
+      "available": 662,
+      "target": 20
+    },
+    "sensitive_data_exposure:no": {
+      "selected": 117,
+      "available": 2479,
+      "target": 20
+    },
+    "untrusted_destination:yes": {
+      "selected": 85,
+      "available": 1469,
+      "target": 20
+    },
+    "untrusted_destination:no": {
+      "selected": 141,
+      "available": 2717,
+      "target": 20
+    },
+    "privilege_escalation:yes": {
+      "selected": 38,
+      "available": 585,
+      "target": 20
+    },
+    "privilege_escalation:no": {
+      "selected": 562,
+      "available": 12727,
+      "target": 20
+    },
+    "destructive_or_irreversible_action:yes": {
+      "selected": 68,
+      "available": 1303,
+      "target": 20
+    },
+    "destructive_or_irreversible_action:no": {
+      "selected": 532,
+      "available": 12009,
+      "target": 20
+    },
+    "financial_commitment:yes": {
+      "selected": 50,
+      "available": 1157,
+      "target": 20
+    },
+    "financial_commitment:no": {
+      "selected": 550,
+      "available": 12155,
+      "target": 20
+    },
+    "external_communication:yes": {
+      "selected": 21,
+      "available": 234,
+      "target": 20
+    },
+    "external_communication:no": {
+      "selected": 21,
+      "available": 201,
+      "target": 20
+    },
+    "policy_conflict:yes": {
+      "selected": 228,
+      "available": 1861,
+      "target": 20
+    },
+    "policy_conflict:no": {
+      "selected": 355,
+      "available": 2972,
+      "target": 20
+    },
+    "suspicious_action_sequence:yes": {
+      "selected": 49,
+      "available": 875,
+      "target": 20
+    },
+    "suspicious_action_sequence:no": {
+      "selected": 93,
+      "available": 1881,
+      "target": 20
+    },
+    "insufficient_context:yes": {
+      "selected": 58,
+      "available": 1134,
+      "target": 20
+    },
+    "insufficient_context:no": {
+      "selected": 542,
+      "available": 12178,
+      "target": 20
+    }
+  },
+  "tool_families": {
+    "browser": 50,
+    "cloud_admin": 50,
+    "crm_support": 50,
+    "database_warehouse": 50,
+    "email_messaging": 50,
+    "file_storage": 50,
+    "hr_identity": 50,
+    "mcp": 50,
+    "payments_procurement": 50,
+    "production_ops": 50,
+    "shell_code_exec": 50,
+    "source_control_cicd": 50
+  },
+  "policy_kinds": {
+    "data_residency_region": 55,
+    "forbid_bulk_above_n": 55,
+    "forbid_external_destination": 55,
+    "forbid_in_stage": 55,
+    "forbid_operation_on_sensitivity": 54,
+    "forbid_outside_business_hours": 55,
+    "forbid_pii_field_export": 54,
+    "forbid_recipient_domain": 55,
+    "forbid_role": 55,
+    "forbid_tool": 54,
+    "max_financial_amount": 55,
+    "require_change_window": 55,
+    "require_dry_run_first": 54,
+    "require_explicit_authorization": 55,
+    "require_ticket_reference": 55
+  }
+}
