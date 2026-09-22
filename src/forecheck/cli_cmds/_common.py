@@ -12,12 +12,14 @@ import yaml
 from forecheck.calibration.methods import calibrator_for_method
 from forecheck.contracts import ErrorCode, ForecheckError, RiskDimension
 from forecheck.inference import (
+    AgentSelfBackend,
     EncoderBackend,
     EncoderBackendConfig,
     GuardianBackend,
     HFBackend,
     HFBackendConfig,
     MockBackend,
+    load_agent_self_config,
     load_guardian_config,
 )
 from forecheck.inference.encoder import HEAD_CONFIG_FILE, head_checkpoint_dir
@@ -120,8 +122,19 @@ def resolve_backend(
 
             guardian_config = replace(guardian_config, strip_identity=True)
         return GuardianBackend(guardian_config)
+    if name == "agent_self":
+        agent_self_config = load_agent_self_config(config) if config is not None else None
+        if agent_self_config is None:
+            from forecheck.inference.agent_self import AgentSelfBackendConfig
+
+            agent_self_config = AgentSelfBackendConfig()
+        if strip_identity:
+            from dataclasses import replace
+
+            agent_self_config = replace(agent_self_config, strip_identity=True)
+        return AgentSelfBackend(agent_self_config)
     raise typer.BadParameter(
-        f"unknown backend {name!r}, expected mock|hf|rule_baseline|encoder|guardian"
+        f"unknown backend {name!r}, expected mock|hf|rule_baseline|encoder|guardian|agent_self"
     )
 
 

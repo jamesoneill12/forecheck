@@ -31,11 +31,13 @@ def evaluate_command(
     split: Annotated[str, typer.Option()],
     evaluation_class: Annotated[EvaluationClass, typer.Option("--class")],
     backend: Annotated[
-        str, typer.Option(help="mock | hf | rule_baseline | encoder | guardian")
+        str, typer.Option(help="mock | hf | rule_baseline | encoder | guardian | agent_self")
     ] = "hf",
     backend_config: Annotated[
         Path | None,
-        typer.Option("--backend-config", help="YAML config for --backend guardian."),
+        typer.Option(
+            "--backend-config", help="YAML config for --backend guardian or --backend agent_self."
+        ),
     ] = None,
     strip_identity: Annotated[
         bool,
@@ -76,9 +78,25 @@ def evaluate_command(
             help="Append 11 synthetic single-dimension policies to the stacking bundles.",
         ),
     ] = False,
+    compare_report: Annotated[
+        Path | None,
+        typer.Option(
+            "--compare-report",
+            help="forecheck report.json for the same split, added as a side-by-side "
+            "delta to the --backend agent_self self-judgment section.",
+        ),
+    ] = None,
+    dump_n: Annotated[
+        int | None,
+        typer.Option(
+            "--dump-n",
+            help="Greedily generate verdict+reason for this many examples and dump "
+            "to a jsonl (--backend agent_self only).",
+        ),
+    ] = None,
 ) -> None:
     """Score ``split`` with ``backend``, apply any fitted calibration, and write reports."""
-    if backend == "guardian":
+    if backend in ("guardian", "agent_self"):
         run.mkdir(parents=True, exist_ok=True)
     elif not run.exists():
         raise typer.BadParameter(f"--run {run} does not exist")
@@ -161,6 +179,12 @@ def evaluate_command(
             stacking_bundles=stack_bundles,
             stacking_synthetic=stacking_synthetic,
         )
+        if backend == "agent_self" and dump_n:
+            from forecheck.inference.agent_self import AgentSelfBackend
+
+            if isinstance(backend_instance, AgentSelfBackend):
+                dump_path = (out or (run / "reports" / split)) / "agent_self_dump.jsonl"
+                backend_instance.dump_verdicts(examples[:dump_n], dump_path)
     finally:
         backend_instance.close()
 
@@ -168,5 +192,17 @@ def evaluate_command(
     out_dir.mkdir(parents=True, exist_ok=True)
     report.to_json(out_dir / "report.json")
     report.to_markdown(out_dir / "report.md")
+    if backend == "agent_self":
+        from forecheck.evaluation.report import EvaluationReport
+        from forecheck.inference.agent_self import render_self_judgment_section
+
+        compare = (
+            EvaluationReport.model_validate_json(compare_report.read_text(encoding="utf-8"))
+            if compare_report is not None
+            else None
+        )
+        section = render_self_judgment_section(report, compare)
+        with (out_dir / "report.md").open("a", encoding="utf-8") as f:
+            f.write("\n" + section)
     typer.echo(f"macro auprc={report.macro.get('auprc')}, macro ece={report.macro.get('ece')}")
     typer.echo(f"wrote {out_dir / 'report.json'} and {out_dir / 'report.md'}")

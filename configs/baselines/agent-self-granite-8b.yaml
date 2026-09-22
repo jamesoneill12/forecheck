@@ -1,0 +1,6 @@
+model_id: ibm-granite/granite-3.3-8b-instruct
+dtype: bf16
+attn_implementation: sdpa
+max_tokens: 4096
+max_new_tokens: 64
+batch_size: 8

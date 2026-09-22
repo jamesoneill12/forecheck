@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+from forecheck.inference.agent_self import (
+    AgentSelfBackend,
+    AgentSelfBackendConfig,
+    load_agent_self_config,
+)
 from forecheck.inference.base import BackendCapabilities, BaseBackend, ClassifierBackend, RawScores
 from forecheck.inference.classifier import AbstainPolicy, Classifier
 from forecheck.inference.encoder import EncoderBackend, EncoderBackendConfig
@@ -25,6 +30,8 @@ __all__ = [
     "PROMPT_CONTRACT_HASH",
     "QUESTIONS",
     "AbstainPolicy",
+    "AgentSelfBackend",
+    "AgentSelfBackendConfig",
     "BackendCapabilities",
     "BaseBackend",
     "Classifier",
@@ -39,6 +46,7 @@ __all__ = [
     "MockBackend",
     "RawScores",
     "SerializedContext",
+    "load_agent_self_config",
     "load_guardian_config",
     "prompt_contract_hash",
     "render_context",

@@ -89,6 +89,22 @@ recipes:
 ai-infra eks submit-job /tmp/forecheck-job --recipe configs/eks/eval-guardian-baselines-b200-recipe.yaml --name forecheck-guardian-baselines --gpu-type B200 --instance-type ml.p6-b200.48xlarge --az us-east-2a --gpus-per-pod 1 --cpus-per-pod 2 --memory-per-pod 60 --efas 0 --region us-east-2 --cluster eks-fsdp-cluster --fsx-id fs-0979a8395b825c774
 ```
 
+## Agent self-judgment baseline
+
+`configs/eks/eval-agent-self-b200-recipe.yaml` answers "can the acting agent judge its
+own scope, or does it need an external checker?" (see
+`docs/evaluation/agent-self-judgment.md`): it feeds the `heldout_family` and
+`adversarial` splits of `/opt/ml/fsx/forecheck/data/v3` to a Fin-style
+customer-service-agent prompt (`configs/baselines/agent-self-granite-2b.yaml`,
+`agent-self-granite-8b.yaml`) that gets one PROCEED/STOP decision, with and without
+`--strip-identity`, `--max-examples 2000`, writing to
+`/opt/ml/fsx/forecheck/runs/baselines/agent-self-<size>/reports/<split>[-noid]`. It
+guards on `/opt/ml/fsx/forecheck/data/v3/train.jsonl` already existing:
+
+```bash
+ai-infra eks submit-job /tmp/forecheck-job --recipe configs/eks/eval-agent-self-b200-recipe.yaml --name forecheck-agent-self-baselines --gpu-type B200 --instance-type ml.p6-b200.48xlarge --az us-east-2a --gpus-per-pod 1 --cpus-per-pod 2 --memory-per-pod 60 --efas 0 --region us-east-2 --cluster eks-fsdp-cluster --fsx-id fs-0979a8395b825c774
+```
+
 ## Before a production run
 
 Build and push a pinned forecheck image to ECR instead of `pip install -e` at job start,
