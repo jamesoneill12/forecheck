@@ -22,6 +22,9 @@ thresholds selected on `dev`. Sections marked *pending* are filled in as jobs fi
 | gpt-oss-safeguard 20B zero-shot | `openai/gpt-oss-safeguard-20b`, policy in system prompt, greedy verdict | none | test done (400-row subsample); heldout running |
 | encoder granite-embedding-r2 v3 | same encoder, trained on the v3 policy-generalisation data (ADR 0010) | 1 epoch, dev-selected | done |
 | Llama Guard 4 12B | gated repository, no token on the cluster | | not run |
+| decoder 2B v3 | same recipe as v2, trained on the v3 policy-generalisation data (ADR 0010) | 4,000 steps, best dev step 3,800, dev macro AUPRC 0.914 | done |
+| decoder 2B v4 | v3 data regenerated after the privilege_escalation render fix | 4,000 steps, best dev step 3,400, dev macro AUPRC 0.958 | done |
+| Granite Guardian 3.3 8B + LoRA (v3) | aligned safety model as the LoRA base, chat template off | 1 epoch | done, **invalid** (see below) |
 
 ## Macro summary
 
@@ -42,6 +45,19 @@ thresholds selected on `dev`. Sections marked *pending* are filled in as jobs fi
 | decoder 2B v2, identity stripped | test | 0.742 | 0.026 | |
 | decoder 2B v2, identity stripped | heldout_family | 0.736 | 0.040 | |
 | gpt-oss-safeguard 20B zero-shot | test (n=400) | 0.269 | 0.258 | |
+| gpt-oss-safeguard 20B zero-shot, identity stripped | test (n=400) | 0.238 | 0.286 | |
+| gpt-oss-safeguard 20B zero-shot | heldout_family (n=400) | 0.277 | 0.281 | |
+| gpt-oss-safeguard 20B zero-shot, identity stripped | heldout_family (n=400) | 0.270 | 0.276 | |
+| decoder 2B v3 | test | 0.908 | 0.008 | |
+| decoder 2B v3 | heldout_family | 0.914 | 0.004 | |
+| decoder 2B v3 | heldout_policy_kind | 0.889 | 0.004 | |
+| decoder 2B v3 | heldout_policy_phrasing | 0.921 | 0.027 | |
+| decoder 2B v4 | test | 0.960 | 0.004 | |
+| decoder 2B v4 | heldout_family | 0.960 | 0.006 | |
+| decoder 2B v4 | heldout_policy_kind | 0.944 | 0.005 | |
+| decoder 2B v4 | heldout_policy_phrasing | 0.968 | 0.023 | |
+| rule baseline (v3 data) | heldout_policy_kind | 0.611 | 0.113 | |
+| rule baseline (v3 data) | heldout_policy_phrasing | 0.601 | 0.117 | |
 | encoder granite-embedding-r2 v3 | test | 0.828 | 0.048 | |
 | encoder granite-embedding-r2 v3 | heldout_family | 0.833 | 0.049 | |
 | encoder granite-embedding-r2 v3 | heldout_policy_kind | 0.848 | 0.046 | |
@@ -274,14 +290,66 @@ Three findings:
 Caveat: the cost table is the default severity-tier table, not tuned; the k=1 row shows it
 trades FPR for FNR relative to the F1-optimal threshold (0.058 / 0.170 vs 0.015 / 0.253).
 
+## Policy generalisation: decoder 2B on v3 and v4 data (ADR 0010)
+
+Reports in `decoder-2b-v3/` and `decoder-2b-v4/` (v4 = same data with the
+privilege_escalation render fix). Rule baseline for reference.
+
+| dimension | split | v3 AUPRC | v4 AUPRC | rule |
+|---|---|---|---|---|
+| policy_conflict | test | 0.994 | 0.994 | |
+| policy_conflict | heldout_family | 0.941 | 0.964 | 0.32 |
+| policy_conflict | **heldout_policy_kind** | **0.653** (AUROC 0.59) | **0.752** (AUROC 0.77) | 0.41 |
+| policy_conflict | heldout_policy_phrasing | 0.987 | 0.993 | |
+| unauthorized_scope | heldout_policy_kind | 1.000 | 1.000 | 0.47 |
+| insufficient_context | heldout_policy_kind | 0.942 | 0.930 | |
+| privilege_escalation | heldout_family | 0.505 | **1.000** | 0.40 |
+
+Two conclusions, one positive and one negative:
+
+- **Unseen phrasing generalises.** Paraphrase index 3 of every policy kind was never
+  seen in training and `policy_conflict` holds at 0.99. The model reads the policy
+  text, not a template id.
+- **Unseen policy kinds do not.** With `forbid_recipient_domain` and
+  `data_residency_region` withheld, `policy_conflict` drops to 0.65 to 0.75 AUPRC at
+  a 0.41 positive rate (AUROC 0.59 to 0.77). The model has learned the seven kinds it saw,
+  not the general skill of checking a natural-language predicate against a tool call.
+  Every other dimension is unaffected on this split, so the drop is specific to the
+  policy predicate. The claim we can make today is "one model, customer-written
+  policies of a known kind, any phrasing"; "arbitrary new policy kinds" needs either
+  many more kinds in the generator (so kinds become the unit of generalisation, as
+  phrasings did) or a different formulation (for example, retrieval of the applicable
+  rule plus entailment). This is the main open research question and the first thing
+  to attack with the generator.
+
+**v4 fixes privilege_escalation** as predicted by the diagnosis: 0.505 to 1.000 on
+heldout_family once `authority_before/after` are rendered. That lifts the v4 macro to
+0.960 on test and heldout_family (v2 was 0.918 / 0.915). It also confirms the earlier
+AUROC-high / AUPRC-low signature was a data defect, not a model limit.
+
+## Granite Guardian 3.3 8B as a LoRA base: invalid run
+
+`guardian-8b-lora-v3/`: macro AUPRC 0.333 / 0.360, with AUROC **below 0.5** on
+`unauthorized_scope` (0.34) and `insufficient_context` (0.43). Below-chance AUROC on a
+trained dimension means the candidate-token scoring was misaligned, not that the base
+cannot learn. The run used `use_chat_template: false` because Guardian's template
+requires `guardian_config` kwargs; the prefill planner and verdict-token positions
+assume the chat layout. Treat as a plumbing failure. A fair re-run needs either a
+Guardian-aware chat template path or the plain-text prompt format validated on the 2B
+first. The Granite-3.3-8B-instruct LoRA on v4 (running) is the size control instead.
+
+## gpt-oss-safeguard 20B, all four cells (n=400 each)
+
+test 0.269 / 0.238 stripped; heldout_family 0.277 / 0.270 stripped. Same picture as
+Granite Guardian: chance on identity dimensions, unaffected by stripping.
+
 ## What is still to land
 
-- decoder 2B v3 on `heldout_policy_kind` / `heldout_policy_phrasing` (job in evaluate).
-- v4: v3 data regenerated after the privilege_escalation render fix, decoder 2B (training).
-- Granite Guardian 3.3 8B as a LoRA base (aligned model adapted to the contract) on v3.
-- gpt-oss-safeguard heldout_family rows.
+- agent self-judgment eval (2B and 8B Fin-style agent, ALLOW/STOP) vs the classifier.
+- approval-elimination curve on v2 and v4 decoders (`--approval-curve balanced`).
+- encoder granite-r2 on v4; Granite-3.3-8B-instruct LoRA on v4.
 
-## Known data defect: privilege_escalation (affects every v2/v3 number above)
+## Known data defect: privilege_escalation (affects every v2/v3 number above; fixed in v4)
 
 `authority_before` / `authority_after`, the latent fields the label is derived from, were
 never rendered into the tool call, so 78 of 79 dev positives were indistinguishable in text
