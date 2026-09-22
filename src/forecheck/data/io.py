@@ -7,7 +7,14 @@ from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 
-from forecheck.contracts import DatasetManifest, Example, LabelValue, RiskDimension, Split
+from forecheck.contracts import (
+    DatasetManifest,
+    Example,
+    LabelValue,
+    PolicyPredicateKind,
+    RiskDimension,
+    Split,
+)
 
 __all__ = [
     "build_manifest",
@@ -66,10 +73,18 @@ def _positive_rate(examples: Sequence[Example]) -> dict[RiskDimension, float]:
     return rates
 
 
-def build_manifest(split: Split, path: Path, examples: Sequence[Example]) -> DatasetManifest:
+def build_manifest(
+    split: Split,
+    path: Path,
+    examples: Sequence[Example],
+    *,
+    heldout_policy_kinds: frozenset[PolicyPredicateKind] = frozenset(),
+) -> DatasetManifest:
     """Build a checksummed :class:`DatasetManifest` describing ``path``.
 
     ``path`` must already contain ``examples`` written via :func:`write_jsonl`.
+    ``heldout_policy_kinds`` records the kinds withheld for this dataset (ADR 0011),
+    regardless of ``split``, so the withheld set is auditable from any one manifest file.
     """
     family_ids = sorted({e.family_id for e in examples})
     family_ids_digest = hashlib.sha256("\n".join(family_ids).encode()).hexdigest()
@@ -84,6 +99,7 @@ def build_manifest(split: Split, path: Path, examples: Sequence[Example]) -> Dat
         created_at=datetime.now(tz=UTC),
         positive_rate=_positive_rate(examples),
         family_ids_sha256=family_ids_digest,
+        heldout_policy_kinds=sorted(k.value for k in heldout_policy_kinds),
     )
 
 

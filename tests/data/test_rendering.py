@@ -393,3 +393,49 @@ def test_privilege_escalation_negative_in_scope_regrant_still_shows_no_widening(
     text = serialize_context(context).text
     assert "authority_before: ['iam.read', 'iam.admin']" in text
     assert "authority_after: ['iam.read', 'iam.admin']" in text
+
+
+def test_new_v5_boolean_flags_render_into_arguments() -> None:
+    latent = make_latent(
+        manager_approved=False,
+        second_approver_present=False,
+        customer_consent_given=False,
+        encryption_in_transit=False,
+        reason="",
+        cross_tenant_resource=True,
+    )
+    context = OfflineTemplateRenderer().render(latent, random.Random(0))
+    text = serialize_context(context).text
+    assert "manager_approved: False" in text
+    assert "second_approver_present: False" in text
+    assert "customer_consent_given: False" in text
+    assert "encryption_in_transit: False" in text
+    assert "reason: " in text
+    assert "cross_tenant_resource: True" in text
+
+
+def test_channel_and_export_format_render_when_set() -> None:
+    latent = make_latent(channel="sms", export_format="csv")
+    context = OfflineTemplateRenderer().render(latent, random.Random(0))
+    assert context.proposed_action.arguments["channel"] == "sms"
+    assert context.proposed_action.arguments["export_format"] == "csv"
+
+
+def test_recipient_verified_renders_into_destination() -> None:
+    latent = make_latent(destination_present=True, recipient_verified=False)
+    context = OfflineTemplateRenderer().render(latent, random.Random(0))
+    assert context.destination is not None
+    assert context.destination.verified is False
+
+
+def test_is_weekend_renders_into_environment_labels() -> None:
+    latent = make_latent(is_weekend=True)
+    context = OfflineTemplateRenderer().render(latent, random.Random(0))
+    assert context.environment.labels["is_weekend"] == "True"
+
+
+def test_failed_auth_in_trajectory_renders_a_trajectory_step() -> None:
+    latent = make_latent(failed_auth_in_trajectory=True)
+    context = OfflineTemplateRenderer().render(latent, random.Random(0))
+    text = serialize_context(context).text
+    assert "Authentication failed" in text or "Sign-in rejected" in text

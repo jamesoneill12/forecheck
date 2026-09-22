@@ -31,6 +31,7 @@ from forecheck.data.splitting import (
     assign_pair_split,
     assign_split,
     compute_group_key,
+    default_heldout_policy_kinds,
     is_heldout_family,
     split_examples,
 )
@@ -373,3 +374,41 @@ def test_heldout_policy_kind_pair_lands_together() -> None:
     assert_no_leakage(splits)
     found = [split for split, rows in splits.items() if rows]
     assert found == [Split.HELDOUT_POLICY_KIND]
+
+
+def test_default_heldout_policy_kinds_is_deterministic_and_sized() -> None:
+    assert default_heldout_policy_kinds(4) == default_heldout_policy_kinds(4)
+    assert len(default_heldout_policy_kinds(4)) == 4
+    assert len(default_heldout_policy_kinds(6)) == 6
+    assert len(HELDOUT_POLICY_KINDS) == 4
+
+
+def test_default_heldout_policy_kinds_differs_by_salt() -> None:
+    a = default_heldout_policy_kinds(4, salt="salt-a")
+    b = default_heldout_policy_kinds(4, salt="salt-b")
+    assert a != b
+
+
+def test_split_examples_honours_explicit_heldout_policy_kinds_override() -> None:
+    kind = next(k for k in PolicyPredicateKind if k not in HELDOUT_POLICY_KINDS)
+    examples = [
+        _example_for(
+            make_latent(
+                scenario_id=f"scenario-{i}",
+                family_id=f"fam-override-{i}",
+                template_lineage=[f"fam-override-{i}#scenario-{i}"],
+                policy_supplied=True,
+                policy_predicates=[PolicyPredicate(id="p", kind=kind)],
+            ),
+            example_id=f"ex-{i}",
+        )
+        for i in range(30)
+    ]
+    default_splits = split_examples(examples)
+    assert default_splits[Split.HELDOUT_POLICY_KIND] == []
+
+    override_splits = split_examples(examples, heldout_policy_kinds=frozenset({kind}))
+    assert_no_leakage(override_splits)
+    assert len(override_splits[Split.HELDOUT_POLICY_KIND]) > 0
+    for split in (Split.TRAIN, Split.CALIBRATION, Split.DEV, Split.TEST):
+        assert override_splits[split] == []

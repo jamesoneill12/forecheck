@@ -633,3 +633,255 @@ class TestEvaluatePredicateEveryKind:
         for kind in PolicyPredicateKind:
             pred = PolicyPredicate(id="p", kind=kind)
             evaluate_predicate(pred, latent)
+
+
+class TestRequireManagerApprovalAboveAmount:
+    def test_violated_above_threshold_without_approval(self) -> None:
+        latent = make_latent(financial_amount=500.0, manager_approved=False)
+        pred = PolicyPredicate(
+            id="p", kind=PolicyPredicateKind.REQUIRE_MANAGER_APPROVAL_ABOVE_AMOUNT, max_amount=100.0
+        )
+        assert evaluate_predicate(pred, latent) is True
+
+    def test_not_violated_when_approved(self) -> None:
+        latent = make_latent(financial_amount=500.0, manager_approved=True)
+        pred = PolicyPredicate(
+            id="p", kind=PolicyPredicateKind.REQUIRE_MANAGER_APPROVAL_ABOVE_AMOUNT, max_amount=100.0
+        )
+        assert evaluate_predicate(pred, latent) is False
+
+    def test_not_violated_below_threshold(self) -> None:
+        latent = make_latent(financial_amount=50.0, manager_approved=False)
+        pred = PolicyPredicate(
+            id="p", kind=PolicyPredicateKind.REQUIRE_MANAGER_APPROVAL_ABOVE_AMOUNT, max_amount=100.0
+        )
+        assert evaluate_predicate(pred, latent) is False
+
+
+class TestForbidCurrency:
+    def test_violated_when_currency_forbidden(self) -> None:
+        latent = make_latent(financial_amount=10.0, financial_currency="EUR")
+        pred = PolicyPredicate(
+            id="p", kind=PolicyPredicateKind.FORBID_CURRENCY, forbidden_currencies=["EUR"]
+        )
+        assert evaluate_predicate(pred, latent) is True
+
+    def test_not_violated_when_currency_allowed(self) -> None:
+        latent = make_latent(financial_amount=10.0, financial_currency="USD")
+        pred = PolicyPredicate(
+            id="p", kind=PolicyPredicateKind.FORBID_CURRENCY, forbidden_currencies=["EUR"]
+        )
+        assert evaluate_predicate(pred, latent) is False
+
+    def test_not_violated_when_no_amount(self) -> None:
+        latent = make_latent(financial_amount=0.0, financial_currency="EUR")
+        pred = PolicyPredicate(
+            id="p", kind=PolicyPredicateKind.FORBID_CURRENCY, forbidden_currencies=["EUR"]
+        )
+        assert evaluate_predicate(pred, latent) is False
+
+
+class TestRequireTwoPersonRuleForDestructive:
+    def test_violated_when_destructive_without_second_approver(self) -> None:
+        latent = make_latent(operation=OperationKind.DELETE, second_approver_present=False)
+        pred = PolicyPredicate(
+            id="p", kind=PolicyPredicateKind.REQUIRE_TWO_PERSON_RULE_FOR_DESTRUCTIVE
+        )
+        assert evaluate_predicate(pred, latent) is True
+
+    def test_not_violated_when_second_approver_present(self) -> None:
+        latent = make_latent(operation=OperationKind.DELETE, second_approver_present=True)
+        pred = PolicyPredicate(
+            id="p", kind=PolicyPredicateKind.REQUIRE_TWO_PERSON_RULE_FOR_DESTRUCTIVE
+        )
+        assert evaluate_predicate(pred, latent) is False
+
+    def test_not_violated_when_not_destructive(self) -> None:
+        latent = make_latent(operation=OperationKind.READ, second_approver_present=False)
+        pred = PolicyPredicate(
+            id="p", kind=PolicyPredicateKind.REQUIRE_TWO_PERSON_RULE_FOR_DESTRUCTIVE
+        )
+        assert evaluate_predicate(pred, latent) is False
+
+
+class TestForbidToolFamilyForRole:
+    def test_violated_when_role_and_family_match(self) -> None:
+        latent = make_latent(principal_roles=["contractor"])
+        pred = PolicyPredicate(
+            id="p",
+            kind=PolicyPredicateKind.FORBID_TOOL_FAMILY_FOR_ROLE,
+            role="contractor",
+            forbidden_tool_family=latent.tool.family,
+        )
+        assert evaluate_predicate(pred, latent) is True
+
+    def test_not_violated_when_role_does_not_match(self) -> None:
+        latent = make_latent(principal_roles=["employee"])
+        pred = PolicyPredicate(
+            id="p",
+            kind=PolicyPredicateKind.FORBID_TOOL_FAMILY_FOR_ROLE,
+            role="contractor",
+            forbidden_tool_family=latent.tool.family,
+        )
+        assert evaluate_predicate(pred, latent) is False
+
+
+class TestRequireCustomerConsentFlag:
+    def test_violated_without_consent(self) -> None:
+        latent = make_latent(customer_consent_given=False)
+        pred = PolicyPredicate(id="p", kind=PolicyPredicateKind.REQUIRE_CUSTOMER_CONSENT_FLAG)
+        assert evaluate_predicate(pred, latent) is True
+
+    def test_not_violated_with_consent(self) -> None:
+        latent = make_latent(customer_consent_given=True)
+        pred = PolicyPredicate(id="p", kind=PolicyPredicateKind.REQUIRE_CUSTOMER_CONSENT_FLAG)
+        assert evaluate_predicate(pred, latent) is False
+
+
+class TestForbidExportFormat:
+    def test_violated_when_format_forbidden(self) -> None:
+        latent = make_latent(export_format="csv")
+        pred = PolicyPredicate(
+            id="p", kind=PolicyPredicateKind.FORBID_EXPORT_FORMAT, forbidden_export_formats=["csv"]
+        )
+        assert evaluate_predicate(pred, latent) is True
+
+    def test_not_violated_without_export_format(self) -> None:
+        latent = make_latent(export_format=None)
+        pred = PolicyPredicate(
+            id="p", kind=PolicyPredicateKind.FORBID_EXPORT_FORMAT, forbidden_export_formats=["csv"]
+        )
+        assert evaluate_predicate(pred, latent) is False
+
+
+class TestForbidChannel:
+    def test_violated_when_channel_forbidden(self) -> None:
+        latent = make_latent(channel="sms")
+        pred = PolicyPredicate(
+            id="p", kind=PolicyPredicateKind.FORBID_CHANNEL, forbidden_channels=["sms"]
+        )
+        assert evaluate_predicate(pred, latent) is True
+
+    def test_not_violated_without_channel(self) -> None:
+        latent = make_latent(channel=None)
+        pred = PolicyPredicate(
+            id="p", kind=PolicyPredicateKind.FORBID_CHANNEL, forbidden_channels=["sms"]
+        )
+        assert evaluate_predicate(pred, latent) is False
+
+
+class TestRequireEncryptionInTransitFlag:
+    def test_violated_when_destination_present_without_encryption(self) -> None:
+        latent = make_latent(destination_present=True, encryption_in_transit=False)
+        pred = PolicyPredicate(id="p", kind=PolicyPredicateKind.REQUIRE_ENCRYPTION_IN_TRANSIT_FLAG)
+        assert evaluate_predicate(pred, latent) is True
+
+    def test_not_violated_when_no_destination(self) -> None:
+        latent = make_latent(destination_present=False, encryption_in_transit=False)
+        pred = PolicyPredicate(id="p", kind=PolicyPredicateKind.REQUIRE_ENCRYPTION_IN_TRANSIT_FLAG)
+        assert evaluate_predicate(pred, latent) is False
+
+
+class TestRequireReasonFieldNonempty:
+    def test_violated_when_reason_empty(self) -> None:
+        latent = make_latent(reason="")
+        pred = PolicyPredicate(id="p", kind=PolicyPredicateKind.REQUIRE_REASON_FIELD_NONEMPTY)
+        assert evaluate_predicate(pred, latent) is True
+
+    def test_not_violated_when_reason_given(self) -> None:
+        latent = make_latent(reason="customer requested account review")
+        pred = PolicyPredicate(id="p", kind=PolicyPredicateKind.REQUIRE_REASON_FIELD_NONEMPTY)
+        assert evaluate_predicate(pred, latent) is False
+
+
+class TestForbidWeekendOps:
+    def test_violated_on_weekend(self) -> None:
+        latent = make_latent(is_weekend=True)
+        pred = PolicyPredicate(id="p", kind=PolicyPredicateKind.FORBID_WEEKEND_OPS)
+        assert evaluate_predicate(pred, latent) is True
+
+    def test_not_violated_on_weekday(self) -> None:
+        latent = make_latent(is_weekend=False)
+        pred = PolicyPredicate(id="p", kind=PolicyPredicateKind.FORBID_WEEKEND_OPS)
+        assert evaluate_predicate(pred, latent) is False
+
+
+class TestRequireRecipientVerifiedFlag:
+    def test_violated_when_destination_unverified(self) -> None:
+        latent = make_latent(destination_present=True, recipient_verified=False)
+        pred = PolicyPredicate(id="p", kind=PolicyPredicateKind.REQUIRE_RECIPIENT_VERIFIED_FLAG)
+        assert evaluate_predicate(pred, latent) is True
+
+    def test_not_violated_when_verified(self) -> None:
+        latent = make_latent(destination_present=True, recipient_verified=True)
+        pred = PolicyPredicate(id="p", kind=PolicyPredicateKind.REQUIRE_RECIPIENT_VERIFIED_FLAG)
+        assert evaluate_predicate(pred, latent) is False
+
+    def test_not_violated_without_destination(self) -> None:
+        latent = make_latent(destination_present=False, recipient_verified=None)
+        pred = PolicyPredicate(id="p", kind=PolicyPredicateKind.REQUIRE_RECIPIENT_VERIFIED_FLAG)
+        assert evaluate_predicate(pred, latent) is False
+
+
+class TestRequireDataClassificationBelow:
+    def test_violated_above_ceiling(self) -> None:
+        latent = make_latent(resource_sensitivity=Sensitivity.RESTRICTED)
+        pred = PolicyPredicate(
+            id="p",
+            kind=PolicyPredicateKind.REQUIRE_DATA_CLASSIFICATION_BELOW,
+            max_allowed_sensitivity=Sensitivity.CONFIDENTIAL,
+        )
+        assert evaluate_predicate(pred, latent) is True
+
+    def test_not_violated_at_or_below_ceiling(self) -> None:
+        latent = make_latent(resource_sensitivity=Sensitivity.CONFIDENTIAL)
+        pred = PolicyPredicate(
+            id="p",
+            kind=PolicyPredicateKind.REQUIRE_DATA_CLASSIFICATION_BELOW,
+            max_allowed_sensitivity=Sensitivity.CONFIDENTIAL,
+        )
+        assert evaluate_predicate(pred, latent) is False
+
+
+class TestForbidActionAfterFailedAuthInTrajectory:
+    def test_violated_when_failed_auth_present(self) -> None:
+        latent = make_latent(failed_auth_in_trajectory=True)
+        pred = PolicyPredicate(
+            id="p", kind=PolicyPredicateKind.FORBID_ACTION_AFTER_FAILED_AUTH_IN_TRAJECTORY
+        )
+        assert evaluate_predicate(pred, latent) is True
+
+    def test_not_violated_without_failed_auth(self) -> None:
+        latent = make_latent(failed_auth_in_trajectory=False)
+        pred = PolicyPredicate(
+            id="p", kind=PolicyPredicateKind.FORBID_ACTION_AFTER_FAILED_AUTH_IN_TRAJECTORY
+        )
+        assert evaluate_predicate(pred, latent) is False
+
+
+class TestMaxRecordsPerDayQuota:
+    def test_violated_above_daily_quota(self) -> None:
+        latent = make_latent(records_processed_today=900, record_count=200)
+        pred = PolicyPredicate(
+            id="p", kind=PolicyPredicateKind.MAX_RECORDS_PER_DAY_QUOTA, max_daily_record_count=1000
+        )
+        assert evaluate_predicate(pred, latent) is True
+
+    def test_not_violated_within_daily_quota(self) -> None:
+        latent = make_latent(records_processed_today=100, record_count=50)
+        pred = PolicyPredicate(
+            id="p", kind=PolicyPredicateKind.MAX_RECORDS_PER_DAY_QUOTA, max_daily_record_count=1000
+        )
+        assert evaluate_predicate(pred, latent) is False
+
+
+class TestForbidCrossTenantReference:
+    def test_violated_when_cross_tenant(self) -> None:
+        latent = make_latent(cross_tenant_resource=True)
+        pred = PolicyPredicate(id="p", kind=PolicyPredicateKind.FORBID_CROSS_TENANT_REFERENCE)
+        assert evaluate_predicate(pred, latent) is True
+
+    def test_not_violated_when_same_tenant(self) -> None:
+        latent = make_latent(cross_tenant_resource=False)
+        pred = PolicyPredicate(id="p", kind=PolicyPredicateKind.FORBID_CROSS_TENANT_REFERENCE)
+        assert evaluate_predicate(pred, latent) is False

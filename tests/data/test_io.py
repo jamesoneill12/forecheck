@@ -8,6 +8,7 @@ from forecheck.contracts import (
     Example,
     LabelSet,
     LabelValue,
+    PolicyPredicateKind,
     Provenance,
     RiskDimension,
     Split,
@@ -65,6 +66,15 @@ def test_build_manifest_computes_positive_rate(tmp_path: Path) -> None:
     assert manifest.n_families == 2
     assert manifest.positive_rate[RiskDimension.FINANCIAL_COMMITMENT] == 0.5
     assert manifest.positive_rate[RiskDimension.DESTRUCTIVE_OR_IRREVERSIBLE_ACTION] == 0.0
+
+
+def test_build_manifest_records_heldout_policy_kinds(tmp_path: Path) -> None:
+    examples = [_make_example("a")]
+    path = tmp_path / "shard.jsonl"
+    write_jsonl(path, examples)
+    kinds = frozenset({PolicyPredicateKind.FORBID_WEEKEND_OPS, PolicyPredicateKind.FORBID_CHANNEL})
+    manifest = build_manifest(Split.HELDOUT_POLICY_KIND, path, examples, heldout_policy_kinds=kinds)
+    assert manifest.heldout_policy_kinds == ["forbid_channel", "forbid_weekend_ops"]
 
 
 def test_verify_manifest_detects_tampering(tmp_path: Path) -> None:

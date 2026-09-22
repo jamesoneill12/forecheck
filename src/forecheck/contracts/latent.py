@@ -105,7 +105,15 @@ class DifficultyTier(StrEnum):
 
 
 class PolicyPredicateKind(StrEnum):
-    """Machine-checkable form of an organizational policy statement."""
+    """Machine-checkable form of an organizational policy statement.
+
+    The first 15 members (through :attr:`FORBID_PII_FIELD_EXPORT`) predate ADR 0011 and
+    their :func:`~forecheck.data.labeling.evaluate_predicate` semantics are frozen so
+    v3/v4 synthetic data stays comparable to v5. The 15 members from
+    :attr:`REQUIRE_MANAGER_APPROVAL_ABOVE_AMOUNT` on were added by ADR 0011 to give the
+    ``heldout_policy_kind`` split enough kinds that withholding a handful still leaves a
+    "kind" a model could generalise over, rather than one it must memorise.
+    """
 
     FORBID_TOOL = "forbid_tool"
     FORBID_OPERATION_ON_SENSITIVITY = "forbid_operation_on_sensitivity"
@@ -122,6 +130,22 @@ class PolicyPredicateKind(StrEnum):
     REQUIRE_DRY_RUN_FIRST = "require_dry_run_first"
     DATA_RESIDENCY_REGION = "data_residency_region"
     FORBID_PII_FIELD_EXPORT = "forbid_pii_field_export"
+
+    REQUIRE_MANAGER_APPROVAL_ABOVE_AMOUNT = "require_manager_approval_above_amount"
+    FORBID_CURRENCY = "forbid_currency"
+    REQUIRE_TWO_PERSON_RULE_FOR_DESTRUCTIVE = "require_two_person_rule_for_destructive"
+    FORBID_TOOL_FAMILY_FOR_ROLE = "forbid_tool_family_for_role"
+    REQUIRE_CUSTOMER_CONSENT_FLAG = "require_customer_consent_flag"
+    FORBID_EXPORT_FORMAT = "forbid_export_format"
+    FORBID_CHANNEL = "forbid_channel"
+    REQUIRE_ENCRYPTION_IN_TRANSIT_FLAG = "require_encryption_in_transit_flag"
+    REQUIRE_REASON_FIELD_NONEMPTY = "require_reason_field_nonempty"
+    FORBID_WEEKEND_OPS = "forbid_weekend_ops"
+    REQUIRE_RECIPIENT_VERIFIED_FLAG = "require_recipient_verified_flag"
+    REQUIRE_DATA_CLASSIFICATION_BELOW = "require_data_classification_below"
+    FORBID_ACTION_AFTER_FAILED_AUTH_IN_TRAJECTORY = "forbid_action_after_failed_auth_in_trajectory"
+    MAX_RECORDS_PER_DAY_QUOTA = "max_records_per_day_quota"
+    FORBID_CROSS_TENANT_REFERENCE = "forbid_cross_tenant_reference"
 
 
 class PolicyPredicate(BaseModel):
@@ -154,6 +178,12 @@ class PolicyPredicate(BaseModel):
     allowed_domains: list[ShortStr] = Field(default_factory=list)
     allowed_regions: list[ShortStr] = Field(default_factory=list)
     pii_fields: list[ShortStr] = Field(default_factory=list)
+    forbidden_currencies: list[ShortStr] = Field(default_factory=list)
+    forbidden_tool_family: ToolFamily | None = None
+    forbidden_export_formats: list[ShortStr] = Field(default_factory=list)
+    forbidden_channels: list[ShortStr] = Field(default_factory=list)
+    max_allowed_sensitivity: Sensitivity | None = None
+    max_daily_record_count: int | None = Field(default=None, ge=0)
 
 
 class ToolSpec(BaseModel):
@@ -237,6 +267,19 @@ class LatentScenario(BaseModel):
     ticket_reference: ShortStr | None = None
     dry_run_performed: bool = False
     touched_pii_fields: list[ShortStr] = Field(default_factory=list)
+
+    manager_approved: bool = True
+    second_approver_present: bool = True
+    customer_consent_given: bool = True
+    encryption_in_transit: bool = True
+    reason: ShortStr = ""
+    channel: ShortStr | None = None
+    export_format: ShortStr | None = None
+    is_weekend: bool = False
+    recipient_verified: bool | None = None
+    failed_auth_in_trajectory: bool = False
+    records_processed_today: int = Field(default=0, ge=0)
+    cross_tenant_resource: bool = False
 
     policy_predicates: list[PolicyPredicate] = Field(default_factory=list)
     policy_supplied: bool = True

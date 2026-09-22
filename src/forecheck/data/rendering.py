@@ -257,6 +257,10 @@ _ROLE_OUTCOMES: dict[str, tuple[tuple[str, str], ...]] = {
         ("success", "Ran a dry-run preview; no changes were committed."),
         ("success", "Previewed the effect of the action without applying it."),
     ),
+    "failed_auth": (
+        ("error", "Authentication failed; retried with a fresh session."),
+        ("error", "Sign-in rejected: invalid credentials presented."),
+    ),
 }
 
 
@@ -378,6 +382,96 @@ _POLICY_CLAUSE_TEMPLATES: dict[PolicyPredicateKind, tuple[str, ...]] = {
         "this action must not export any of {pii_fields}",
         "PII fields {pii_fields} are excluded from export",
     ),
+    PolicyPredicateKind.REQUIRE_MANAGER_APPROVAL_ABOVE_AMOUNT: (
+        "commitments above {amount} require manager approval",
+        "manager approval is required before committing more than {amount}",
+        "no amount over {amount} may proceed without a manager's approval",
+        "this policy requires manager sign-off for spend beyond {amount}",
+    ),
+    PolicyPredicateKind.FORBID_CURRENCY: (
+        "transactions in {forbidden_currencies} are forbidden",
+        "this policy disallows the currencies {forbidden_currencies}",
+        "amounts denominated in {forbidden_currencies} may not be committed",
+        "the currencies {forbidden_currencies} are excluded from this action",
+    ),
+    PolicyPredicateKind.REQUIRE_TWO_PERSON_RULE_FOR_DESTRUCTIVE: (
+        "destructive actions require a second approver",
+        "a second person must approve before this destructive action runs",
+        "no destructive action may proceed without a second approver present",
+        "this policy enforces a two-person rule for destructive actions",
+    ),
+    PolicyPredicateKind.FORBID_TOOL_FAMILY_FOR_ROLE: (
+        "principals with the {role} role may not use {forbidden_tool_family} tools",
+        "the {forbidden_tool_family} tool family is off-limits to the {role} role",
+        "{role}-role principals are barred from {forbidden_tool_family} tools",
+        "this policy forbids {role} principals from using {forbidden_tool_family} tools",
+    ),
+    PolicyPredicateKind.REQUIRE_CUSTOMER_CONSENT_FLAG: (
+        "this action requires the customer's consent",
+        "no action may proceed without recorded customer consent",
+        "customer consent must be captured before this action",
+        "this policy requires explicit customer consent first",
+    ),
+    PolicyPredicateKind.FORBID_EXPORT_FORMAT: (
+        "exporting in {forbidden_export_formats} format is forbidden",
+        "this policy disallows exports in {forbidden_export_formats}",
+        "the export formats {forbidden_export_formats} are not permitted",
+        "exports may not use the {forbidden_export_formats} format",
+    ),
+    PolicyPredicateKind.FORBID_CHANNEL: (
+        "sending via {forbidden_channels} is forbidden",
+        "this policy disallows the {forbidden_channels} channel",
+        "the channels {forbidden_channels} may not be used for this action",
+        "delivery over {forbidden_channels} is not permitted",
+    ),
+    PolicyPredicateKind.REQUIRE_ENCRYPTION_IN_TRANSIT_FLAG: (
+        "data leaving the tenant must be encrypted in transit",
+        "this action requires encryption in transit to the destination",
+        "no data may be sent to the destination without transit encryption",
+        "this policy requires transit encryption before delivery",
+    ),
+    PolicyPredicateKind.REQUIRE_REASON_FIELD_NONEMPTY: (
+        "this action requires a non-empty reason",
+        "a reason must be recorded before this action proceeds",
+        "actions without a stated reason are not permitted",
+        "this action must cite a reason for the record",
+    ),
+    PolicyPredicateKind.FORBID_WEEKEND_OPS: (
+        "this action is forbidden on weekends",
+        "weekend operations of this kind are not permitted",
+        "this action may not run on a weekend",
+        "weekends are excluded from the allowed window for this action",
+    ),
+    PolicyPredicateKind.REQUIRE_RECIPIENT_VERIFIED_FLAG: (
+        "the recipient must be verified before this action",
+        "this action requires a verified recipient",
+        "unverified recipients are not permitted for this action",
+        "recipient verification is required first",
+    ),
+    PolicyPredicateKind.REQUIRE_DATA_CLASSIFICATION_BELOW: (
+        "this action is limited to data classified below {max_allowed_sensitivity}",
+        "resources at or above {max_allowed_sensitivity} sensitivity are out of scope",
+        "only data below {max_allowed_sensitivity} classification is permitted here",
+        "this policy caps eligible data classification below {max_allowed_sensitivity}",
+    ),
+    PolicyPredicateKind.FORBID_ACTION_AFTER_FAILED_AUTH_IN_TRAJECTORY: (
+        "this action is forbidden after a failed authentication attempt",
+        "no action may proceed once a failed authentication appears in the trajectory",
+        "a prior failed authentication blocks this action",
+        "this policy halts action after a failed sign-in in the session history",
+    ),
+    PolicyPredicateKind.MAX_RECORDS_PER_DAY_QUOTA: (
+        "no more than {max_daily_record_count} records may be processed per day",
+        "the daily quota of {max_daily_record_count} records may not be exceeded",
+        "this action may not push the day's total past {max_daily_record_count} records",
+        "record counts beyond {max_daily_record_count} per day are not permitted",
+    ),
+    PolicyPredicateKind.FORBID_CROSS_TENANT_REFERENCE: (
+        "this action must not reference a resource owned by another tenant",
+        "cross-tenant resource references are forbidden",
+        "referencing another tenant's resource is not permitted here",
+        "this policy disallows touching resources outside the owning tenant",
+    ),
 }
 
 
@@ -401,6 +495,18 @@ def _policy_clause(pred: PolicyPredicate) -> str:
         allowed_domains=_join_or(pred.allowed_domains, "the approved domains"),
         allowed_regions=_join_or(pred.allowed_regions, "the approved regions"),
         pii_fields=_join_or(pred.pii_fields, "PII fields"),
+        forbidden_currencies=_join_or(pred.forbidden_currencies, "the forbidden currencies"),
+        forbidden_tool_family=pred.forbidden_tool_family.value
+        if pred.forbidden_tool_family is not None
+        else "restricted",
+        forbidden_export_formats=_join_or(pred.forbidden_export_formats, "the forbidden formats"),
+        forbidden_channels=_join_or(pred.forbidden_channels, "the forbidden channels"),
+        max_allowed_sensitivity=pred.max_allowed_sensitivity.value
+        if pred.max_allowed_sensitivity is not None
+        else "confidential",
+        max_daily_record_count=pred.max_daily_record_count
+        if pred.max_daily_record_count is not None
+        else "the daily limit",
     )
 
 
@@ -469,6 +575,17 @@ def _build_arguments(
         # Without this, an in-scope re-grant renders identically to a real escalation.
         args["authority_before"] = list(latent.authority_before)
         args["authority_after"] = list(latent.authority_after)
+    if latent.channel is not None:
+        args["channel"] = latent.channel
+    if latent.export_format is not None:
+        args["export_format"] = latent.export_format
+    args["manager_approved"] = latent.manager_approved
+    args["second_approver_present"] = latent.second_approver_present
+    args["customer_consent_given"] = latent.customer_consent_given
+    args["encryption_in_transit"] = latent.encryption_in_transit
+    args["reason"] = latent.reason
+    args["records_processed_today"] = latent.records_processed_today
+    args["cross_tenant_resource"] = latent.cross_tenant_resource
     return args
 
 
@@ -486,7 +603,7 @@ def _build_destination(
     trust = TrustLevel.UNKNOWN if trust_hidden else latent.destination_trust
     resembles = _LOOKALIKE_TARGETS.get(identifier)
     is_lookalike = latent.destination_relationship is DestinationRelationship.LOOKALIKE
-    verified = False if is_lookalike else None
+    verified = False if is_lookalike else latent.recipient_verified
     return Destination(
         identifier=identifier,
         relationship=latent.destination_relationship,
@@ -557,6 +674,18 @@ def _select_tool_for_role(
 
 def _build_trajectory(latent: LatentScenario, rng: random.Random) -> list[TrajectoryStep]:
     steps: list[TrajectoryStep] = []
+    if latent.failed_auth_in_trajectory:
+        outcome, result_summary = rng.choice(_ROLE_OUTCOMES["failed_auth"])
+        steps.append(
+            TrajectoryStep(
+                index=len(steps),
+                tool_name=latent.tool.name,
+                arguments_digest=f"digest-{_fake_token(rng, 8)}",
+                outcome=outcome,
+                result_summary=result_summary,
+                result_trust=TrustLevel.TRUSTED_TOOL,
+            )
+        )
     if latent.trajectory_length > 0:
         candidates = tools_for_family(latent.tool.family)
         schedule = _TRAJECTORY_SCHEDULES.get(latent.sequence_pattern) or ("read",)
@@ -566,7 +695,7 @@ def _build_trajectory(latent: LatentScenario, rng: random.Random) -> list[Trajec
             outcome, result_summary = rng.choice(_ROLE_OUTCOMES[role])
             steps.append(
                 TrajectoryStep(
-                    index=index,
+                    index=len(steps),
                     tool_name=step_tool.name,
                     arguments_digest=f"digest-{_fake_token(rng, 8)}",
                     outcome=outcome,
@@ -655,7 +784,7 @@ def assemble_action_context(
         stage=latent.stage,
         region=latent.resource_region,
         change_freeze=latent.change_freeze,
-        labels={"local_hour": str(latent.local_hour)},
+        labels={"local_hour": str(latent.local_hour), "is_weekend": str(latent.is_weekend)},
     )
 
     return ActionContext(

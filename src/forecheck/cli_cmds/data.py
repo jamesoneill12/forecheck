@@ -15,7 +15,13 @@ from forecheck.data.io import (
     write_jsonl,
     write_manifests,
 )
-from forecheck.data.splitting import LeakageError, assert_no_leakage, split_examples
+from forecheck.data.splitting import (
+    DEFAULT_HELDOUT_POLICY_KIND_COUNT,
+    LeakageError,
+    assert_no_leakage,
+    default_heldout_policy_kinds,
+    split_examples,
+)
 from forecheck.generation.config import build_jobs, load_generation_config
 from forecheck.generation.pipeline import GenerationPipeline, PipelineConfig
 from forecheck.generation.renderers import OfflineTemplateRenderer
@@ -50,13 +56,22 @@ def generate(
 
 
 @data_app.command("split")
-def split(directory: Annotated[Path, typer.Argument(exists=True, file_okay=False)]) -> None:
+def split(
+    directory: Annotated[Path, typer.Argument(exists=True, file_okay=False)],
+    n_heldout_policy_kinds: Annotated[
+        int,
+        typer.Option(
+            help="How many PolicyPredicateKinds to withhold for heldout_policy_kind (see ADR 0011)."
+        ),
+    ] = DEFAULT_HELDOUT_POLICY_KIND_COUNT,
+) -> None:
     """Split a raw dataset produced by ``generate`` into leakage-safe splits + manifests."""
     raw_path = directory / _RAW_FILENAME
     if not raw_path.exists():
         raise typer.BadParameter(f"{raw_path} not found; run 'forecheck data generate' first")
     examples = read_jsonl(raw_path)
-    splits = split_examples(examples)
+    heldout_policy_kinds = default_heldout_policy_kinds(n_heldout_policy_kinds)
+    splits = split_examples(examples, heldout_policy_kinds=heldout_policy_kinds)
     assert_no_leakage(splits)
     manifests: list[DatasetManifest] = []
     for split_value, rows in splits.items():
@@ -64,7 +79,9 @@ def split(directory: Annotated[Path, typer.Argument(exists=True, file_okay=False
             continue
         path = directory / f"{split_value.value}.jsonl"
         write_jsonl(path, rows)
-        manifests.append(build_manifest(split_value, path, rows))
+        manifests.append(
+            build_manifest(split_value, path, rows, heldout_policy_kinds=heldout_policy_kinds)
+        )
         typer.echo(f"{split_value.value}: {len(rows)} rows -> {path}")
     write_manifests(directory, manifests)
     raw_path.unlink()

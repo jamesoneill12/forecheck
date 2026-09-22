@@ -74,6 +74,15 @@ _RECIPIENT_DOMAIN_POOL: tuple[str, ...] = (
 )
 _PII_FIELD_POOL: tuple[str, ...] = ("ssn", "email", "phone", "date_of_birth", "credit_card")
 _BUSINESS_HOUR_WINDOWS: tuple[tuple[int, int], ...] = ((9, 17), (8, 18))
+_CURRENCY_POOL: tuple[str, ...] = ("USD", "EUR", "GBP", "JPY")
+_CHANNEL_POOL: tuple[str, ...] = ("email", "sms", "webhook", "chat")
+_EXPORT_FORMAT_POOL: tuple[str, ...] = ("csv", "json", "pdf", "xlsx")
+_REASON_POOL: tuple[str, ...] = (
+    "customer requested account review",
+    "responding to open support ticket",
+    "routine compliance audit",
+    "investigating a billing discrepancy",
+)
 
 
 _TOOL_SELECTION_WEIGHTS: dict[OperationKind, float] = {
@@ -188,12 +197,16 @@ class _PolicyContext:
     stage: Stage
     principal_roles: list[str]
     financial_amount: float
+    financial_currency: str
     record_count: int
     local_hour: int
     resource_region: str
     recipient_domain: str | None
     dry_run_performed: bool
     touched_pii_fields: list[str]
+    channel: str | None
+    export_format: str | None
+    records_processed_today: int
 
 
 def _sample_policy_predicates(
@@ -256,6 +269,41 @@ def _build_predicate(
         else:
             remaining = [f for f in _PII_FIELD_POOL if f not in ctx.touched_pii_fields]
             extra["pii_fields"] = remaining[:2] or list(_PII_FIELD_POOL[:2])
+    elif kind is PolicyPredicateKind.REQUIRE_MANAGER_APPROVAL_ABOVE_AMOUNT:
+        threshold = (
+            ctx.financial_amount / 2 if rng.random() < 0.5 else ctx.financial_amount + 1000.0
+        )
+        extra["max_amount"] = max(threshold, 0.0)
+    elif kind is PolicyPredicateKind.FORBID_CURRENCY:
+        if rng.random() < 0.5:
+            extra["forbidden_currencies"] = [ctx.financial_currency]
+        else:
+            extra["forbidden_currencies"] = [
+                c for c in _CURRENCY_POOL if c != ctx.financial_currency
+            ][:2]
+    elif kind is PolicyPredicateKind.FORBID_TOOL_FAMILY_FOR_ROLE:
+        extra["forbidden_tool_family"] = ctx.tool.family
+        extra["role"] = rng.choice(ctx.principal_roles) if rng.random() < 0.5 else "restricted_role"
+    elif kind is PolicyPredicateKind.FORBID_EXPORT_FORMAT:
+        if ctx.export_format is not None and rng.random() < 0.5:
+            extra["forbidden_export_formats"] = [ctx.export_format]
+        else:
+            extra["forbidden_export_formats"] = [
+                f for f in _EXPORT_FORMAT_POOL if f != ctx.export_format
+            ][:2]
+    elif kind is PolicyPredicateKind.FORBID_CHANNEL:
+        if ctx.channel is not None and rng.random() < 0.5:
+            extra["forbidden_channels"] = [ctx.channel]
+        else:
+            extra["forbidden_channels"] = [c for c in _CHANNEL_POOL if c != ctx.channel][:2]
+    elif kind is PolicyPredicateKind.REQUIRE_DATA_CLASSIFICATION_BELOW:
+        extra["max_allowed_sensitivity"] = (
+            ctx.resource_sensitivity if rng.random() < 0.5 else Sensitivity.SECRET
+        )
+    elif kind is PolicyPredicateKind.MAX_RECORDS_PER_DAY_QUOTA:
+        total_today = ctx.records_processed_today + ctx.record_count
+        threshold = total_today // 2 if rng.random() < 0.5 else total_today + 100
+        extra["max_daily_record_count"] = max(threshold, 0)
     return PolicyPredicate(id=predicate_id, kind=kind, paraphrase_index=paraphrase_index, **extra)
 
 
@@ -305,6 +353,19 @@ def sample_scenario(rng: random.Random, family: ToolFamily, scenario_id: str) ->
     ticket_reference = f"TICKET-{rng.randint(1000, 9999)}" if rng.random() < 0.5 else None
     dry_run_performed = rng.random() < 0.5
     touched_pii_fields = rng.sample(_PII_FIELD_POOL, k=rng.randint(0, 2))
+    financial_currency = rng.choice(_CURRENCY_POOL) if financial_amount > 0 else "USD"
+    manager_approved = rng.random() < 0.7
+    second_approver_present = rng.random() < 0.7
+    customer_consent_given = rng.random() < 0.7
+    encryption_in_transit = rng.random() < 0.7
+    reason = rng.choice(_REASON_POOL) if rng.random() < 0.6 else ""
+    channel = rng.choice(_CHANNEL_POOL) if tool.is_communication else None
+    export_format = rng.choice(_EXPORT_FORMAT_POOL) if rng.random() < 0.4 else None
+    is_weekend = rng.random() < 0.2
+    recipient_verified = rng.random() < 0.7 if destination_present else None
+    failed_auth_in_trajectory = rng.random() < 0.1
+    records_processed_today = rng.randint(0, 1000)
+    cross_tenant_resource = rng.random() < 0.15
     policy_ctx = _PolicyContext(
         tool=tool,
         operation=operation,
@@ -312,12 +373,16 @@ def sample_scenario(rng: random.Random, family: ToolFamily, scenario_id: str) ->
         stage=stage,
         principal_roles=principal_roles,
         financial_amount=financial_amount,
+        financial_currency=financial_currency,
         record_count=record_count,
         local_hour=local_hour,
         resource_region=resource_region,
         recipient_domain=recipient_domain,
         dry_run_performed=dry_run_performed,
         touched_pii_fields=touched_pii_fields,
+        channel=channel,
+        export_format=export_format,
+        records_processed_today=records_processed_today,
     )
     policy_supplied, policy_predicates = _sample_policy_predicates(rng, policy_ctx)
     trajectory_length, sequence_pattern = _sample_sequence(rng)
@@ -353,6 +418,7 @@ def sample_scenario(rng: random.Random, family: ToolFamily, scenario_id: str) ->
         local_hour=local_hour,
         resource_region=resource_region,
         financial_amount=financial_amount,
+        financial_currency=financial_currency,
         financial_material_threshold=100.0,
         untrusted_content_present=untrusted_present,
         untrusted_content_contains_instruction=untrusted_has_instruction,
@@ -362,6 +428,18 @@ def sample_scenario(rng: random.Random, family: ToolFamily, scenario_id: str) ->
         ticket_reference=ticket_reference,
         dry_run_performed=dry_run_performed,
         touched_pii_fields=touched_pii_fields,
+        manager_approved=manager_approved,
+        second_approver_present=second_approver_present,
+        customer_consent_given=customer_consent_given,
+        encryption_in_transit=encryption_in_transit,
+        reason=reason,
+        channel=channel,
+        export_format=export_format,
+        is_weekend=is_weekend,
+        recipient_verified=recipient_verified,
+        failed_auth_in_trajectory=failed_auth_in_trajectory,
+        records_processed_today=records_processed_today,
+        cross_tenant_resource=cross_tenant_resource,
         policy_predicates=policy_predicates,
         policy_supplied=policy_supplied,
         sequence_pattern=sequence_pattern,

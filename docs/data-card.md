@@ -132,8 +132,23 @@ Each `PolicyPredicate` is evaluated against the latent scenario alone
 - `require_dry_run_first`
 - `data_residency_region`
 - `forbid_pii_field_export`
+- `require_manager_approval_above_amount`
+- `forbid_currency`
+- `require_two_person_rule_for_destructive`
+- `forbid_tool_family_for_role`
+- `require_customer_consent_flag`
+- `forbid_export_format`
+- `forbid_channel`
+- `require_encryption_in_transit_flag`
+- `require_reason_field_nonempty`
+- `forbid_weekend_ops`
+- `require_recipient_verified_flag`
+- `require_data_classification_below`
+- `forbid_action_after_failed_auth_in_trajectory`
+- `max_records_per_day_quota`
+- `forbid_cross_tenant_reference`
 
-`heldout_policy_kind` withholds `data_residency_region`, `forbid_recipient_domain` entirely from train/calibration/dev/test. `heldout_policy_phrasing` withholds clause paraphrase index {3} for every other (trained) kind from train. See ADR 0010.
+`heldout_policy_kind` withholds `forbid_cross_tenant_reference`, `forbid_weekend_ops`, `max_records_per_day_quota`, `require_data_classification_below` entirely from train/calibration/dev/test. `heldout_policy_phrasing` withholds clause paraphrase index {3} for every other (trained) kind from train. See ADR 0010 and ADR 0011.
 
 ## Fixture splits
 
@@ -144,27 +159,27 @@ carry the same `contrastive_pair_id`).
 
 | Split | Examples | Families | sha256 |
 | --- | --- | --- | --- |
-| `adversarial` | 82 | 43 | `aef671db5a264fd9...` |
-| `calibration` | 171 | 49 | `4adb96fd29dc1f70...` |
-| `dev` | 157 | 49 | `ac2b325b3d73481a...` |
-| `heldout_family` | 252 | 10 | `2d52a76ce9fb3629...` |
-| `heldout_policy_kind` | 91 | 39 | `452da75afa7a3b46...` |
-| `heldout_policy_phrasing` | 156 | 52 | `18657c5167b7d809...` |
-| `test` | 168 | 50 | `280ba2bd1338ff1f...` |
-| `train` | 835 | 62 | `19dff7613b03d174...` |
+| `adversarial` | 77 | 37 | `efa70d75643d1e8d...` |
+| `calibration` | 169 | 50 | `87605201cd8ce79e...` |
+| `dev` | 182 | 54 | `5ff4df3103d3e390...` |
+| `heldout_family` | 235 | 10 | `40ed92eabc337751...` |
+| `heldout_policy_kind` | 91 | 40 | `63a883e8d0bc6940...` |
+| `heldout_policy_phrasing` | 143 | 49 | `ca6f3399ffe1d867...` |
+| `test` | 157 | 49 | `fb92f0e177623b61...` |
+| `train` | 858 | 62 | `fd7e6ef7933fdde0...` |
 
 Per-dimension positive rate by split:
 
 | Split | prompt_injection_influence | unauthorized_scope | sensitive_data_exposure | untrusted_destination | privilege_escalation | destructive_or_irreversible_action | financial_commitment | external_communication | policy_conflict | suspicious_action_sequence | insufficient_context |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `adversarial` | 0.085 | 0.127 | 0.214 | 0.333 | 0.024 | 0.159 | 0.122 | 0.333 | 0.364 | 0.250 | 0.085 |
-| `calibration` | 0.076 | 0.123 | 0.125 | 0.370 | 0.006 | 0.099 | 0.082 | 0.556 | 0.400 | 0.375 | 0.076 |
-| `dev` | 0.045 | 0.117 | 0.263 | 0.310 | 0.006 | 0.108 | 0.076 | 0.000 | 0.300 | 0.381 | 0.089 |
-| `heldout_family` | 0.095 | 0.136 | 0.288 | 0.372 | 0.067 | 0.056 | 0.075 | 0.467 | 0.362 | 0.356 | 0.071 |
-| `heldout_policy_kind` | 0.077 | 0.082 | 0.136 | 0.417 | 0.011 | 0.143 | 0.110 | 0.000 | 0.352 | 0.261 | 0.077 |
-| `heldout_policy_phrasing` | 0.090 | 0.171 | 0.162 | 0.240 | 0.006 | 0.090 | 0.071 | 0.500 | 0.406 | 0.290 | 0.038 |
-| `test` | 0.101 | 0.094 | 0.225 | 0.405 | 0.012 | 0.119 | 0.071 | 1.000 | 0.367 | 0.364 | 0.107 |
-| `train` | 0.090 | 0.114 | 0.233 | 0.311 | 0.016 | 0.101 | 0.073 | 0.529 | 0.343 | 0.320 | 0.095 |
+| `adversarial` | 0.078 | 0.079 | 0.235 | 0.182 | 0.013 | 0.026 | 0.065 | 0.000 | 0.500 | 0.188 | 0.078 |
+| `calibration` | 0.136 | 0.156 | 0.156 | 0.367 | 0.000 | 0.077 | 0.083 | 0.429 | 0.385 | 0.395 | 0.083 |
+| `dev` | 0.044 | 0.091 | 0.264 | 0.403 | 0.022 | 0.093 | 0.060 | 0.250 | 0.375 | 0.308 | 0.082 |
+| `heldout_family` | 0.085 | 0.121 | 0.138 | 0.333 | 0.043 | 0.089 | 0.055 | 0.562 | 0.313 | 0.346 | 0.098 |
+| `heldout_policy_kind` | 0.077 | 0.106 | 0.158 | 0.480 | 0.011 | 0.110 | 0.066 | 1.000 | 0.374 | 0.211 | 0.077 |
+| `heldout_policy_phrasing` | 0.105 | 0.098 | 0.139 | 0.214 | 0.021 | 0.084 | 0.077 | 1.000 | 0.420 | 0.259 | 0.084 |
+| `test` | 0.096 | 0.078 | 0.147 | 0.283 | 0.006 | 0.115 | 0.076 | 0.500 | 0.240 | 0.235 | 0.083 |
+| `train` | 0.086 | 0.112 | 0.317 | 0.355 | 0.013 | 0.094 | 0.094 | 0.500 | 0.301 | 0.362 | 0.080 |
 
 ## Licence
 

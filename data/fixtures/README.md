@@ -30,11 +30,13 @@ call. Labels are derived deterministically from the latent scenario by
 - 1912 examples total: 1800 bulk scenarios (12 tool families x 150) plus 56 contrastive
   pairs, four per `ContrastiveAxis` member (112 rows).
 - All 12 `ToolFamily` members and all 14 `ContrastiveAxis` members are represented.
-- `PolicyPredicateKind` has 15 members (8 original, 7 added for policy-generalisation
-  testing; see ADR 0010 and `docs/data-card.md`).
-- Split sizes at this scale: train 835, calibration 171, dev 157, test 168,
-  heldout_family 252, adversarial 82, heldout_policy_kind 91, heldout_policy_phrasing
-  156 (see `docs/data-card.md` for exact current counts and checksums). The heldout
+- `PolicyPredicateKind` has 30 members (8 original, 7 added for policy-generalisation
+  testing in ADR 0010, 15 more added in ADR 0011 to test whether "kind" itself becomes
+  a unit of generalisation; see `docs/data-card.md`). `heldout_policy_kind` withholds 4
+  kinds by default (`forecheck.data.splitting.default_heldout_policy_kinds`, up from 2).
+- Split sizes at this scale: train 858, calibration 169, dev 182, test 157,
+  heldout_family 235, adversarial 77, heldout_policy_kind 91, heldout_policy_phrasing
+  143 (see `docs/data-card.md` for exact current counts and checksums). The heldout
   tier withholds 10 of the 72 catalogue tools, at least one per operation kind
   (`data/splitting.py::is_heldout_family`). Contrastive pairs route through their own
   eval-heavy ratio table (`data/splitting.py::PAIR_SPLIT_RATIOS`) so eval splits get

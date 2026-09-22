@@ -9,8 +9,8 @@ Splitting has two independent tiers:
    dimensions it drives, e.g. grant -> privilege_escalation) has at least one tool
    entirely unseen in training. The first GPU run withheld three tools by plain
    hash and had zero privilege_escalation positives to evaluate on. Two policy
-   heldout tiers (kind, phrasing; see ADR 0010) sit above this one; see
-   :func:`split_examples`.
+   heldout tiers (kind, phrasing; see ADR 0010, and ADR 0011 for the configurable
+   withheld-kind count) sit above this one; see :func:`split_examples`.
 2. **Group tier.** Everything not pulled into an earlier tier is split at
    finer grain, by the root of ``template_lineage`` (one base scenario and its
    contrastive derivatives) via :func:`assign_split`, over train / calibration /
@@ -40,6 +40,7 @@ from forecheck.contracts import (
 from forecheck.data.tools import TOOL_CATALOGUE
 
 __all__ = [
+    "DEFAULT_HELDOUT_POLICY_KIND_COUNT",
     "DEFAULT_SALT",
     "HELDOUT_FAMILY_RATIO",
     "HELDOUT_PARAPHRASE_INDICES",
@@ -52,18 +53,42 @@ __all__ = [
     "assign_pair_split",
     "assign_split",
     "compute_group_key",
+    "default_heldout_policy_kinds",
     "is_heldout_family",
     "split_examples",
 ]
 
 DEFAULT_SALT = "forecheck-split-v1"
 
-"""Two of the new policy-predicate kinds withheld entirely from train/calibration/dev/
-test, so `heldout_policy_kind` measures generalisation to a policy *kind* never seen in
-training (see ADR 0010)."""
-HELDOUT_POLICY_KINDS: frozenset[PolicyPredicateKind] = frozenset(
-    {PolicyPredicateKind.FORBID_RECIPIENT_DOMAIN, PolicyPredicateKind.DATA_RESIDENCY_REGION}
-)
+"""How many :class:`PolicyPredicateKind` members :func:`default_heldout_policy_kinds`
+withholds by default. Raised from 2 to 4 for ADR 0011 (v5): with 30 kinds total,
+withholding 4 still leaves 26 for the model to generalise the *shape* of a policy kind
+from, rather than memorise the 2 remaining ones by exclusion."""
+DEFAULT_HELDOUT_POLICY_KIND_COUNT = 4
+
+
+def _kind_heldout_fraction(kind: PolicyPredicateKind, salt: str) -> float:
+    digest = hashlib.sha256(f"{salt}:heldout_kind:{kind.value}".encode()).hexdigest()
+    return int(digest[:16], 16) / float(0xFFFFFFFFFFFFFFFF)
+
+
+def default_heldout_policy_kinds(
+    n: int = DEFAULT_HELDOUT_POLICY_KIND_COUNT, *, salt: str = DEFAULT_SALT
+) -> frozenset[PolicyPredicateKind]:
+    """Deterministically choose ``n`` kinds to withhold from train/calibration/dev/test.
+
+    Kinds are ranked by a salted hash of their value, so the choice is stable across
+    runs (and processes) for a given ``(n, salt)`` without keeping any state, and callers
+    needing a different withheld set for an experiment can pass a different ``n`` or
+    ``salt`` (see ADR 0011).
+    """
+    ranked = sorted(PolicyPredicateKind, key=lambda kind: _kind_heldout_fraction(kind, salt))
+    return frozenset(ranked[:n])
+
+
+"""Default withheld-kind set, used when :func:`split_examples` is not given an explicit
+override; see ADR 0010 (original 2-kind set) and ADR 0011 (raised to 4)."""
+HELDOUT_POLICY_KINDS: frozenset[PolicyPredicateKind] = default_heldout_policy_kinds()
 
 """Clause paraphrase indices withheld from train for kinds that ARE trained, so
 `heldout_policy_phrasing` measures generalisation to unseen *wording* of a familiar
@@ -174,14 +199,16 @@ def assign_split(group_key: str, *, salt: str = DEFAULT_SALT) -> Split:
     return _SPLIT_ORDER[-1]
 
 
-def _predicate_kind_is_heldout(pred: PolicyPredicate) -> bool:
-    return pred.kind in HELDOUT_POLICY_KINDS
+def _predicate_kind_is_heldout(
+    pred: PolicyPredicate, heldout_kinds: frozenset[PolicyPredicateKind]
+) -> bool:
+    return pred.kind in heldout_kinds
 
 
-def _predicate_phrasing_is_heldout(pred: PolicyPredicate) -> bool:
-    return pred.kind not in HELDOUT_POLICY_KINDS and pred.paraphrase_index in (
-        HELDOUT_PARAPHRASE_INDICES
-    )
+def _predicate_phrasing_is_heldout(
+    pred: PolicyPredicate, heldout_kinds: frozenset[PolicyPredicateKind]
+) -> bool:
+    return pred.kind not in heldout_kinds and pred.paraphrase_index in HELDOUT_PARAPHRASE_INDICES
 
 
 def assign_pair_split(group_key: str, *, salt: str = DEFAULT_SALT) -> Split:
@@ -211,17 +238,21 @@ def _check_license_eligibility(example: Example, split: Split) -> None:
 
 
 def split_examples(
-    examples: Sequence[Example], *, salt: str = DEFAULT_SALT
+    examples: Sequence[Example],
+    *,
+    salt: str = DEFAULT_SALT,
+    heldout_policy_kinds: frozenset[PolicyPredicateKind] | None = None,
 ) -> dict[Split, list[Example]]:
     """Assign every example to a split, family- then group-wise, refusing ineligible rows.
 
     Every row of a family pulled into :attr:`Split.HELDOUT_FAMILY` by
-    :func:`is_heldout_family` lands there. Otherwise, a group carrying a predicate
-    whose kind is in :data:`HELDOUT_POLICY_KINDS` lands entirely in
+    :func:`is_heldout_family` lands there. Otherwise, a group carrying a predicate whose
+    kind is in ``heldout_policy_kinds`` (defaults to :data:`HELDOUT_POLICY_KINDS`, see
+    :func:`default_heldout_policy_kinds`) lands entirely in
     :attr:`Split.HELDOUT_POLICY_KIND`; a group carrying a predicate of a trained kind
     but a withheld paraphrase (:data:`HELDOUT_PARAPHRASE_INDICES`) lands entirely in
-    :attr:`Split.HELDOUT_POLICY_PHRASING` (see ADR 0010). A row whose group is one of a
-    contrastive pair (i.e. some row sharing its group key carries a
+    :attr:`Split.HELDOUT_POLICY_PHRASING` (see ADR 0010, ADR 0011). A row whose group is
+    one of a contrastive pair (i.e. some row sharing its group key carries a
     ``contrastive_pair_id``, whether or not this particular row does) is assigned by
     :func:`assign_pair_split`; every other row is assigned by :func:`assign_split`. Both
     halves of a contrastive pair always land in the same split: only ``make_pair``
@@ -230,6 +261,9 @@ def split_examples(
     not the per-row flag -- keeps them together even when only one of the two rows is
     tagged.
     """
+    heldout_kinds = (
+        heldout_policy_kinds if heldout_policy_kinds is not None else HELDOUT_POLICY_KINDS
+    )
     pair_group_keys = {
         compute_group_key(example.latent)
         for example in examples
@@ -238,12 +272,17 @@ def split_examples(
     policy_kind_heldout_groups = {
         compute_group_key(example.latent)
         for example in examples
-        if any(_predicate_kind_is_heldout(p) for p in example.latent.policy_predicates)
+        if any(
+            _predicate_kind_is_heldout(p, heldout_kinds) for p in example.latent.policy_predicates
+        )
     }
     policy_phrasing_heldout_groups = {
         compute_group_key(example.latent)
         for example in examples
-        if any(_predicate_phrasing_is_heldout(p) for p in example.latent.policy_predicates)
+        if any(
+            _predicate_phrasing_is_heldout(p, heldout_kinds)
+            for p in example.latent.policy_predicates
+        )
     }
     pair_split: dict[str, Split] = {}
     result: dict[Split, list[Example]] = {split: [] for split in Split}

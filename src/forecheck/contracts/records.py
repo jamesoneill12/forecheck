@@ -189,3 +189,9 @@ class DatasetManifest(BaseModel):
         description="Digest of the sorted family id list, so leakage between splits "
         "can be detected without shipping the ids."
     )
+    heldout_policy_kinds: list[ShortStr] = Field(
+        default_factory=list,
+        description="Policy predicate kinds withheld from train/calibration/dev/test for "
+        "this dataset (see ADR 0011); recorded on every manifest of the dataset so the "
+        "withheld set is auditable without re-deriving it from code.",
+    )

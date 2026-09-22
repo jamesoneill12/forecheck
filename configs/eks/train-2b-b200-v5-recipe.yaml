@@ -1,0 +1,39 @@
+# v5 = v4 data regenerated with 30 PolicyPredicateKinds and a 4-kind heldout_policy_kind withhold (docs/adr/0011-many-policy-kinds.md).
+# Submission command and prerequisites: configs/eks/README.md
+trainer:
+  runtime_name: "torch-runtime"
+  project_name: "forecheck"
+  experiment_name: "train-2b-lora-synthetic-v5"
+
+  ecr_image: "812836555640.dkr.ecr.us-east-2.amazonaws.com/ai/fin-base-training:latest"
+
+  command: >-
+    bash -c 'set -euo pipefail &&
+    cd /workspace/forecheck-job &&
+    pip install -q --no-cache-dir -e ".[train]" &&
+    forecheck data generate --offline --config configs/data/train_medium.yaml --out /opt/ml/fsx/forecheck/data/v5 &&
+    forecheck data split /opt/ml/fsx/forecheck/data/v5 &&
+    forecheck train --config configs/training/2b.yaml data.dir=/opt/ml/fsx/forecheck/data/v5 output.dir=/opt/ml/fsx/forecheck/runs/2b-synthetic-v5 tracking.backend=local &&
+    forecheck calibrate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v5 --split calibration &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v5 --split test --class synthetic_in_distribution --approval-curve balanced &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v5 --split heldout_family --class synthetic_heldout_adversarial --approval-curve balanced &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v5 --split heldout_policy_kind --class synthetic_heldout_adversarial --approval-curve balanced &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v5 --split heldout_policy_phrasing --class synthetic_heldout_adversarial --approval-curve balanced &&
+    forecheck evaluate --backend rule_baseline --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v5 --split test --class synthetic_in_distribution --out /opt/ml/fsx/forecheck/runs/2b-synthetic-v5/reports/rule_baseline/test &&
+    forecheck evaluate --backend rule_baseline --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v5 --split heldout_family --class synthetic_heldout_adversarial --out /opt/ml/fsx/forecheck/runs/2b-synthetic-v5/reports/rule_baseline/heldout_family &&
+    forecheck evaluate --backend rule_baseline --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v5 --split heldout_policy_kind --class synthetic_heldout_adversarial --out /opt/ml/fsx/forecheck/runs/2b-synthetic-v5/reports/rule_baseline/heldout_policy_kind &&
+    forecheck evaluate --backend rule_baseline --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v5 --split heldout_policy_phrasing --class synthetic_heldout_adversarial --out /opt/ml/fsx/forecheck/runs/2b-synthetic-v5/reports/rule_baseline/heldout_policy_phrasing'
+
+  env_vars:
+    FORECHECK_TRACKING_BACKEND: "local"
+    HF_HOME: "/opt/ml/fsx/forecheck/hf_cache"
+    TOKENIZERS_PARALLELISM: "false"
+    PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+
+  nnodes: 1
+
+  resources:
+    worker:
+      instance_type: ml.p6-b200.48xlarge
+      gpus_per_pod: 1
+      cpus_per_pod: 2

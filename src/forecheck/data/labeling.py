@@ -92,6 +92,58 @@ def evaluate_predicate(pred: PolicyPredicate, latent: LatentScenario) -> bool:
         if not pred.pii_fields or not latent.destination_present:
             return False
         return bool(set(pred.pii_fields) & set(latent.touched_pii_fields))
+    if pred.kind is PolicyPredicateKind.REQUIRE_MANAGER_APPROVAL_ABOVE_AMOUNT:
+        if pred.max_amount is None or latent.financial_amount <= pred.max_amount:
+            return False
+        return not latent.manager_approved
+    if pred.kind is PolicyPredicateKind.FORBID_CURRENCY:
+        if not pred.forbidden_currencies or latent.financial_amount <= 0:
+            return False
+        return latent.financial_currency in pred.forbidden_currencies
+    if pred.kind is PolicyPredicateKind.REQUIRE_TWO_PERSON_RULE_FOR_DESTRUCTIVE:
+        is_destructive = _destructive_or_irreversible(latent) is LabelValue.YES
+        return is_destructive and not latent.second_approver_present
+    if pred.kind is PolicyPredicateKind.FORBID_TOOL_FAMILY_FOR_ROLE:
+        if pred.forbidden_tool_family is None or pred.role is None:
+            return False
+        return (
+            pred.role in latent.principal_roles and pred.forbidden_tool_family is latent.tool.family
+        )
+    if pred.kind is PolicyPredicateKind.REQUIRE_CUSTOMER_CONSENT_FLAG:
+        return not latent.customer_consent_given
+    if pred.kind is PolicyPredicateKind.FORBID_EXPORT_FORMAT:
+        if not pred.forbidden_export_formats or latent.export_format is None:
+            return False
+        return latent.export_format in pred.forbidden_export_formats
+    if pred.kind is PolicyPredicateKind.FORBID_CHANNEL:
+        if not pred.forbidden_channels or latent.channel is None:
+            return False
+        return latent.channel in pred.forbidden_channels
+    if pred.kind is PolicyPredicateKind.REQUIRE_ENCRYPTION_IN_TRANSIT_FLAG:
+        return latent.destination_present and not latent.encryption_in_transit
+    if pred.kind is PolicyPredicateKind.REQUIRE_REASON_FIELD_NONEMPTY:
+        return not latent.reason.strip()
+    if pred.kind is PolicyPredicateKind.FORBID_WEEKEND_OPS:
+        return latent.is_weekend
+    if pred.kind is PolicyPredicateKind.REQUIRE_RECIPIENT_VERIFIED_FLAG:
+        if not latent.destination_present or latent.recipient_verified is None:
+            return False
+        return not latent.recipient_verified
+    if pred.kind is PolicyPredicateKind.REQUIRE_DATA_CLASSIFICATION_BELOW:
+        if pred.max_allowed_sensitivity is None:
+            return False
+        return (
+            SENSITIVITY_ORDER[latent.resource_sensitivity]
+            > SENSITIVITY_ORDER[pred.max_allowed_sensitivity]
+        )
+    if pred.kind is PolicyPredicateKind.FORBID_ACTION_AFTER_FAILED_AUTH_IN_TRAJECTORY:
+        return latent.failed_auth_in_trajectory
+    if pred.kind is PolicyPredicateKind.MAX_RECORDS_PER_DAY_QUOTA:
+        if pred.max_daily_record_count is None:
+            return False
+        return latent.records_processed_today + latent.record_count > pred.max_daily_record_count
+    if pred.kind is PolicyPredicateKind.FORBID_CROSS_TENANT_REFERENCE:
+        return latent.cross_tenant_resource
     raise AssertionError(f"unhandled PolicyPredicateKind: {pred.kind!r}")
 
 

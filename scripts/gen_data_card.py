@@ -52,7 +52,7 @@ def _policy_generalisation_section() -> str:
         f"`heldout_policy_kind` withholds {heldout_kinds} entirely from "
         "train/calibration/dev/test. `heldout_policy_phrasing` withholds clause "
         f"paraphrase index {{{heldout_indices}}} for every other (trained) kind from "
-        "train. See ADR 0010."
+        "train. See ADR 0010 and ADR 0011."
     )
 
 
