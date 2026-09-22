@@ -19,6 +19,7 @@ backend) — this mirrors the project's own separation of scoring from calibrati
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -86,6 +87,8 @@ DEFAULT_MACRO_METRICS: tuple[str, ...] = (
     "brier",
     "ece",
 )
+
+logger = logging.getLogger(__name__)
 
 
 class _ReportView:
@@ -446,7 +449,9 @@ def evaluate(
         stacking_result = stacking_mod.stacking_report(examples, responses, stack_policies)
 
     approval_elimination_result: ApprovalElimination | None = None
-    if approval_curve_engine is not None:
+    if approval_curve_engine is not None and calibrators is None:
+        logger.warning("skipping approval curve: no calibration bundle, scores are uncalibrated")
+    elif approval_curve_engine is not None:
         if responses is None:
             responses = _build_classify_responses(
                 examples, raw, probabilities, dims, backend.model_info, calibration_info

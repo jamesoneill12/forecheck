@@ -105,7 +105,7 @@ def resolve_backend(
             model_id=train_config.model.base_id,
             revision=train_config.model.revision,
             adapter_id=str(adapter_dir) if adapter_dir is not None else None,
-            strip_identity=strip_identity,
+            strip_identity=strip_identity or train_config.data.strip_identity,
         )
         return HFBackend(hf_config)
     if name == "encoder":

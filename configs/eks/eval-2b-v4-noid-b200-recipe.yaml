@@ -1,0 +1,37 @@
+# Eval-only completion of train-2b-b200-v4-noid (training finished; calibrate crashed on unstripped inputs, approval curve on raw scores). Guards on the noid checkpoint existing.
+# Submission command and prerequisites: configs/eks/README.md
+trainer:
+  runtime_name: "torch-runtime"
+  project_name: "forecheck"
+  experiment_name: "eval-2b-v4-noid"
+
+  ecr_image: "812836555640.dkr.ecr.us-east-2.amazonaws.com/ai/fin-base-training:latest"
+
+  command: >-
+    bash -c 'set -euo pipefail &&
+    cd /workspace/forecheck-job &&
+    pip install -q --no-cache-dir -e ".[train]" &&
+    test -d /opt/ml/fsx/forecheck/runs/2b-synthetic-v4-noid/checkpoints &&
+    forecheck calibrate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v4-noid --split calibration &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v4-noid --split test --class synthetic_in_distribution --strip-identity --approval-curve balanced &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v4-noid --split heldout_family --class synthetic_heldout_adversarial --strip-identity --approval-curve balanced &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v4-noid --split heldout_policy_kind --class synthetic_heldout_adversarial --strip-identity --approval-curve balanced &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v4-noid --split heldout_policy_phrasing --class synthetic_heldout_adversarial --strip-identity --approval-curve balanced &&
+    forecheck evaluate --backend rule_baseline --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v4-noid --split test --class synthetic_in_distribution --strip-identity --out /opt/ml/fsx/forecheck/runs/2b-synthetic-v4-noid/reports/rule_baseline/test &&
+    forecheck evaluate --backend rule_baseline --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v4-noid --split heldout_family --class synthetic_heldout_adversarial --strip-identity --out /opt/ml/fsx/forecheck/runs/2b-synthetic-v4-noid/reports/rule_baseline/heldout_family &&
+    forecheck evaluate --backend rule_baseline --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v4-noid --split heldout_policy_kind --class synthetic_heldout_adversarial --strip-identity --out /opt/ml/fsx/forecheck/runs/2b-synthetic-v4-noid/reports/rule_baseline/heldout_policy_kind &&
+    forecheck evaluate --backend rule_baseline --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v4-noid --split heldout_policy_phrasing --class synthetic_heldout_adversarial --strip-identity --out /opt/ml/fsx/forecheck/runs/2b-synthetic-v4-noid/reports/rule_baseline/heldout_policy_phrasing'
+
+  env_vars:
+    FORECHECK_TRACKING_BACKEND: "local"
+    HF_HOME: "/opt/ml/fsx/forecheck/hf_cache"
+    TOKENIZERS_PARALLELISM: "false"
+    PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+
+  nnodes: 1
+
+  resources:
+    worker:
+      instance_type: ml.p6-b200.48xlarge
+      gpus_per_pod: 1
+      cpus_per_pod: 2

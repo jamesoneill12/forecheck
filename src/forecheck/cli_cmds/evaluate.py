@@ -180,7 +180,8 @@ def evaluate_command(
     calibrator_bundle = None
     calibrators = None
     bundle_path = run / "calibration" / "bundle.json"
-    if strip_identity:
+    trained_stripped = train_config is not None and train_config.data.strip_identity
+    if strip_identity and not trained_stripped:
         typer.echo(
             "skipping calibration bundle: --strip-identity was set; "
             "calibration was fitted on full context"

@@ -461,3 +461,27 @@ def test_evaluate_command_labels_from_errors_when_no_ids_match(tmp_path: Path) -
             data=data_dir,
             labels_from=labels_path,
         )
+
+
+def test_resolve_backend_hf_strips_when_run_trained_stripped(tmp_path: Path, monkeypatch) -> None:
+    import forecheck.cli_cmds._common as common
+
+    class FakeTrain:
+        class model:
+            base_id = "toy/model"
+            revision = None
+
+        class data:
+            strip_identity = True
+
+    captured = {}
+
+    class FakeHF:
+        def __init__(self, config):
+            captured["config"] = config
+
+    monkeypatch.setattr(common, "load_resolved_train_config", lambda run: FakeTrain)
+    monkeypatch.setattr(common, "_latest_checkpoint_adapter", lambda run: None)
+    monkeypatch.setattr(common, "HFBackend", FakeHF)
+    resolve_backend("hf", tmp_path / "run")
+    assert captured["config"].strip_identity is True
