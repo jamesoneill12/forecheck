@@ -91,6 +91,28 @@ Credentials come only from environment variables — `OPENAI_API_KEY` and option
 `OPENAI_BASE_URL` for `--provider openai_compat`, `ANTHROPIC_API_KEY` for
 `--provider anthropic` — never a CLI flag or a config file, and never logged.
 
+### `--provider codex_cli` (no API key)
+
+```
+forecheck judge label --sample judge_sample.jsonl --provider codex_cli \
+  --model gpt-5.6-sol --reasoning-effort low --out judge_labels.jsonl
+```
+
+Shells out to a locally installed, already-logged-in Codex CLI instead of calling an
+HTTP API, so it needs no `OPENAI_API_KEY`/`ANTHROPIC_API_KEY` — it bills against the
+operator's own ChatGPT plan. The binary is resolved with `shutil.which("codex")`,
+overridable via `FORECHECK_CODEX_BIN`. Each call runs `codex exec` in an isolated
+scratch directory (`--cd`, `--ephemeral`, `--skip-git-repo-check`, `-s read-only`) so
+codex never reads repository files, and the judge's completion is read from
+`--output-last-message` rather than parsed off stdout. `--reasoning-effort` (default
+`low`) maps to `-c model_reasoning_effort=...`; default concurrency is 6, lower than
+the other providers' 8, since each call is a local subprocess rather than an async HTTP
+request. `estimate_cost_usd` always returns `None` for this provider — there is no
+per-token price to report — and the CLI prints a note instead of a dollar figure.
+
+Because it depends on an interactive, per-machine `codex` login, `codex_cli` is a local
+convenience for a spot-check or a budget-free smoke test, not something CI can run.
+
 **Cost estimate.** Printed at the end from the API response's own token counts:
 `cost = input_tokens / 1e6 * price_in + output_tokens / 1e6 * price_out`, using a small
 built-in list-price table (`src/forecheck/judge/providers.py`); an unlisted model still

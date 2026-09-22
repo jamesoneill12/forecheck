@@ -69,18 +69,32 @@ def label_command(
     out: Annotated[
         Path, typer.Option(help="Output labels jsonl; also read back in as the idempotency cache.")
     ],
-    provider: Annotated[str, typer.Option(help="openai_compat | anthropic")] = "openai_compat",
+    provider: Annotated[str, typer.Option(help="openai_compat | anthropic | codex_cli")] = (
+        "openai_compat"
+    ),
     strip_identity: Annotated[
         bool, typer.Option("--strip-identity", help="Judge the identity-stripped rendering.")
     ] = False,
-    concurrency: Annotated[int, typer.Option(help="Concurrent judge calls.")] = 8,
-    max_examples: Annotated[
-        int | None, typer.Option("--max-examples", help="Label only the first N sample rows.")
+    concurrency: Annotated[
+        int | None,
+        typer.Option(help="Concurrent judge calls. Defaults to 6 for codex_cli, 8 otherwise."),
     ] = None,
+    max_examples: Annotated[
+        int | None,
+        typer.Option("--max-examples", "--limit", help="Label only the first N sample rows."),
+    ] = None,
+    reasoning_effort: Annotated[
+        str,
+        typer.Option(
+            "--reasoning-effort", help="Codex CLI reasoning effort (codex_cli provider only)."
+        ),
+    ] = "low",
 ) -> None:
     """Label a sample with a frontier LLM judge, caching by (model, example_id, strip_identity)."""
-    if provider not in ("openai_compat", "anthropic"):
-        raise typer.BadParameter("--provider must be one of: openai_compat, anthropic")
+    if provider not in ("openai_compat", "anthropic", "codex_cli"):
+        raise typer.BadParameter("--provider must be one of: openai_compat, anthropic, codex_cli")
+    if concurrency is None:
+        concurrency = 6 if provider == "codex_cli" else 8
 
     rows = read_sample_rows(sample)
     if not rows:
@@ -96,6 +110,7 @@ def label_command(
         strip_identity=strip_identity,
         concurrency=concurrency,
         cache=cache,
+        reasoning_effort=reasoning_effort,
     )
     write_label_rows(out, result.rows)
 
@@ -107,7 +122,9 @@ def label_command(
 
     typer.echo(f"labelled {len(result.rows)} examples ({n_new} new, {n_cached} cached)")
     typer.echo(f"this run: input_tokens={input_tokens} output_tokens={output_tokens}")
-    if n_new and len(known_costs) == n_new:
+    if provider == "codex_cli" and n_new:
+        typer.echo("cost: n/a, codex_cli bills against the ChatGPT plan, not per-token pricing")
+    elif n_new and len(known_costs) == n_new:
         typer.echo(f"estimated cost: ${sum(known_costs):.4f}")
     elif n_new:
         typer.echo(f"estimated cost: unknown for model {model!r}; token totals above are exact")

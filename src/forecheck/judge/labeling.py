@@ -122,7 +122,9 @@ def _label_one(
         raw_completion=raw_completion,
         input_tokens=input_tokens,
         output_tokens=output_tokens,
-        cost_usd=estimate_cost_usd(provider.model, input_tokens, output_tokens),
+        cost_usd=estimate_cost_usd(
+            provider.model, input_tokens, output_tokens, provider=provider_name
+        ),
         created_at=datetime.now(UTC),
         error=None if parse_ok else "judge output did not parse as the required JSON schema",
     )
@@ -143,9 +145,14 @@ def label_examples(
     concurrency: int = 8,
     cache: dict[tuple[str, str, bool], JudgeLabelRow] | None = None,
     provider: JudgeProvider | None = None,
+    reasoning_effort: str = "low",
 ) -> LabelRunResult:
     """Label every row in ``rows``, reusing ``cache`` and calling ``provider`` for the rest."""
-    active_provider = provider if provider is not None else provider_for_name(provider_name, model)
+    active_provider = (
+        provider
+        if provider is not None
+        else provider_for_name(provider_name, model, reasoning_effort=reasoning_effort)
+    )
     system_prompt = build_system_prompt()
 
     cached_rows: list[JudgeLabelRow] = []

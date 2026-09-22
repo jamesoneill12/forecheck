@@ -74,7 +74,7 @@ def test_label_command_labels_and_reruns_are_idempotent(
 ) -> None:
     monkeypatch.setattr(
         "forecheck.judge.labeling.provider_for_name",
-        lambda name, model: _FakeProvider(model),
+        lambda name, model, **kwargs: _FakeProvider(model),
     )
     data_dir = tmp_path / "data"
     data_dir.mkdir()
@@ -98,7 +98,8 @@ def test_label_command_labels_and_reruns_are_idempotent(
 def test_agreement_command_writes_report_and_disagreements(tmp_path: Path) -> None:
     with pytest.MonkeyPatch.context() as mp:
         mp.setattr(
-            "forecheck.judge.labeling.provider_for_name", lambda name, model: _FakeProvider(model)
+            "forecheck.judge.labeling.provider_for_name",
+            lambda name, model, **kwargs: _FakeProvider(model),
         )
         data_dir = tmp_path / "data"
         data_dir.mkdir()
