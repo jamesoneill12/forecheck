@@ -1,0 +1,46 @@
+# Granite Guardian 3.3 8B as the LoRA base: an aligned safety model adapted to the 11-dim
+# contract. Chat template off because Guardian's template requires guardian_config kwargs.
+model:
+  base_id: ibm-granite/granite-guardian-3.3-8b
+  dtype: bf16
+  attn_implementation: sdpa
+  load_class: auto
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+  qlora: false
+
+data:
+  dir: /opt/ml/fsx/forecheck/data/v3
+  train_split: train
+  dev_split: dev
+  max_prompt_tokens: 8192
+  dimension_weights: {}
+
+optim:
+  lr: 0.00005
+  weight_decay: 0.01
+  warmup_ratio: 0.03
+  epochs: 1
+  micro_batch_size: 8
+  grad_accum: 1
+  grad_clip: 1.0
+  scheduler: cosine
+
+train:
+  seed: 0
+  eval_every: 200
+  save_every: 200
+  early_stop_patience: 5
+  shared_prefill: true
+  use_chat_template: false
+
+tracking:
+  backend: local
+  run_name: train-8b
+
+output:
+  dir: /opt/ml/fsx/forecheck/runs/8b-synthetic-v2

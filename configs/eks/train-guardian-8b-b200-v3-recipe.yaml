@@ -1,0 +1,33 @@
+# Granite Guardian 3.3 8B LoRA arm on v3 data; guards on the v3 split already existing.
+trainer:
+  runtime_name: "torch-runtime"
+  project_name: "forecheck"
+  experiment_name: "train-guardian-8b-lora-v3"
+
+  ecr_image: "812836555640.dkr.ecr.us-east-2.amazonaws.com/ai/fin-base-training:latest"
+
+  command: >-
+    bash -c 'set -euo pipefail &&
+    cd /workspace/forecheck-job &&
+    pip install -q --no-cache-dir -e ".[train]" &&
+    test -f /opt/ml/fsx/forecheck/data/v3/train.jsonl &&
+    forecheck train --config configs/training/guardian-8b.yaml data.dir=/opt/ml/fsx/forecheck/data/v3 output.dir=/opt/ml/fsx/forecheck/runs/guardian-8b-synthetic-v3 tracking.backend=local &&
+    forecheck calibrate --run /opt/ml/fsx/forecheck/runs/guardian-8b-synthetic-v3 --split calibration &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/guardian-8b-synthetic-v3 --split test --class synthetic_in_distribution &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/guardian-8b-synthetic-v3 --split heldout_family --class synthetic_heldout_adversarial &&
+    forecheck evaluate --backend rule_baseline --run /opt/ml/fsx/forecheck/runs/guardian-8b-synthetic-v3 --split test --class synthetic_in_distribution --out /opt/ml/fsx/forecheck/runs/guardian-8b-synthetic-v3/reports/rule_baseline/test &&
+    forecheck evaluate --backend rule_baseline --run /opt/ml/fsx/forecheck/runs/guardian-8b-synthetic-v3 --split heldout_family --class synthetic_heldout_adversarial --out /opt/ml/fsx/forecheck/runs/guardian-8b-synthetic-v3/reports/rule_baseline/heldout_family'
+
+  env_vars:
+    FORECHECK_TRACKING_BACKEND: "local"
+    HF_HOME: "/opt/ml/fsx/forecheck/hf_cache"
+    TOKENIZERS_PARALLELISM: "false"
+    PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+
+  nnodes: 1
+
+  resources:
+    worker:
+      instance_type: ml.p6-b200.48xlarge
+      gpus_per_pod: 1
+      cpus_per_pod: 2

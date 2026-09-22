@@ -19,7 +19,8 @@ thresholds selected on `dev`. Sections marked *pending* are filled in as jobs fi
 | encoder granite-embedding-r2 | `ibm-granite/granite-embedding-english-r2`, same head | 2,412 steps, best dev step 2,400, dev macro AUPRC 0.833 | done |
 | rule baseline | deterministic field lookups, no model | none | done |
 | Granite Guardian 3.3 8B zero-shot | `ibm-granite/granite-guardian-3.3-8b`, one custom criterion per dimension, yes/no logits | none | done (2,000-row subsample per split) |
-| gpt-oss-safeguard 20B zero-shot | `openai/gpt-oss-safeguard-20b`, policy in system prompt, greedy verdict | none | running (400-row subsample) |
+| gpt-oss-safeguard 20B zero-shot | `openai/gpt-oss-safeguard-20b`, policy in system prompt, greedy verdict | none | test done (400-row subsample); heldout running |
+| encoder granite-embedding-r2 v3 | same encoder, trained on the v3 policy-generalisation data (ADR 0010) | 1 epoch, dev-selected | done |
 | Llama Guard 4 12B | gated repository, no token on the cluster | | not run |
 
 ## Macro summary
@@ -40,6 +41,11 @@ thresholds selected on `dev`. Sections marked *pending* are filled in as jobs fi
 | decoder 2B v2 | heldout_family | 0.915 | 0.004 | |
 | decoder 2B v2, identity stripped | test | 0.742 | 0.026 | |
 | decoder 2B v2, identity stripped | heldout_family | 0.736 | 0.040 | |
+| gpt-oss-safeguard 20B zero-shot | test (n=400) | 0.269 | 0.258 | |
+| encoder granite-embedding-r2 v3 | test | 0.828 | 0.048 | |
+| encoder granite-embedding-r2 v3 | heldout_family | 0.833 | 0.049 | |
+| encoder granite-embedding-r2 v3 | heldout_policy_kind | 0.848 | 0.046 | |
+| encoder granite-embedding-r2 v3 | heldout_policy_phrasing | 0.832 | 0.045 | |
 | rule baseline | test | 0.609 | 0.119 | |
 | rule baseline | heldout_family | 0.614 | 0.122 | |
 | rule baseline, identity stripped | heldout_family | 0.614 | 0.122 | |
@@ -198,15 +204,82 @@ delegated-authority checks, so chance performance is the expected result rather 
 criticism of the model. The 2,000-row subsample gives roughly plus or minus 0.03 on
 AUROC. Numbers are uncalibrated (ECE 0.14).
 
+## gpt-oss-safeguard 20B zero-shot (test, 400-row subsample)
+
+Macro AUPRC 0.269, macro ECE 0.258. Like Granite Guardian it is near chance on the
+identity-dependent dimensions (`unauthorized_scope` 0.137 AUPRC at 0.118 positive rate,
+`insufficient_context` 0.077 at 0.080) and only clearly above chance on `policy_conflict`
+(0.512 at 0.271) and `prompt_injection_influence` (0.209 at 0.083). It is also ~50x slower
+than the 2B decoder per row (reasoning tokens). Policy-in-system-prompt is not enough for a
+general safety model to apply a delegated-authority policy; the training signal is needed.
+
+## Policy generalisation: encoder on v3 data (ADR 0010)
+
+The v3 data adds 7 policy predicate kinds with 4 paraphrases each. `heldout_policy_kind`
+withholds two kinds entirely (`forbid_recipient_domain`, `data_residency_region`);
+`heldout_policy_phrasing` withholds paraphrase index 3 of every kind.
+
+| split | macro AUPRC | unauthorized_scope | policy_conflict | insufficient_context |
+|---|---|---|---|---|
+| test | 0.828 | 0.983 | 0.451 | 0.575 |
+| heldout_family | 0.833 | 0.988 | 0.441 | 0.612 |
+| heldout_policy_kind | 0.848 | 0.986 | 0.441 | 0.633 |
+| heldout_policy_phrasing | 0.832 | 0.982 | 0.467 | 0.641 |
+
+No drop on unseen policy kinds or unseen phrasings for the encoder. But the encoder never
+learned `policy_conflict` in the first place (0.44 to 0.47 AUPRC at 0.36 to 0.41 positive
+rate, about chance), so this says nothing yet about whether a model that *can* read the
+policy generalises across kinds. The decoder 2B v3 numbers (job still in evaluate) are the
+real test; `policy_conflict` was 0.999 for the decoder on v2.
+
+## Multi-policy stacking on real probabilities (heldout_family, n=6640)
+
+Full tables in `decoder-2b/heldout_family-stacking-report.md` and
+`encoder-granite-embedding-r2/heldout_family-stacking-report.md`. k policies are stacked in
+the order permissive, balanced, conservative, expected-cost-example, then per-dimension
+synthetic bundles. "independent" ORs the k separate decisions; "joint" merges the rules into
+one bundle in threshold mode; "expected_cost_joint" merges them and decides by expected cost.
+
+| arm | k | strategy | FPR | FNR | review rate |
+|---|---|---|---|---|---|
+| decoder 2B | 1 | any | 0.015 | 0.253 | 0.31 |
+| decoder 2B | 2 | independent | 0.140 | 0.080 | 0.30 |
+| decoder 2B | 2 | expected_cost_joint | 0.082 | 0.070 | 0.28 |
+| decoder 2B | 3 | independent | **0.966** | 0.016 | 0.66 |
+| decoder 2B | 3 | joint | 0.905 | 0.051 | 0.63 |
+| decoder 2B | 3 | expected_cost_joint | 0.082 | 0.070 | 0.28 |
+| decoder 2B | 8 | independent | 0.966 | 0.007 | 0.58 |
+| decoder 2B | 8 | expected_cost_joint | 0.082 | 0.070 | 0.28 |
+| encoder granite-r2 | 2 | independent | 0.710 | 0.042 | 0.26 |
+| encoder granite-r2 | 2 | expected_cost_joint | 0.921 | 0.010 | 0.37 |
+| encoder granite-r2 | 3 | independent | 0.990 | 0.008 | 0.21 |
+| encoder granite-r2 | 3 | expected_cost_joint | 0.921 | 0.010 | 0.37 |
+
+Three findings:
+
+1. **Threshold stacking collapses to "deny everything" by k=3.** Adding the conservative
+   bundle on top of two others pushes the decoder's FPR from 0.14 to 0.97, in both the
+   independent and joint forms. This is the over-conservatism failure mode of running many
+   guards at once.
+2. **Expected-cost aggregation is invariant to k.** From k=2 onward its FPR/FNR/review rate
+   do not move (0.082 / 0.070 / 0.28 for the decoder), because the decision depends only on
+   the probability vector and the per-dimension cost table, not on how many rules mention
+   a dimension. Stacking more policies cannot make it more conservative.
+3. **The level it settles at is set by calibration quality, not by k.** The same strategy
+   on the encoder's flatter probabilities sits at FPR 0.92. Expected-cost composition only
+   works on a model whose probabilities are sharp and calibrated (decoder ECE 0.004 vs
+   encoder 0.049). This ties the composition property back to the calibrated-probability
+   contract rather than to the policy engine alone.
+
+Caveat: the cost table is the default severity-tier table, not tuned; the k=1 row shows it
+trades FPR for FNR relative to the F1-optimal threshold (0.058 / 0.170 vs 0.015 / 0.253).
+
 ## What is still to land
 
-- `privilege_escalation` diagnosis: every arm has AUROC above 0.95 but AUPRC near 0.5.
-- gpt-oss-safeguard 20B zero-shot on 400 rows, with and without identity.
-- v3: policy-generalisation data (seven new policy kinds, four paraphrases each) with
-  `heldout_policy_kind` (2,247 rows) and `heldout_policy_phrasing` (3,294 rows) splits,
-  decoder 2B trained on it, evaluated on unseen policy kinds and phrasings.
-- Multi-policy stacking table (independent OR-stack vs merged bundle vs expected-cost
-  joint rule) on the decoder's calibrated probabilities.
+- decoder 2B v3 on `heldout_policy_kind` / `heldout_policy_phrasing` (job in evaluate).
+- v4: v3 data regenerated after the privilege_escalation render fix, decoder 2B (training).
+- Granite Guardian 3.3 8B as a LoRA base (aligned model adapted to the contract) on v3.
+- gpt-oss-safeguard heldout_family rows.
 
 ## Known data defect: privilege_escalation (affects every v2/v3 number above)
 
