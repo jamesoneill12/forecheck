@@ -24,6 +24,7 @@ Arm & Split & Macro AUPRC (full) & Macro AUPRC (stripped) \\
 Decoder 2B v2 & heldout\_family & 0.915 & 0.736 \\
 Decoder 2B v4 & heldout\_family & 0.960 & 0.790 \\
 Decoder 8B v4 & heldout\_family & 0.958 & 0.786 \\
+Decoder 2B v4, trained stripped & heldout\_family & --- & 0.784 \\
 Encoder ModernBERT-large & heldout\_family & 0.813 & 0.712 \\
 Encoder granite-embedding-r2 & heldout\_family & 0.841 & --- \\
 Granite Guardian 3.3 8B (zero-shot) & heldout\_family & 0.257 & 0.271 \\
@@ -51,6 +52,17 @@ an identity one. An 8B decoder on the same v4 data shows the identical collapse
 (0.958 to 0.786, Table~\ref{tab:macro-summary}), with the same three dimensions
 falling and the same two surviving -- model scale gives the classifier no way to
 infer entitlements or policy text that were simply not in its input.
+
+Training on data rendered without identity fields from the start, rather than
+stripping only at evaluation time, gives the same ceiling: macro AUPRC
+0.780/0.784 on test/heldout\_family, within a point of the eval-time-stripped
+model's 0.787/0.790. The three delegated-authority dimensions still do not
+recover: heldout\_family \texttt{unauthorized\_scope} falls to 0.107,
+\texttt{policy\_conflict} to 0.429, \texttt{insufficient\_context} to 0.357,
+matching or below the eval-time-stripped model and nowhere near the full
+model's 0.999/0.964/0.841. This rules out the reading that eval-time stripping
+merely broke a fragile mechanism the model had learned to use -- the
+information is absent from the rendered content itself.
 
 \begin{table}[tbp]
 \centering

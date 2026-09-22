@@ -200,6 +200,9 @@ def fig_identity_ablation() -> None:
     v4_stripped = parse_dimension_table(
         RESULTS_DIR / "decoder-2b-v4" / "heldout_family-noid-report.md"
     )
+    v4_trained_stripped = parse_dimension_table(
+        RESULTS_DIR / "decoder-2b-v4-noid" / "heldout_family-report.md"
+    )
 
     log("=== fig_identity_ablation ===")
     dims = DIM_ORDER
@@ -209,13 +212,16 @@ def fig_identity_ablation() -> None:
 
     v2_full_a, v2_stripped_a, v2_rule_a = series(v2_full), series(v2_stripped), series(v2_rule)
     v4_full_a, v4_stripped_a = series(v4_full), series(v4_stripped)
+    v4_trained_stripped_a = series(v4_trained_stripped)
     pos_rate = series(v2_full, "positive_rate")
-    for d, f, s, r, f4, s4, p in zip(
-        dims, v2_full_a, v2_stripped_a, v2_rule_a, v4_full_a, v4_stripped_a, pos_rate, strict=True
+    for d, f, s, r, f4, s4, ts4, p in zip(
+        dims, v2_full_a, v2_stripped_a, v2_rule_a, v4_full_a, v4_stripped_a,
+        v4_trained_stripped_a, pos_rate, strict=True
     ):
         log(
             f"  {d}: v2_full={f:.4f} v2_stripped={s:.4f} rule={r:.4f} "
-            f"v4_full={f4:.4f} v4_stripped={s4:.4f} pos_rate={p:.4f}"
+            f"v4_full={f4:.4f} v4_stripped={s4:.4f} v4_trained_stripped={ts4:.4f} "
+            f"pos_rate={p:.4f}"
         )
 
     with plt.rc_context(RC):
@@ -240,18 +246,22 @@ def fig_identity_ablation() -> None:
         ax_v2.set_ylim(0, 1.05)
         ax_v2.set_title("Decoder 2B v2", fontsize=8)
 
-        width2 = 0.35
+        width2 = 0.26
         ax_v4.bar(
-            [i - width2 / 2 for i in x], v4_full_a, width2, label="Full (v4)",
+            [i - width2 for i in x], v4_full_a, width2, label="Full (v4)",
             color=COLORS["blue"],
         )
         ax_v4.bar(
-            [i + width2 / 2 for i in x], v4_stripped_a, width2, label="Identity-stripped (v4)",
+            x, v4_stripped_a, width2, label="Identity-stripped (v4)",
             color=COLORS["vermillion"],
+        )
+        ax_v4.bar(
+            [i + width2 for i in x], v4_trained_stripped_a, width2,
+            label="Trained stripped (v4)", color=COLORS["reddish_purple"],
         )
         for i, p in enumerate(pos_rate):
             ax_v4.plot(
-                [i - width2, i + width2], [p, p], linestyle="--",
+                [i - 1.5 * width2, i + 1.5 * width2], [p, p], linestyle="--",
                 color=COLORS["black"], linewidth=0.8,
             )
         ax_v4.set_xticks(list(x))
@@ -260,8 +270,8 @@ def fig_identity_ablation() -> None:
 
         handles, labels = ax_v2.get_legend_handles_labels()
         v4_handles, v4_labels = ax_v4.get_legend_handles_labels()
-        handles += v4_handles[:2]
-        labels += v4_labels[:2]
+        handles += v4_handles[:3]
+        labels += v4_labels[:3]
         fig.legend(
             handles, labels, loc="upper center", ncol=3,
             bbox_to_anchor=(0.5, 1.22), frameon=False,

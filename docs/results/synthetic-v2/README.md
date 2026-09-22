@@ -60,6 +60,10 @@ thresholds selected on `dev`. Sections marked *pending* are filled in as jobs fi
 | decoder 2B v4 | heldout_policy_phrasing | 0.968 | 0.023 | |
 | decoder 2B v4, identity stripped | test | 0.787 | 0.002 | 0.812 |
 | decoder 2B v4, identity stripped | heldout_family | 0.790 | 0.003 | 0.814 |
+| decoder 2B v4, trained stripped | test | 0.780 | 0.031 | 0.811 |
+| decoder 2B v4, trained stripped | heldout_family | 0.784 | 0.030 | 0.814 |
+| decoder 2B v4, trained stripped | heldout_policy_kind | 0.783 | 0.027 | 0.819 |
+| decoder 2B v4, trained stripped | heldout_policy_phrasing | 0.786 | 0.028 | 0.821 |
 | decoder 2B v4 seed 1 | test | 0.959 | 0.002 | 0.957 |
 | decoder 2B v4 seed 1 | heldout_family | 0.960 | 0.006 | 0.953 |
 | decoder 2B v4 seed 1 | heldout_policy_kind | 0.939 | 0.028 | 0.925 |
@@ -169,6 +173,26 @@ matching the 2B v4 drop (0.960 to 0.790) almost exactly. Per dimension:
 `insufficient_context` 0.834 to 0.410; `prompt_injection_influence` (0.796) and
 `privilege_escalation` (1.000) survive stripping, same as 2B. Model size does not give
 the agent a way to infer entitlements or policy text that were never in its input.
+
+Train-time vs eval-time stripping (`decoder-2b-v4-noid/{test,heldout_family,heldout_policy_kind,heldout_policy_phrasing}-report.md`).
+Training the 2B decoder on v4 data rendered with identity stripped from the start
+(`data.strip_identity=true` at train time, not just eval time) gives macro AUPRC
+0.780/0.784/0.783/0.786 on test/heldout_family/heldout_policy_kind/heldout_policy_phrasing --
+within a point of the eval-time-stripped model's 0.787/0.790. The three delegated-authority
+dimensions do not recover with training either: heldout_family `unauthorized_scope` 0.107,
+`policy_conflict` 0.429, `insufficient_context` 0.357, versus the eval-time-stripped model's
+0.125/0.392/0.412 -- lower for two of the three, comparable for the third, and nowhere near
+the full model's 0.999/0.964/0.841. Every other dimension is unchanged, 0.95 to 1.00.
+Calibration is markedly worse than the eval-time-stripped model (macro ECE 0.030 vs 0.003 on
+heldout_family) because three dimensions carry no signal to calibrate against. The
+approval-elimination curve on this arm eliminates close to zero approvals at every budget
+(heldout_family base incident rate 0.59, prefix mode), as expected when the identity
+dimensions cannot be scored. This rules out the alternative reading of the eval-time result --
+that the model learned to use identity but the eval-time strip broke a fragile mechanism: the
+information these three dimensions need is absent from the rendered content itself, and
+training cannot recover it from action, destination, and trajectory alone. As with the
+eval-time result, lean on `unauthorized_scope` and `policy_conflict` here; `insufficient_context`
+carries the same judge-unrecoverable caveat below.
 
 Label validity caveat for this section (see "Label validity" below): the
 identity-ablation claim rests on three dimensions, and they are not equally trustworthy
@@ -614,7 +638,8 @@ held-out tools and in-distribution test, so the number is stable across the data
 - decoder 2B v4 seed 2 (third seed, tightens the seed-variance estimate above): done,
   see "Seed variance" above.
 - Train-time identity-stripped arm (train on v4 data rendered without identity fields,
-  not just eval-time `--strip-identity`); running.
+  not just eval-time `--strip-identity`): done, see "Train-time vs eval-time stripping"
+  above.
 - Agent self-judgment 8B vs. decoder 2B v4 checker comparison: done, see the
   row-for-row comparison above.
 - Decoder 8B v4, identity-stripped eval (fills the identity-ablation table's 8B v4
