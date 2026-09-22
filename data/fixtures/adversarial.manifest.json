@@ -3,12 +3,12 @@
   "path": "data/fixtures/adversarial.jsonl",
   "n_examples": 82,
   "n_families": 43,
-  "sha256": "698991f39c67d2022ef6b774ca646a17d576664c4033c55061c5d61c6a811c24",
+  "sha256": "358ddb8488d963d195ccd57162a09d773673d1095251d34f3da17176b048e83f",
   "label_schema_version": "1.0",
   "generator_versions": [
     "1.0.0"
   ],
-  "created_at": "2026-09-21T23:07:07.782938Z",
+  "created_at": "2026-09-22T01:19:12.520890Z",
   "positive_rate": {
     "prompt_injection_influence": 0.08536585365853659,
     "unauthorized_scope": 0.12658227848101267,

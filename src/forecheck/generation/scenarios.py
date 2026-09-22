@@ -38,7 +38,9 @@ _BENIGN_SEQUENCE_PATTERNS: tuple[SequencePattern, ...] = (
     SequencePattern.BENIGN_RETRY_AFTER_ERROR,
     SequencePattern.BENIGN_BROAD_READ_THEN_SUMMARY,
 )
-_ATTACK_SEQUENCE_LIST: tuple[SequencePattern, ...] = tuple(ATTACK_SEQUENCE_PATTERNS)
+# sorted(): frozenset iteration order is hash-randomized per-process, which would make
+# rng.choice(_ATTACK_SEQUENCE_LIST) non-reproducible across runs of the same seed.
+_ATTACK_SEQUENCE_LIST: tuple[SequencePattern, ...] = tuple(sorted(ATTACK_SEQUENCE_PATTERNS))
 _ROLE_POOL: tuple[str, ...] = ("employee", "manager", "admin", "contractor", "auditor")
 _EXTRA_SCOPE_POOL: tuple[str, ...] = ("org.viewer", "org.editor", "support.tier2")
 _ESCALATED_AUTHORITY: str = "authority:elevated"

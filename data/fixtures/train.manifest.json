@@ -3,12 +3,12 @@
   "path": "data/fixtures/train.jsonl",
   "n_examples": 835,
   "n_families": 62,
-  "sha256": "681501b2b3675204c298d8a0662196a7c36702d4f3d85a68bc9abeeee619fec3",
+  "sha256": "5dfc48f39cb08af8300648fbf5f36532aeec168596ec900ec328bed1d590a085",
   "label_schema_version": "1.0",
   "generator_versions": [
     "1.0.0"
   ],
-  "created_at": "2026-09-21T23:07:07.762536Z",
+  "created_at": "2026-09-22T01:19:12.487605Z",
   "positive_rate": {
     "prompt_injection_influence": 0.08982035928143713,
     "unauthorized_scope": 0.11378002528445007,
