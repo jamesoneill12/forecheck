@@ -4,7 +4,8 @@ UV ?= uv
 MAIN := main
 FIGURES_SCRIPT := ../scripts/paper_figures.py
 FIGURES := figures/fig_identity_ablation.pdf figures/fig_policy_generalisation.pdf \
-	figures/fig_stacking.pdf figures/fig_approval_curve.pdf figures/fig_self_judgment.pdf
+	figures/fig_stacking.pdf figures/fig_approval_curve.pdf figures/fig_self_judgment.pdf \
+	figures/fig_judge_agreement.pdf
 
 .PHONY: all clean figures
 

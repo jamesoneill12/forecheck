@@ -23,17 +23,17 @@ Arm & Split & Macro AUPRC (full) & Macro AUPRC (stripped) \\
 \midrule
 Decoder 2B v2 & heldout\_family & 0.915 & 0.736 \\
 Decoder 2B v4 & heldout\_family & 0.960 & 0.790 \\
-Decoder 8B v4\textsuperscript{a} & heldout\_family & 0.958 & --- \\
+Decoder 8B v4 & heldout\_family & 0.958 & 0.786 \\
 Encoder ModernBERT-large & heldout\_family & 0.813 & 0.712 \\
 Encoder granite-embedding-r2 & heldout\_family & 0.841 & --- \\
 Granite Guardian 3.3 8B (zero-shot) & heldout\_family & 0.257 & 0.271 \\
 gpt-oss-safeguard 20B (zero-shot) & test (n=400) & 0.269 & 0.238 \\
-Agent self-judgment 8B\textsuperscript{b} & heldout\_family (n=2000) & 0.242 & 0.281 \\
+Agent self-judgment 8B\textsuperscript{a} & heldout\_family (n=2000) & 0.242 & 0.281 \\
 Rule baseline & heldout\_family & 0.614 & 0.614 \\
 \bottomrule
 \end{tabular}
 \vskip 1mm
-{\footnotesize\textsuperscript{a}Identity-stripped decoder 8B v4 run \todo{pending: decoder-8b-v4 --strip-identity job, running as \texttt{eval-8b-v4-noid}}. \textsuperscript{b}Single ALLOW/STOP verdict scored against all eleven labels (\S\ref{sec:selfjudgment}), not a per-dimension classifier.}
+{\footnotesize\textsuperscript{a}Single ALLOW/STOP verdict scored against all eleven labels (\S\ref{sec:selfjudgment}), not a per-dimension classifier.}
 \end{table}
 
 Table~\ref{tab:macro-summary}: identity-aware trained models lose
@@ -47,7 +47,10 @@ The v4 ablation replicates the v2 pattern on the fixed data: macro AUPRC drops
 \texttt{privilege\_escalation}, which now survives stripping entirely (1.000
 to 1.000): the v4 render fix makes \texttt{authority\_before}/\texttt{authority\_after}
 observable directly in the tool-call text, so it is a content dimension, not
-an identity one.
+an identity one. An 8B decoder on the same v4 data shows the identical collapse
+(0.958 to 0.786, Table~\ref{tab:macro-summary}), with the same three dimensions
+falling and the same two surviving -- model scale gives the classifier no way to
+infer entitlements or policy text that were simply not in its input.
 
 \begin{table}[tbp]
 \centering
@@ -104,5 +107,10 @@ jailbreak, and groundedness criteria, not for checking an action against
 entitlements or policy. gpt-oss-safeguard is also $\sim$50$\times$ slower
 per row than the 2B decoder, for no benefit on the dimensions that matter
 here.
+
+This whole claim rests on the three delegated-authority dimensions being real
+labels, not generator artifacts an independent reader cannot recover;
+\S\ref{sec:labelvalidity} checks that directly and finds the claim solid for
+two of the three, with \texttt{insufficient\_context} unvalidated.
 
 \FloatBarrier

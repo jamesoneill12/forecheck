@@ -55,7 +55,11 @@ that the \emph{shape} of policy-conditioned reasoning, not just tool
 identity, must generalize to unseen policy kinds and phrasings, and that
 naive multi-policy composition collapses to a 0.97 false positive rate by
 three stacked policies unless decisions are made from calibrated joint
-probabilities rather than independent thresholds. All results are on
+probabilities rather than independent thresholds. An independent blind LLM
+judge, shown only the rendered text, confirms two of the three dimensions
+the identity-ablation result rests on (policy-conflict, unauthorized-scope)
+and finds the third (insufficient-context) unrecoverable from the text at
+all, which we report as an open validity gap. All results are on
 synthetic data; we are explicit about what that does and does not license.
 \end{abstract}
 
@@ -65,6 +69,7 @@ synthetic data; we are explicit about what that does and does not license.
 \input{sections/generalisation}
 \input{sections/composition}
 \input{sections/selfjudgment}
+\input{sections/labelvalidity}
 \input{sections/related}
 \input{sections/limitations}
 \input{sections/conclusion}

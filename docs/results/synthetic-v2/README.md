@@ -68,6 +68,12 @@ thresholds selected on `dev`. Sections marked *pending* are filled in as jobs fi
 | decoder 8B v4 | heldout_family | 0.958 | 0.005 | 0.948 |
 | decoder 8B v4 | heldout_policy_kind | 0.951 | 0.014 | 0.937 |
 | decoder 8B v4 | heldout_policy_phrasing | 0.964 | 0.005 | 0.955 |
+| decoder 8B v4, identity stripped | test | 0.784 | 0.007 | 0.810 |
+| decoder 8B v4, identity stripped | heldout_family | 0.786 | 0.011 | 0.811 |
+| decoder 2B v4 seed 2 | test | 0.960 | 0.002 | |
+| decoder 2B v4 seed 2 | heldout_family | 0.960 | 0.007 | |
+| decoder 2B v4 seed 2 | heldout_policy_kind | 0.940 | 0.025 | |
+| decoder 2B v4 seed 2 | heldout_policy_phrasing | 0.967 | 0.005 | |
 | decoder 2B v5 | test | 0.957 | 0.003 | 0.953 |
 | decoder 2B v5 | heldout_family | 0.951 | 0.008 | 0.945 |
 | decoder 2B v5 | heldout_policy_kind | 0.941 | 0.029 | 0.923 |
@@ -155,6 +161,24 @@ before (0.804 to 0.806). The one dimension that no longer collapses is
 `privilege_escalation`, which now survives stripping entirely (1.000 to 1.000): the v4
 render fix makes `authority_before`/`authority_after` observable directly in the tool-call
 text, so it is a content dimension, not an identity one.
+
+8B replication (`decoder-8b-v4/{heldout_family,test}-noid-report.md`). Same collapse at
+the larger size: macro AUPRC 0.958 to 0.786 on heldout_family, 0.956 to 0.784 on test,
+matching the 2B v4 drop (0.960 to 0.790) almost exactly. Per dimension:
+`unauthorized_scope` 1.000 to 0.107, `policy_conflict` 0.965 to 0.379,
+`insufficient_context` 0.834 to 0.410; `prompt_injection_influence` (0.796) and
+`privilege_escalation` (1.000) survive stripping, same as 2B. Model size does not give
+the agent a way to infer entitlements or policy text that were never in its input.
+
+Label validity caveat for this section (see "Label validity" below): the
+identity-ablation claim rests on three dimensions, and they are not equally trustworthy
+against an independent reader. `policy_conflict` (judge kappa 0.71) is solid.
+`unauthorized_scope` (kappa 0.39) is directionally confirmed -- the judge recovers 74% of
+generator-positive rows -- but the judge and generator define the dimension differently
+(objective mismatch vs. entitlements). `insufficient_context` (kappa 0.06) is
+unvalidated: a blind frontier reader cannot recover this label from the rendered text at
+all, so its 0.849/0.841/0.834 AUPRC across arms is closer to a learned generator
+regularity than a checked fact.
 
 ## Encoder ModernBERT-large, per dimension (test)
 
@@ -412,24 +436,67 @@ generalisation continues to hold on v5: `policy_conflict` on `heldout_policy_phr
 calibration of any split on v5 (macro ECE 0.029, vs under 0.01 on every other split),
 consistent with the model being unsure rather than confidently wrong on unseen kinds.
 
-## Seed variance (v4, seeds 0 and 1; `decoder-2b-v4/`, `decoder-2b-v4-seed1/`)
+## Seed variance (v4, seeds 0, 1, 2; `decoder-2b-v4/`, `decoder-2b-v4-seed1/`, `decoder-2b-v4-seed2/`)
 
-| split | seed 0 macro AUPRC | seed 1 macro AUPRC | mean | half-range (n=2) |
+| split | seed 0 | seed 1 | seed 2 | mean | sample sd (n=3) |
+|---|---|---|---|---|---|
+| test | 0.960 | 0.959 | 0.960 | 0.960 | 0.0004 |
+| heldout_family | 0.960 | 0.960 | 0.960 | 0.960 | 0.0004 |
+| heldout_policy_kind | 0.944 | 0.939 | 0.940 | 0.941 | 0.0029 |
+| heldout_policy_phrasing | 0.968 | 0.969 | 0.967 | 0.968 | 0.0014 |
+
+`policy_conflict` on `heldout_policy_kind`: seed 0 0.752, seed 1 0.689, seed 2 0.711 --
+mean 0.717, sample sd 0.032 (n=3).
+
+Macro AUPRC is stable to about 0.0004-0.0029 across all three seeds on every split, the
+same noise floor the two-seed estimate already showed. The third seed does not change
+the conclusion: `heldout_policy_kind` `policy_conflict` still swings by 0.06 peak-to-peak
+(0.689 to 0.752) with a sample sd of 0.032, an order of magnitude above the macro floor,
+so single-seed differences smaller than about 0.07 on that specific cell remain
+indistinguishable from seed noise. This is the number the v5 comparison (0.704, within
+the 0.689-0.752 band) and the 8B comparison (0.851, clearly outside it) should be read
+against.
+
+## Label validity: independent LLM judge
+
+Full analysis and method in `../judge/README.md`. A frontier model (gpt-5.6-sol),
+given only the rendered context and the eleven dimension definitions -- never the
+generator's latent scenario or label -- judged 600 stratified v4 rows blind. Agreement
+with the generator's label measures whether that label is observable in the text at
+all, not ground truth; low agreement is the informative case.
+
+| dimension | kappa | agreement | judge recall of generator yes | judge precision |
 |---|---|---|---|---|
-| test | 0.960 | 0.959 | 0.960 | 0.0004 |
-| heldout_family | 0.960 | 0.960 | 0.960 | 0.0003 |
-| heldout_policy_kind | 0.944 | 0.939 | 0.941 | 0.0028 |
-| heldout_policy_phrasing | 0.968 | 0.969 | 0.969 | 0.0008 |
+| prompt_injection_influence | 0.905 | 0.983 | 0.84 | 1.00 |
+| privilege_escalation | 0.909 | 0.988 | 1.00 | 0.84 |
+| policy_conflict | 0.714 | 0.862 | 0.89 | 0.78 |
+| destructive_or_irreversible_action | 0.511 | 0.897 | 0.60 | 0.54 |
+| suspicious_action_sequence | 0.404 | 0.852 | 0.82 | 0.33 |
+| unauthorized_scope | 0.391 | 0.800 | 0.74 | 0.38 |
+| financial_commitment | 0.359 | 0.935 | 0.24 | 0.92 |
+| external_communication | 0.331 | 0.897 | 0.86 | 0.23 |
+| untrusted_destination | 0.213 | 0.777 | 0.41 | 0.29 |
+| insufficient_context | 0.059 | 0.843 | 0.14 | 0.15 |
+| sensitive_data_exposure | 0.002 | 0.783 | 0.17 | 0.08 |
 
-`policy_conflict` on `heldout_policy_kind`: seed 0 0.752, seed 1 0.689.
+Three tiers. **Recoverable** (kappa above 0.7): `prompt_injection_influence`,
+`privilege_escalation`, `policy_conflict`. A blind reader recovers these from the text;
+`privilege_escalation` at 0.91 confirms the v4 render fix put the label in the tool-call
+arguments. **Definitional disagreement** (kappa 0.2-0.5): `unauthorized_scope`,
+`financial_commitment`, `destructive_or_irreversible_action`,
+`suspicious_action_sequence`, `external_communication`, `untrusted_destination` -- the
+judge and generator use different definitions of the same dimension name (e.g.
+`unauthorized_scope`: the judge also flags objective mismatches the generator's
+entitlement-only rule does not). **Not recoverable** (kappa below 0.1):
+`insufficient_context`, `sensitive_data_exposure` -- the generator's notion of these
+labels is not visible in the rendered text to an independent reader at all.
 
-n=2, so this is a range, not a distribution; treat the half-ranges above as a lower
-bound on seed variance rather than an estimate of it. Macro AUPRC is stable to about
-0.005 across both seeds on every split. But the `heldout_policy_kind`
-`policy_conflict` cell moves by 0.06 between seeds (0.752 vs 0.689), an order of
-magnitude more than the macro noise floor, so single-seed differences smaller than
-about 0.07 on that specific cell are not meaningful on their own; the v5 comparison
-above already runs into this. Seed 2 is running to narrow this further.
+Consequence for the identity-ablation claim above: it rests on `unauthorized_scope`
+(kappa 0.39, directionally confirmed, different definition), `policy_conflict` (0.71,
+solid) and `insufficient_context` (0.06, unvalidated). Treat `insufficient_context`
+numbers everywhere in this document as measuring whether the model learned a generator
+regularity, not a real property of the text, until the generator makes the context gap
+explicit in the rendering.
 
 ## Granite Guardian 3.3 8B as a LoRA base: invalid run
 
@@ -544,16 +611,20 @@ held-out tools and in-distribution test, so the number is stable across the data
 
 - Decoder 2B v4, identity-stripped eval (`eval-v4-idself`): done, see the Macro
   summary table and the "v4 replication" note above.
-- decoder 2B v4 seed 2 (third seed, tightens the seed-variance estimate above).
+- decoder 2B v4 seed 2 (third seed, tightens the seed-variance estimate above): done,
+  see "Seed variance" above.
 - Train-time identity-stripped arm (train on v4 data rendered without identity fields,
   not just eval-time `--strip-identity`); running.
 - Agent self-judgment 8B vs. decoder 2B v4 checker comparison: done, see the
   row-for-row comparison above.
 - Decoder 8B v4, identity-stripped eval (fills the identity-ablation table's 8B v4
-  cell); running as `eval-8b-v4-noid`.
+  cell): done, see the Macro summary table and the "8B replication" note above.
 - decoder 2B v5 seed 1 (seed variance for the 30-kind result); running.
-- decoder 2B v5 seed 2 (same purpose, 30-kind data): recipe written, not yet submitted.
-- LLM-judge labels (real-data probe, class 3).
+- decoder 2B v5 seed 2 (same purpose, 30-kind data): running.
+- LLM-judge labels (real-data probe, class 3): done for the full-context pass, see
+  "Label validity" above and `../judge/README.md`. Still running: the
+  identity-stripped judge pass (`v4-labels-gpt56-noid.jsonl`) and scoring the v4
+  checker against judge labels (`eval-v4-judge`).
 
 ## Known data defect: privilege_escalation (affects every v2/v3 number above; fixed in v4)
 

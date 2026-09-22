@@ -7,6 +7,18 @@ human-labelled or production-traffic evaluation exists at submission time,
 and no real-world safety claim is made: every result measures whether an
 arm learned the generator's own label function.
 
+\textbf{Independent labels exist for label validity, not for real-world
+risk.} \S\ref{sec:labelvalidity} adds a blind LLM judge as an independent
+reader of the same rendered text, which is a check on whether a label is
+observable in the text at all, not a check against real-world ground truth
+-- the judge never saw production traffic either. That check is reassuring
+on \texttt{policy\_conflict} ($\kappa{=}0.71$) and directionally consistent
+on \texttt{unauthorized\_scope} ($\kappa{=}0.39$, differing definitions), but
+finds \texttt{insufficient\_context} ($\kappa{=}0.06$) unrecoverable from the
+text by an independent reader. Every \texttt{insufficient\_context} number
+in this paper should be read with that caveat attached until the generator's
+rendering makes the context gap explicit.
+
 \textbf{Generator regularities.} The model may be exploiting template
 regularities in how the generator writes policy clauses and entitlement
 lists, rather than a general policy-reading ability. The

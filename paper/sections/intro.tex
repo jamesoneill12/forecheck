@@ -43,9 +43,13 @@ result showing robustness to unseen policy wording but not unseen policy
 kinds (\S\ref{sec:generalisation}); (4) a multi-policy composition result
 showing calibrated joint-probability decisions, not rule engineering, keep
 a guardrail stack from collapsing to "deny everything"
-(\S\ref{sec:composition}); and (5) a comparison showing an agent asked to
+(\S\ref{sec:composition}); (5) a comparison showing an agent asked to
 judge its own action cannot recover the authorization signal an external
-checker can (\S\ref{sec:selfjudgment}). Every number here is on synthetic
+checker can (\S\ref{sec:selfjudgment}); and (6) an independent blind-judge
+check of whether the generator's labels are recoverable from the rendered
+text at all, which confirms the identity-ablation result on two of its three
+load-bearing dimensions and flags the third as unvalidated
+(\S\ref{sec:labelvalidity}). Every number here is on synthetic
 data from forecheck's own scenario generator; \S\ref{sec:limitations}
 states plainly what that does and does not license.
 

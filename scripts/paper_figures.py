@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_DIR = REPO_ROOT / "docs" / "results" / "synthetic-v2"
+JUDGE_README = REPO_ROOT / "docs" / "results" / "judge" / "README.md"
 FIGURES_DIR = REPO_ROOT / "paper" / "figures"
 
 COLORS = {
@@ -188,50 +189,83 @@ def savefig(fig: plt.Figure, name: str) -> None:
 
 
 def fig_identity_ablation() -> None:
-    full = parse_dimension_table(RESULTS_DIR / "decoder-2b" / "heldout_family-report.md")
-    stripped = parse_dimension_table(
+    v2_full = parse_dimension_table(RESULTS_DIR / "decoder-2b" / "heldout_family-report.md")
+    v2_stripped = parse_dimension_table(
         RESULTS_DIR / "decoder-2b" / "heldout_family-noid-report.md"
     )
-    rule = parse_dimension_table(
+    v2_rule = parse_dimension_table(
         RESULTS_DIR / "decoder-2b" / "rule_baseline" / "heldout_family-report.md"
+    )
+    v4_full = parse_dimension_table(RESULTS_DIR / "decoder-2b-v4" / "heldout_family-report.md")
+    v4_stripped = parse_dimension_table(
+        RESULTS_DIR / "decoder-2b-v4" / "heldout_family-noid-report.md"
     )
 
     log("=== fig_identity_ablation ===")
     dims = DIM_ORDER
-    full_auprc = [full[d]["auprc"] for d in dims]
-    stripped_auprc = [stripped[d]["auprc"] for d in dims]
-    rule_auprc = [rule[d]["auprc"] for d in dims]
-    pos_rate = [full[d]["positive_rate"] for d in dims]
-    for d, f, s, r, p in zip(dims, full_auprc, stripped_auprc, rule_auprc, pos_rate, strict=True):
-        log(f"  {d}: full={f:.4f} stripped={s:.4f} rule={r:.4f} pos_rate={p:.4f}")
+
+    def series(table: dict, key: str = "auprc") -> list[float]:
+        return [table[d][key] for d in dims]
+
+    v2_full_a, v2_stripped_a, v2_rule_a = series(v2_full), series(v2_stripped), series(v2_rule)
+    v4_full_a, v4_stripped_a = series(v4_full), series(v4_stripped)
+    pos_rate = series(v2_full, "positive_rate")
+    for d, f, s, r, f4, s4, p in zip(
+        dims, v2_full_a, v2_stripped_a, v2_rule_a, v4_full_a, v4_stripped_a, pos_rate, strict=True
+    ):
+        log(
+            f"  {d}: v2_full={f:.4f} v2_stripped={s:.4f} rule={r:.4f} "
+            f"v4_full={f4:.4f} v4_stripped={s4:.4f} pos_rate={p:.4f}"
+        )
 
     with plt.rc_context(RC):
-        fig, ax = plt.subplots(figsize=(5.5, 2.6))
+        fig, (ax_v2, ax_v4) = plt.subplots(1, 2, figsize=(8.0, 2.6), sharey=True)
         x = range(len(dims))
         width = 0.26
-        ax.bar(
-            [i - width for i in x], full_auprc, width, label="Decoder 2B v2 (full)",
-            color=COLORS["blue"],
-        )
-        ax.bar(
-            x, stripped_auprc, width, label="Decoder 2B v2 (identity-stripped)",
-            color=COLORS["vermillion"],
-        )
-        ax.bar(
-            [i + width for i in x], rule_auprc, width, label="Rule baseline",
+        ax_v2.bar([i - width for i in x], v2_full_a, width, label="Full", color=COLORS["blue"])
+        ax_v2.bar(x, v2_stripped_a, width, label="Identity-stripped", color=COLORS["vermillion"])
+        ax_v2.bar(
+            [i + width for i in x], v2_rule_a, width, label="Rule baseline",
             color=COLORS["bluish_green"],
         )
         for i, p in enumerate(pos_rate):
-            ax.plot(
+            ax_v2.plot(
                 [i - 1.5 * width, i + 1.5 * width], [p, p], linestyle="--",
                 color=COLORS["black"], linewidth=0.8,
                 label="Positive rate (chance)" if i == 0 else None,
             )
-        ax.set_xticks(list(x))
-        ax.set_xticklabels([DIM_SHORT[d] for d in dims], rotation=35, ha="right", fontsize=7)
-        ax.set_ylabel("AUPRC")
-        ax.set_ylim(0, 1.05)
-        ax.legend(loc="upper center", ncol=2, bbox_to_anchor=(0.5, 1.32), frameon=False)
+        ax_v2.set_xticks(list(x))
+        ax_v2.set_xticklabels([DIM_SHORT[d] for d in dims], rotation=35, ha="right", fontsize=7)
+        ax_v2.set_ylabel("AUPRC")
+        ax_v2.set_ylim(0, 1.05)
+        ax_v2.set_title("Decoder 2B v2", fontsize=8)
+
+        width2 = 0.35
+        ax_v4.bar(
+            [i - width2 / 2 for i in x], v4_full_a, width2, label="Full (v4)",
+            color=COLORS["blue"],
+        )
+        ax_v4.bar(
+            [i + width2 / 2 for i in x], v4_stripped_a, width2, label="Identity-stripped (v4)",
+            color=COLORS["vermillion"],
+        )
+        for i, p in enumerate(pos_rate):
+            ax_v4.plot(
+                [i - width2, i + width2], [p, p], linestyle="--",
+                color=COLORS["black"], linewidth=0.8,
+            )
+        ax_v4.set_xticks(list(x))
+        ax_v4.set_xticklabels([DIM_SHORT[d] for d in dims], rotation=35, ha="right", fontsize=7)
+        ax_v4.set_title("Decoder 2B v4", fontsize=8)
+
+        handles, labels = ax_v2.get_legend_handles_labels()
+        v4_handles, v4_labels = ax_v4.get_legend_handles_labels()
+        handles += v4_handles[:2]
+        labels += v4_labels[:2]
+        fig.legend(
+            handles, labels, loc="upper center", ncol=3,
+            bbox_to_anchor=(0.5, 1.22), frameon=False,
+        )
         savefig(fig, "fig_identity_ablation.pdf")
 
 
@@ -404,12 +438,41 @@ def fig_self_judgment() -> None:
         savefig(fig, "fig_self_judgment.pdf")
 
 
+def fig_judge_agreement() -> None:
+    rows = parse_markdown_table(JUDGE_README, "kappa")
+    pairs = [(row["dimension"], _to_float(row["kappa"])) for row in rows]
+    pairs.sort(key=lambda p: p[1])
+
+    log("=== fig_judge_agreement ===")
+    for dim, kappa in pairs:
+        log(f"  {dim}: kappa={kappa:.4f}")
+
+    labels = [DIM_SHORT[d].replace("\n", " ") for d, _ in pairs]
+    kappas = [k for _, k in pairs]
+
+    with plt.rc_context(RC):
+        fig, ax = plt.subplots(figsize=(5.5, 3.0))
+        y = range(len(labels))
+        ax.barh(list(y), kappas, color=COLORS["blue"])
+        ax.axvline(0.7, color=COLORS["bluish_green"], linestyle="--", linewidth=1.0,
+                   label="recoverable (0.7)")
+        ax.axvline(0.2, color=COLORS["vermillion"], linestyle="--", linewidth=1.0,
+                   label="not recoverable (0.2)")
+        ax.set_yticks(list(y))
+        ax.set_yticklabels(labels)
+        ax.set_xlabel(r"yes-vs-not-yes $\kappa$ (generator label vs.\ blind LLM judge)")
+        ax.set_xlim(0, 1.0)
+        ax.legend(loc="lower right", frameon=False)
+        savefig(fig, "fig_judge_agreement.pdf")
+
+
 def main() -> None:
     fig_identity_ablation()
     fig_policy_generalisation()
     fig_stacking()
     fig_approval_curve()
     fig_self_judgment()
+    fig_judge_agreement()
 
 
 if __name__ == "__main__":

@@ -1,0 +1,161 @@
+\section{Are the labels real? An independent blind judge}
+\label{sec:labelvalidity}
+
+Every number so far measures whether an arm learned forecheck's own generator's
+label function (\S\ref{sec:limitations}). That leaves open a narrower but
+answerable question: is the label itself observable in the rendered text at
+all, to a reader who never sees the generator's latent scenario? We had a
+frontier model (gpt-5.6-sol), given only the rendered context and the eleven
+dimension definitions, judge 600 \texttt{v4} rows stratified so every
+dimension has at least 20 positive and 20 negative examples, across
+\texttt{test}, \texttt{heldout\_family}, and \texttt{heldout\_policy\_kind}.
+Agreement with the generator's label is not a ground-truth check -- the judge
+is another reader of the same text a classifier sees -- but low agreement is
+informative: it means the label depends on information the generator tracked
+internally and never rendered, so a trained model scoring well on it is
+learning a generator regularity, not a fact about the text.
+
+\begin{table}[tbp]
+\centering
+\small
+\caption{Independent LLM-judge agreement with the generator label, yes vs.\
+not-yes, $n{=}600$ \texttt{v4} rows (gpt-5.6-sol, blind to the generator's
+latent scenario). Judge recall/precision are against the generator's positive
+class. Source: \texttt{docs/results/judge/README.md}.}
+\label{tab:judge-agreement}
+\begin{tabular}{lcccc}
+\toprule
+Dimension & Cohen's $\kappa$ & Agreement & Judge recall & Judge precision \\
+\midrule
+\texttt{privilege\_escalation} & 0.909 & 0.988 & 1.00 & 0.84 \\
+\texttt{prompt\_injection\_influence} & 0.905 & 0.983 & 0.84 & 1.00 \\
+\texttt{policy\_conflict} & 0.714 & 0.862 & 0.89 & 0.78 \\
+\midrule
+\texttt{destructive\_or\_irreversible\_action} & 0.511 & 0.897 & 0.60 & 0.54 \\
+\texttt{suspicious\_action\_sequence} & 0.404 & 0.852 & 0.82 & 0.33 \\
+\texttt{unauthorized\_scope} & 0.391 & 0.800 & 0.74 & 0.38 \\
+\texttt{financial\_commitment} & 0.359 & 0.935 & 0.24 & 0.92 \\
+\texttt{external\_communication} & 0.331 & 0.897 & 0.86 & 0.23 \\
+\texttt{untrusted\_destination} & 0.213 & 0.777 & 0.41 & 0.29 \\
+\midrule
+\texttt{insufficient\_context} & 0.059 & 0.843 & 0.14 & 0.15 \\
+\texttt{sensitive\_data\_exposure} & 0.002 & 0.783 & 0.17 & 0.08 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=5.5in]{figures/fig_judge_agreement.pdf}
+\caption{Yes-vs-not-yes $\kappa$ per dimension, sorted, with the recoverable
+(0.7) and not-recoverable (0.2) tier lines from \S\ref{sec:labelvalidity}.
+Source: \texttt{docs/results/judge/README.md}.}
+\label{fig:judge-agreement}
+\end{figure}
+
+Table~\ref{tab:judge-agreement} and Figure~\ref{fig:judge-agreement} split
+into three tiers. \textbf{Recoverable} ($\kappa > 0.7$):
+\texttt{privilege\_escalation}, \texttt{prompt\_injection\_influence}, and
+\texttt{policy\_conflict}. A blind reader recovers these from the text alone.
+\texttt{privilege\_escalation} at 0.91 is an independent confirmation of the
+\texttt{v4} render fix (\S\ref{sec:generalisation}): the deciding fields are
+now genuinely in the tool-call arguments, not just in the model's training
+signal. \texttt{policy\_conflict} at 0.71 with judge recall 0.89 means the
+policy clause plus the proposed call is enough for an outside reader to spot
+the conflict; the disagreements are mostly the judge reading a clause more
+strictly than the generator's own predicate, not a missing signal.
+
+\textbf{Definitional disagreement} ($0.2 \le \kappa \le 0.5$):
+\texttt{unauthorized\_scope}, \texttt{financial\_commitment},
+\texttt{destructive\_or\_irreversible\_action},
+\texttt{suspicious\_action\_sequence}, \texttt{external\_communication}, and
+\texttt{untrusted\_destination}. Here the judge and the generator are both
+reading the text and both producing a coherent decision -- they just use
+different definitions of the same dimension name. For
+\texttt{unauthorized\_scope} the judge flags roughly twice as many rows as
+the generator (159 vs.\ 81 judge-positive) because it treats a mismatch with
+the agent's stated objective (e.g.\ a bulk retrieval where a single-record
+lookup was requested) as out of scope, while the generator's label is
+entitlement-based only; judge recall of the generator's positives is still
+0.74, so the two notions overlap substantially without being identical. For
+\texttt{financial\_commitment} the judge requires funds to actually move,
+while the generator labels any call that carries a financial amount in its
+arguments. These are taxonomy decisions to fix in the dimension definitions,
+not evidence the labels are unobservable.
+
+\textbf{Not recoverable} ($\kappa < 0.1$): \texttt{insufficient\_context} and
+\texttt{sensitive\_data\_exposure}. For \texttt{insufficient\_context} the
+judge calls the context sufficient on 50 of the 58 generator-positive rows in
+the sample; whatever the generator tracks as a context gap is not visible in
+what gets rendered. For \texttt{sensitive\_data\_exposure} the judge requires
+a transfer to a lower-sensitivity destination, while the generator labels any
+read of confidential data through an already-authorised tool as exposure --
+recall 0.17, precision 0.08, essentially two different dimensions sharing a
+name.
+
+\textbf{Consequence for the identity-ablation claim.} \S\ref{sec:identity}'s
+claim that delegated-authority information is load-bearing rests on exactly
+three dimensions: \texttt{unauthorized\_scope}, \texttt{policy\_conflict},
+and \texttt{insufficient\_context}. Judged independently, that claim is solid
+on \texttt{policy\_conflict} ($\kappa{=}0.71$), directionally confirmed but
+not identical in definition on \texttt{unauthorized\_scope}
+($\kappa{=}0.39$, judge recall 0.74), and unvalidated on
+\texttt{insufficient\_context} ($\kappa{=}0.06$): a blind frontier reader
+cannot recover this label from the text at all, which means the trained
+decoder's 0.849 AUPRC on it (Table~\ref{tab:identity-ablation}) is closer to
+learning a generator regularity than to answering a checkable question about
+the rendered context. We report \texttt{insufficient\_context} numbers
+throughout this paper because the identity-ablation \emph{pattern} -- three
+dimensions collapse together, four content dimensions do not move -- still
+holds with it removed on the other two legs alone; but any claim resting on
+\texttt{insufficient\_context} specifically should be read as unconfirmed
+until the generator makes its context-gap condition explicit in the
+rendering. The two content dimensions that survive identity stripping in
+\S\ref{sec:identity} (\texttt{prompt\_injection\_influence},
+\texttt{privilege\_escalation}) are exactly the two the judge recovers best,
+consistent with them being genuine properties of the text rather than
+generator lookups.
+
+\textbf{Scoring the checker against the judge's labels.} Re-scoring the
+trained 2B v4 decoder and the rule baseline against the judge's labels on the
+judged rows ($n{=}257$ on \texttt{heldout\_family}) gives
+Table~\ref{tab:model-vs-judge}. Against labels the generator did not write,
+the checker keeps the three recoverable dimensions and
+\texttt{untrusted\_destination}, and beats the rule baseline on each by
+0.08--0.68 AUPRC; macro 0.61 vs.\ 0.42. \texttt{unauthorized\_scope} drops to
+0.59 for the definitional reason above (the judge counts a mismatch with the
+stated objective as out of scope; the trained label is entitlement-based).
+\texttt{insufficient\_context} at 0.09 confirms the label is a generator
+artefact. The lookup dimensions collapse for both arms because the judge
+defines them differently, so they are not evidence for or against either.
+
+\begin{table}[tbp]
+\centering
+\small
+\caption{AUPRC against the independent judge's labels (gpt-5.6-sol) on the
+judged \texttt{heldout\_family} rows ($n{=}257$), decoder 2B v4 vs.\ rule
+baseline, with the decoder's AUPRC against the generator's own labels on the
+full split for reference. Source: \texttt{docs/results/judge/README.md}.}
+\label{tab:model-vs-judge}
+\begin{tabular}{lccc}
+\toprule
+Dimension & Decoder 2B v4 & Rule baseline & Decoder vs.\ generator labels \\
+\midrule
+\texttt{prompt\_injection\_influence} & \textbf{1.000} & 0.459 & 0.804 \\
+\texttt{privilege\_escalation} & \textbf{0.977} & 0.297 & 1.000 \\
+\texttt{policy\_conflict} & \textbf{0.889} & 0.502 & 0.964 \\
+\texttt{untrusted\_destination} & \textbf{0.864} & 0.785 & 1.000 \\
+\texttt{destructive\_or\_irreversible\_action} & 0.635 & 0.509 & 0.992 \\
+\texttt{unauthorized\_scope} & 0.592 & 0.509 & 0.999 \\
+\texttt{suspicious\_action\_sequence} & 0.528 & 0.467 & 0.966 \\
+\texttt{external\_communication} & 0.437 & 0.381 & 1.000 \\
+\texttt{sensitive\_data\_exposure} & 0.405 & 0.291 & 1.000 \\
+\texttt{financial\_commitment} & 0.327 & 0.280 & 1.000 \\
+\texttt{insufficient\_context} & 0.090 & 0.090 & 0.841 \\
+\midrule
+macro & 0.613 & 0.415 & 0.960 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\FloatBarrier
