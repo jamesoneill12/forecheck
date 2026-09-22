@@ -398,22 +398,29 @@ relational dimensions and stays as the cheap-latency baseline only.
 
 ## Approval elimination on real probabilities (decoder 2B v2, `decoder-2b/*-approval-report.md`)
 
-Bundle `balanced`, held-out tools, n=6,640, **base incident rate 0.58** (58% of held-out
-rows have at least one positive dimension the bundle covers).
+Bundle `balanced`, held-out tools, n=6,640. The split's own incident base rate is 0.58
+(58% of held-out rows have at least one positive dimension the bundle covers), which is an
+adversarial-benchmark population, not a deployment one. So the table reports two views:
+unweighted, and importance-reweighted to a stated deployment incident rate of 5%, with a
+Wilson 95% upper bound on the realised incident rate (conservative; see
+`docs/evaluation/approval-elimination.md`).
 
-| budget | approvals eliminated | review rate | deny rate |
-|---|---|---|---|
-| 0.1% to 1% | 0.002 | 0.707 | 0.291 |
-| 2% | 0.016 | 0.693 | 0.291 |
-| 5% | 0.100 | 0.609 | 0.291 |
+| budget | eliminated (unweighted, base 0.58) | eliminated (reweighted to 5%) | review rate (rw) | deny rate (rw) |
+|---|---|---|---|---|
+| 0.1% | 0.000 | 0.000 | 0.975 | 0.025 |
+| 0.5% | 0.000 | 0.000 | 0.975 | 0.025 |
+| 1% | 0.000 | **0.888** | 0.088 | 0.025 |
+| 2% | 0.000 | **0.961** | 0.017 | 0.021 |
+| 5% | 0.000 | 0.992 | 0.001 | 0.007 |
 
-Two things this says. First, the ceiling is 1 minus the base rate (0.42 here): a split
-built to be adversarial is the wrong population for a metric whose point is the benign
-mass. Second, even under that ceiling the curve is flat because a handful of risky rows
-receive low expected-ALLOW cost; at 0.1% budget one such row among the first 2,000 ranked
-ends the prefix. The next iteration of the metric needs (a) importance re-weighting to a
-stated deployment incident rate (e.g. 2 to 5%) and (b) per-dimension cost tuning; both are
-post-processing on the saved scores. v4 decoder curves are running.
+Reading: in a deployment where 5% of sensitive actions are actually risky and every one
+today goes to a human, the calibrated v2 decoder auto-allows 89% of them while keeping the
+allowed-but-risky rate under 1%, and 96% under 2%. This is the number the product sells.
+Below 1% the Wilson bound cannot be met at the effective sample size, so the conservative
+curve reports zero; the point-estimate ("prefix") mode is available for that regime but is
+dominated by single rows. The unweighted column is near zero because the first-ranked
+rows on this adversarial split already contain risky examples; it is the ceiling of the
+split, not of the model. v4 curves are running.
 
 ## What is still to land
 
