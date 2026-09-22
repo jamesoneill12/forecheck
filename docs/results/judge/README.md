@@ -91,3 +91,41 @@ exposure; recall 0.17, precision 0.08.
    against judge labels instead of generator labels, per dimension.
 3. Tighten the six definitional dimensions in `src/forecheck/judge/dimensions.py` and the
    generator's `labeling.py` so they state the same reading, then re-judge.
+
+## Model scored against judge labels (`model-vs-judge/`, job `eval-v4-judge`)
+
+`forecheck evaluate --labels-from v4-labels-gpt56.jsonl` on the trained 2B v4 checker and
+the rule baseline, restricted to the judged rows (n = 257 heldout_family, 95
+heldout_policy_kind, 248 test). Small n, so read the ordering, not the third decimal.
+
+| dimension | model, heldout_family | rule, heldout_family | model, heldout_policy_kind | model, test | model vs generator labels (heldout_family) |
+|---|---|---|---|---|---|
+| prompt_injection_influence | 1.000 | 0.459 | 1.000 | 1.000 | 0.804 |
+| privilege_escalation | 0.977 | 0.297 | 1.000 | 0.818 | 1.000 |
+| policy_conflict | 0.889 | 0.502 | 0.772 | 0.804 | 0.964 |
+| untrusted_destination | 0.864 | 0.785 | 0.863 | 0.825 | 1.000 |
+| destructive_or_irreversible_action | 0.635 | 0.509 | 0.071 | 0.377 | 0.992 |
+| unauthorized_scope | 0.592 | 0.509 | 0.711 | 0.572 | 0.999 |
+| suspicious_action_sequence | 0.528 | 0.467 | 0.417 | 0.526 | 0.966 |
+| external_communication | 0.437 | 0.381 | 0.197 | 0.181 | 1.000 |
+| sensitive_data_exposure | 0.405 | 0.291 | 0.116 | 0.144 | 1.000 |
+| financial_commitment | 0.327 | 0.280 | 0.450 | 0.179 | 1.000 |
+| insufficient_context | 0.090 | 0.090 | 0.181 | 0.079 | 0.841 |
+| macro | 0.613 | 0.415 | 0.525 | 0.500 | 0.960 |
+
+Reading. Against labels the generator did not write, the model keeps the three
+recoverable dimensions (`prompt_injection_influence` 1.00, `privilege_escalation` 0.98,
+`policy_conflict` 0.89) and `untrusted_destination` (0.86), and beats the rule baseline on
+every one of them by 0.08 to 0.68. `unauthorized_scope` falls to 0.59 because the judge's
+definition (objective mismatch) differs from the trained one (entitlements); this is the
+same definitional gap as the kappa of 0.39 above, not a model failure, and it is fixed by
+choosing one definition. `insufficient_context` at 0.09 confirms the label is a generator
+artefact: the model's 0.84 against generator labels is not a fact about the text. The
+lookup dimensions (`financial_commitment`, `external_communication`,
+`sensitive_data_exposure`) collapse because the judge and generator define them
+differently, and the rule baseline collapses with them.
+
+The number to carry into the paper: on labels from an independent blind reader the
+learned checker scores 0.61 macro against 0.42 for rules on heldout_family, with the gap
+concentrated in the dimensions that need reading (injection, policy, authority change),
+and `insufficient_context` should be dropped from any headline claim.
