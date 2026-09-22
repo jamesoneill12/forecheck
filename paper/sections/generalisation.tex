@@ -14,24 +14,22 @@ undecidable from text (\S\ref{sec:limitations}).
 
 \begin{table}[tbp]
 \centering
-\small
-\caption{Decoder 2B, macro AUPRC and \texttt{policy\_conflict} AUPRC across
-splits, on the v3 (ADR 0010, 15 policy kinds, 2 withheld) and v4 (same data,
-\texttt{privilege\_escalation} render fix) generators. v5 (ADR 0011, 30
-kinds, 4 withheld) tests whether more kinds let the model generalize the
-\emph{shape} of policy-conflict reasoning rather than memorize kinds.
-Source: \texttt{docs/results/synthetic-v2/README.md}.}
+\footnotesize
+\caption{Decoder 2B, macro AUPRC and \texttt{policy\_conflict} (pc) AUPRC
+across splits, on the v3 (ADR 0010, 15 policy kinds, 2 withheld), v4 (same
+data, \texttt{privilege\_escalation} render fix), and v5 (ADR 0011, 30
+kinds, 4 withheld) generators. Last column: an 8B LoRA on the unchanged v4
+data, \texttt{policy\_conflict} only. Source:
+\texttt{docs/results/synthetic-v2/README.md}.}
 \label{tab:policy-generalisation}
-\begin{tabular}{lcccc}
+\begin{tabular}{lcccccccc}
 \toprule
-Split & v3 macro & v3 \texttt{policy\_conflict} & v4 macro & v4 \texttt{policy\_conflict} \\
+Split & v3 macro & v4 macro & v5 macro & v3 pc & v4 pc & v5 pc & 8B v4 pc \\
 \midrule
-test & 0.908 & 0.994 & 0.960 & 0.994 \\
-heldout\_family & 0.914 & 0.941 & 0.960 & 0.964 \\
-heldout\_policy\_kind & 0.889 & \textbf{0.653} & 0.944 & \textbf{0.752} \\
-heldout\_policy\_phrasing & 0.921 & 0.987 & 0.968 & 0.993 \\
-\midrule
-v5 (30 kinds, 4 withheld) & \multicolumn{4}{c}{\todo{pending: train-2b-b200-v5-recipe.yaml}} \\
+test & 0.908 & 0.960 & 0.957 & 0.994 & 0.994 & 0.996 & 0.990 \\
+heldout\_family & 0.914 & 0.960 & 0.951 & 0.941 & 0.964 & 0.933 & 0.965 \\
+heldout\_policy\_kind & 0.889 & 0.944 & 0.941 & \textbf{0.653} & \textbf{0.752} & \textbf{0.704} & \textbf{0.851} \\
+heldout\_policy\_phrasing & 0.921 & 0.968 & 0.970 & 0.987 & 0.993 & 0.980 & 0.978 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -39,12 +37,12 @@ v5 (30 kinds, 4 withheld) & \multicolumn{4}{c}{\todo{pending: train-2b-b200-v5-r
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=5.5in]{figures/fig_policy_generalisation.pdf}
-\caption{Decoder 2B, \texttt{policy\_conflict} AUPRC across splits for the v3
-and v4 generators (synthetic data; $n$ per split matches
-Table~\ref{tab:policy-generalisation}), with the rule baseline's
-\texttt{policy\_conflict} AUPRC on each split shown as a line. The v5 slot is
-left blank pending that run. Source:
-\texttt{docs/results/synthetic-v2/decoder-2b-v3/}, \texttt{decoder-2b-v4/}.}
+\caption{Decoder 2B, \texttt{policy\_conflict} AUPRC across splits for the
+v3, v4, and v5 generators, plus the 8B LoRA on v4 data (synthetic data; $n$
+per split matches Table~\ref{tab:policy-generalisation}), with the rule
+baseline's \texttt{policy\_conflict} AUPRC on each split shown as a line.
+Source: \texttt{docs/results/synthetic-v2/decoder-2b-v3/},
+\texttt{decoder-2b-v4/}, \texttt{decoder-2b-v5/}, \texttt{decoder-8b-v4/}.}
 \label{fig:policy-generalisation}
 \end{figure}
 
@@ -52,31 +50,31 @@ Figure~\ref{fig:policy-generalisation} makes the kind-vs-phrasing asymmetry
 visible: bars for test, \texttt{heldout\_family}, and
 \texttt{heldout\_policy\_phrasing} sit close together near the ceiling, while
 \texttt{heldout\_policy\_kind} drops toward, though still above, the rule
-baseline line.
+baseline line, for every generator and both model sizes.
 
-Two very different results. \textbf{Unseen phrasing generalizes.} A
-paraphrase index never seen in training leaves \texttt{policy\_conflict} at
-0.987--0.993 AUPRC, matching the in-distribution test split (0.994): the
-model reads the clause's meaning, not a template id. \textbf{Unseen policy
-kinds do not.} With two of fifteen kinds withheld, \texttt{policy\_conflict}
-drops to 0.653 (v3) / 0.752 (v4) at a 0.32--0.41 rule-baseline floor -- above
-chance but far below every kind seen in training, including under novel
-wording. Every other dimension on this split is unaffected, so the model has
-learned the fifteen kinds it saw, not the general operation of checking a
-predicate against a rendered fact.
+\textbf{Unseen phrasing generalizes.} A paraphrase index never seen in
+training leaves \texttt{policy\_conflict} at 0.980--0.993 AUPRC, matching the
+in-distribution test split (0.990--0.996): the model reads the clause's
+meaning, not a template id. \textbf{Unseen policy kinds do not, even with
+twice as many kinds.} ADR 0011's v5 triples the kind inventory (15 to 30)
+while withholding the same proportion (4 of 30 vs.\ 2 of 15). Result:
+\texttt{policy\_conflict} on \texttt{heldout\_policy\_kind} lands at 0.704
+AUPRC (AUROC 0.773) -- essentially unchanged from v4's 0.752, and inside the
+0.689--0.752 range the same 2B recipe already shows across two training
+seeds (\S\ref{sec:limitations}). More kinds does not fix kind-generalization
+at 2B. The rule baseline on this split is 0.325, so the model is still far
+above chance; it has just not learned the general operation.
+\textbf{Model size helps, partially.} An 8B LoRA on the unchanged v4 data
+reaches 0.851 AUPRC (AUROC 0.916) on the same \texttt{heldout\_policy\_kind}
+\texttt{policy\_conflict} cell -- a real gain over 2B's 0.752 -- but still
+well short of the $\sim$0.98 phrasing-generalization ceiling both sizes
+reach. Capacity recovers some of the missing generalization; it does not
+close the gap.
 
 The v4 fix also confirms \texttt{privilege\_escalation}'s earlier
 AUROC-high/AUPRC-low signature (\S\ref{sec:limitations}) was a data defect,
 not a model limit: rendering the deciding
 \texttt{authority\_before}/\texttt{authority\_after} values lifts it from
 0.505 to 1.000 AUPRC on \texttt{heldout\_family}.
-
-ADR 0011 tests whether more kinds fix kind-generalization: it triples the
-inventory to 30 and withholds only 4 (a smaller fraction than v3/v4's
-2-of-15). A rise toward the phrasing-generalization level ($\sim$0.99) would
-make ``kind'' a learnable unit of generalization; staying in the 0.65--0.75
-band despite more diversity would point to a structural limit needing
-retrieval-plus-entailment rather than more kinds. Pending at submission time
-(Table~\ref{tab:policy-generalisation}, last row).
 
 \FloatBarrier

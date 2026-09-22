@@ -23,6 +23,7 @@ Arm & Split & Macro AUPRC (full) & Macro AUPRC (stripped) \\
 \midrule
 Decoder 2B v2 & heldout\_family & 0.915 & 0.736 \\
 Decoder 2B v4\textsuperscript{a} & heldout\_family & 0.960 & --- \\
+Decoder 8B v4\textsuperscript{a} & heldout\_family & 0.958 & --- \\
 Encoder ModernBERT-large & heldout\_family & 0.813 & 0.712 \\
 Encoder granite-embedding-r2 & heldout\_family & 0.841 & --- \\
 Granite Guardian 3.3 8B (zero-shot) & heldout\_family & 0.257 & 0.271 \\
@@ -32,7 +33,7 @@ Rule baseline & heldout\_family & 0.614 & 0.614 \\
 \bottomrule
 \end{tabular}
 \vskip 1mm
-{\footnotesize\textsuperscript{a}Identity-stripped v4 run \todo{pending: decoder-2b-v4 --strip-identity job}. \textsuperscript{b}Single ALLOW/STOP verdict scored against all eleven labels (\S\ref{sec:selfjudgment}), not a per-dimension classifier.}
+{\footnotesize\textsuperscript{a}Identity-stripped v4 runs (2B and 8B) \todo{pending: decoder-2b-v4 / decoder-8b-v4 --strip-identity jobs, running}. \textsuperscript{b}Single ALLOW/STOP verdict scored against all eleven labels (\S\ref{sec:selfjudgment}), not a per-dimension classifier.}
 \end{table}
 
 Table~\ref{tab:macro-summary}: identity-aware trained models lose

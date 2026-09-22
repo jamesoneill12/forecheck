@@ -58,6 +58,18 @@ thresholds selected on `dev`. Sections marked *pending* are filled in as jobs fi
 | decoder 2B v4 | heldout_family | 0.960 | 0.006 | |
 | decoder 2B v4 | heldout_policy_kind | 0.944 | 0.005 | |
 | decoder 2B v4 | heldout_policy_phrasing | 0.968 | 0.023 | |
+| decoder 2B v4 seed 1 | test | 0.959 | 0.002 | 0.957 |
+| decoder 2B v4 seed 1 | heldout_family | 0.960 | 0.006 | 0.953 |
+| decoder 2B v4 seed 1 | heldout_policy_kind | 0.939 | 0.028 | 0.925 |
+| decoder 2B v4 seed 1 | heldout_policy_phrasing | 0.969 | 0.004 | 0.963 |
+| decoder 8B v4 | test | 0.956 | 0.002 | 0.950 |
+| decoder 8B v4 | heldout_family | 0.958 | 0.005 | 0.948 |
+| decoder 8B v4 | heldout_policy_kind | 0.951 | 0.014 | 0.937 |
+| decoder 8B v4 | heldout_policy_phrasing | 0.964 | 0.005 | 0.955 |
+| decoder 2B v5 | test | 0.957 | 0.003 | 0.953 |
+| decoder 2B v5 | heldout_family | 0.951 | 0.008 | 0.945 |
+| decoder 2B v5 | heldout_policy_kind | 0.941 | 0.029 | 0.923 |
+| decoder 2B v5 | heldout_policy_phrasing | 0.970 | 0.008 | 0.950 |
 | agent self-judgment 2B | heldout_family (n=2000) | 0.227 | 0.299 | |
 | agent self-judgment 2B, identity stripped | heldout_family (n=2000) | 0.227 | 0.217 | |
 | agent self-judgment 8B | heldout_family (n=2000) | 0.242 | 0.276 | |
@@ -339,6 +351,73 @@ heldout_family once `authority_before/after` are rendered. That lifts the v4 mac
 0.960 on test and heldout_family (v2 was 0.918 / 0.915). It also confirms the earlier
 AUROC-high / AUPRC-low signature was a data defect, not a model limit.
 
+## 8B size control (v4, `decoder-8b-v4/`)
+
+Same v4 data and recipe as `decoder-2b-v4`, `granite-3.3-8b-instruct` + LoRA in place of
+the 2B base.
+
+| split | 2B macro AUPRC | 2B ECE | 8B macro AUPRC | 8B ECE | 2B policy_conflict | 8B policy_conflict | 2B insufficient_context | 8B insufficient_context |
+|---|---|---|---|---|---|---|---|---|
+| test | 0.960 | 0.004 | 0.956 | 0.002 | 0.994 | 0.990 | 0.799 | 0.767 |
+| heldout_family | 0.960 | 0.006 | 0.958 | 0.005 | 0.964 | 0.965 | 0.849 | 0.834 |
+| heldout_policy_kind | 0.944 | 0.023 | 0.951 | 0.014 | 0.752 | **0.851** | 0.948 | 0.915 |
+| heldout_policy_phrasing | 0.968 | 0.005 | 0.964 | 0.005 | 0.993 | 0.978 | 0.966 | 0.938 |
+
+Reading: size buys little in distribution. 8B is a hair below 2B on test (0.956 vs 0.960)
+and heldout_family (0.958 vs 0.960) macro AUPRC. The one real gain is
+`heldout_policy_kind` `policy_conflict`: 0.752 to **0.851** AUPRC (AUROC 0.916 vs 0.767).
+Capacity helps unseen-kind generalisation somewhat, but does not close the gap to
+phrasing generalisation: 8B's own `policy_conflict` on `heldout_policy_phrasing` is
+0.978, still well clear of its 0.851 on unseen kinds. Scale is a partial fix for kind
+generalisation, not a substitute for it.
+
+## Does kind generalise with 30 kinds? (v5, `decoder-2b-v5/`)
+
+ADR 0011 triples the policy-kind inventory from 15 to 30 and withholds 4
+(`forbid_cross_tenant_reference`, `forbid_weekend_ops`, `max_records_per_day_quota`,
+`require_data_classification_below`), the same withheld *fraction* as v3/v4's 2-of-15,
+to test whether more kinds make "kind" a learnable unit of generalisation the way
+phrasing already is.
+
+| arm | heldout_policy_kind policy_conflict AUPRC | AUROC |
+|---|---|---|
+| rule baseline (v5 data) | 0.325 | 0.489 |
+| decoder 2B v3 (15 kinds, 2 withheld) | 0.653 | 0.590 |
+| decoder 2B v4 seed 0 (15 kinds, 2 withheld) | 0.752 | 0.767 |
+| decoder 2B v4 seed 1 (15 kinds, 2 withheld) | 0.689 | 0.673 |
+| decoder 2B v5 (30 kinds, 4 withheld) | 0.704 | 0.773 |
+| decoder 8B v4 (15 kinds, 2 withheld) | **0.851** | 0.916 |
+
+Answer: no, honestly. Going from 15 to 30 kinds did not fix unseen-kind generalisation
+at 2B scale: v5's 0.704 sits inside the 0.689-0.752 band the same 2B recipe already
+shows across two training seeds on the old 15-kind data, i.e. it is within seed noise,
+not a real improvement. The model still clears the rule baseline by a wide margin (0.704
+vs 0.325), so it is not doing nothing; it just isn't generalising the *shape* of
+"check predicate against rendered fact" the way it generalises phrasing. Phrasing
+generalisation continues to hold on v5: `policy_conflict` on `heldout_policy_phrasing` is
+0.980, matching the in-distribution ceiling. `heldout_policy_kind` also has the worst
+calibration of any split on v5 (macro ECE 0.029, vs under 0.01 on every other split),
+consistent with the model being unsure rather than confidently wrong on unseen kinds.
+
+## Seed variance (v4, seeds 0 and 1; `decoder-2b-v4/`, `decoder-2b-v4-seed1/`)
+
+| split | seed 0 macro AUPRC | seed 1 macro AUPRC | mean | half-range (n=2) |
+|---|---|---|---|---|
+| test | 0.960 | 0.959 | 0.960 | 0.0004 |
+| heldout_family | 0.960 | 0.960 | 0.960 | 0.0003 |
+| heldout_policy_kind | 0.944 | 0.939 | 0.941 | 0.0028 |
+| heldout_policy_phrasing | 0.968 | 0.969 | 0.969 | 0.0008 |
+
+`policy_conflict` on `heldout_policy_kind`: seed 0 0.752, seed 1 0.689.
+
+n=2, so this is a range, not a distribution; treat the half-ranges above as a lower
+bound on seed variance rather than an estimate of it. Macro AUPRC is stable to about
+0.005 across both seeds on every split. But the `heldout_policy_kind`
+`policy_conflict` cell moves by 0.06 between seeds (0.752 vs 0.689), an order of
+magnitude more than the macro noise floor, so single-seed differences smaller than
+about 0.07 on that specific cell are not meaningful on their own; the v5 comparison
+above already runs into this. Seed 2 is running to narrow this further.
+
 ## Granite Guardian 3.3 8B as a LoRA base: invalid run
 
 `guardian-8b-lora-v3/`: macro AUPRC 0.333 / 0.360, with AUROC **below 0.5** on
@@ -425,10 +504,14 @@ held-out tools and in-distribution test, so the number is stable across the data
 
 ## What is still to land
 
-- Granite-3.3-8B-instruct LoRA on v4 (size control); ModernBERT on v4.
-- v4 seed-1 decoder re-run (seed variance for every v4 number).
-- v5: 30 policy kinds, 4 withheld (ADR 0011). Tests whether unseen kinds generalise once
-  kinds are numerous.
+- decoder 2B v4 seed 2 (third seed, tightens the seed-variance estimate above).
+- Train-time identity-stripped arm (train on v4 data rendered without identity fields,
+  not just eval-time `--strip-identity`); running.
+- Decoder 2B v4, identity-stripped eval (fills the identity-ablation table's v4 cell);
+  running.
+- Agent self-judgment 8B vs. decoder 2B v4 checker comparison; running.
+- decoder 2B v5 seed 1 (seed variance for the 30-kind result); running.
+- LLM-judge labels (real-data probe, class 3).
 
 ## Known data defect: privilege_escalation (affects every v2/v3 number above; fixed in v4)
 

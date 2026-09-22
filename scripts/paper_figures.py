@@ -249,34 +249,30 @@ def fig_policy_generalisation() -> None:
 
     v3 = [get("decoder-2b-v3", s) for s in splits]
     v4 = [get("decoder-2b-v4", s) for s in splits]
+    v5 = [get("decoder-2b-v5", s) for s in splits]
+    b8 = [get("decoder-8b-v4", s) for s in splits]
     rule = [get_rule("decoder-2b-v4", s) for s in splits]
-    v5_dir = RESULTS_DIR / "decoder-2b-v5"
-    has_v5 = v5_dir.exists()
 
     log("=== fig_policy_generalisation ===")
-    for s, a, b, r in zip(splits, v3, v4, rule, strict=True):
-        log(f"  {s}: v3={a:.4f} v4={b:.4f} rule={r:.4f}")
-    log(f"  decoder-2b-v5 present: {has_v5}")
+    for s, a, b, c, d, r in zip(splits, v3, v4, v5, b8, rule, strict=True):
+        log(f"  {s}: v3={a:.4f} v4={b:.4f} v5={c:.4f} 8b_v4={d:.4f} rule={r:.4f}")
 
     with plt.rc_context(RC):
         fig, ax = plt.subplots(figsize=(5.5, 2.6))
-        n_groups = len(splits) + (1 if not has_v5 else 0)
-        x = list(range(n_groups))
-        width = 0.32
-        ax.bar([i - width / 2 for i in x[: len(splits)]], v3, width, label="v3",
+        x = list(range(len(splits)))
+        width = 0.19
+        ax.bar([i - 1.5 * width for i in x], v3, width, label="v3 (2B)",
                color=COLORS["sky_blue"])
-        ax.bar([i + width / 2 for i in x[: len(splits)]], v4, width, label="v4",
+        ax.bar([i - 0.5 * width for i in x], v4, width, label="v4 (2B)",
                color=COLORS["orange"])
-        ax.plot(x[: len(splits)], rule, color=COLORS["black"], marker="o",
+        ax.bar([i + 0.5 * width for i in x], v5, width, label="v5 (2B, 30 kinds)",
+               color=COLORS["bluish_green"])
+        ax.bar([i + 1.5 * width for i in x], b8, width, label="v4 (8B)",
+               color=COLORS["reddish_purple"])
+        ax.plot(x, rule, color=COLORS["black"], marker="o",
                  markersize=3, linewidth=1.0, label="Rule baseline")
-        labels = list(split_labels)
-        if not has_v5:
-            labels.append("v5\n(pending)")
-            ax.axvspan(n_groups - 1 - 0.4, n_groups - 1 + 0.4, color="0.9")
-            ax.text(n_groups - 1, 0.5, "pending", ha="center", va="center",
-                    fontsize=7, rotation=90, color="0.4")
         ax.set_xticks(x)
-        ax.set_xticklabels(labels)
+        ax.set_xticklabels(split_labels)
         ax.set_ylabel("policy_conflict AUPRC")
         ax.set_ylim(0, 1.05)
         ax.legend(loc="lower left", frameon=False, ncol=3)

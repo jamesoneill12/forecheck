@@ -72,23 +72,22 @@ set.
 \begin{table}[tbp]
 \centering
 \small
-\caption{Decoder 2B v2, approval elimination on \texttt{heldout\_family}
-($n{=}6640$), bundle \texttt{balanced}. ``Reweighted'' importance-reweights
-rows so the weighted incident rate equals 5\%, matching a plausible
-deployment rate rather than this adversarial split's own 58\% base rate.
-v4 curves are \todo{pending: decoder-2b-v4 --approval-curve} at submission
-time. Source: \texttt{docs/results/synthetic-v2/README.md},
+\caption{Decoder 2B, approval elimination on \texttt{heldout\_family}
+(v2 $n{=}6640$, v4 $n{=}6653$), bundle \texttt{balanced}. ``raw'' is the
+split's own 57--58\% base incident rate; ``rw'' (reweighted)
+importance-reweights rows so the weighted incident rate equals 5\%, matching
+a plausible deployment rate. Source: \texttt{docs/results/synthetic-v2/README.md},
 \texttt{docs/evaluation/approval-elimination.md}.}
 \label{tab:approval}
-\begin{tabular}{lccc}
+\begin{tabular}{lcccc}
 \toprule
-Budget & Eliminated (unweighted, base 0.58) & Eliminated (reweighted to 5\%) & Review rate (rw) \\
+Budget & Elim.\ (v2, raw) & Elim.\ (v2, rw) & Elim.\ (v4, rw) & Review (v4, rw) \\
 \midrule
-0.1\% & 0.000 & 0.000 & 0.975 \\
-0.5\% & 0.000 & 0.000 & 0.975 \\
-1\% & 0.000 & 0.888 & 0.088 \\
-2\% & 0.000 & 0.961 & 0.017 \\
-5\% & 0.000 & 0.992 & 0.001 \\
+0.1\% & 0.000 & 0.000 & 0.000 & 0.969 \\
+0.5\% & 0.000 & 0.000 & 0.000 & 0.969 \\
+1\% & 0.000 & 0.888 & 0.903 & 0.067 \\
+2\% & 0.000 & 0.961 & 0.952 & 0.021 \\
+5\% & 0.000 & 0.992 & 0.992 & 0.001 \\
 \bottomrule
 \end{tabular}
 \end{table}
