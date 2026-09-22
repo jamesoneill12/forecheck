@@ -72,6 +72,7 @@ class DataConfig(_Strict):
     dev_split: Split = Split.DEV
     max_prompt_tokens: int = Field(default=Limits.MAX_PROMPT_TOKENS, gt=0)
     dimension_weights: dict[RiskDimension, float] = Field(default_factory=dict)
+    strip_identity: bool = False
 
     @model_validator(mode="after")
     def _validate_splits(self) -> DataConfig:

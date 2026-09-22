@@ -50,7 +50,7 @@ _OPTIONAL_PACKAGES: tuple[str, ...] = (
 )
 
 
-def capture_prompt_contract() -> dict[str, Any]:
+def capture_prompt_contract(*, strip_identity: bool = False) -> dict[str, Any]:
     return {
         "version": PROMPT_CONTRACT_VERSION,
         "hash": PROMPT_CONTRACT_HASH,
@@ -58,6 +58,7 @@ def capture_prompt_contract() -> dict[str, Any]:
         "system_preamble": SYSTEM_PREAMBLE,
         "section_order": list(SECTION_ORDER),
         "questions": {dimension.value: text for dimension, text in QUESTIONS.items()},
+        "strip_identity": strip_identity,
     }
 
 
@@ -139,7 +140,12 @@ def write_run_capture(
         json.dumps(data_hashes, indent=2, sort_keys=True), encoding="utf-8"
     )
     (run_dir / "prompt_contract.json").write_text(
-        json.dumps(capture_prompt_contract(), indent=2, sort_keys=True), encoding="utf-8"
+        json.dumps(
+            capture_prompt_contract(strip_identity=config.data.strip_identity),
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
     )
     (run_dir / "env.json").write_text(
         json.dumps(capture_env(repo_dir), indent=2, sort_keys=True), encoding="utf-8"

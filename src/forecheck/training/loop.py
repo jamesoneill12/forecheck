@@ -349,6 +349,7 @@ def run_training(
         shared_prefill=config.train.shared_prefill,
         max_prompt_tokens=config.data.max_prompt_tokens,
         use_chat_template=config.train.use_chat_template,
+        strip_identity=config.data.strip_identity,
     )
     dev_dataset = TrainableExampleDataset(
         dev_examples,
@@ -356,6 +357,7 @@ def run_training(
         shared_prefill=config.train.shared_prefill,
         max_prompt_tokens=config.data.max_prompt_tokens,
         use_chat_template=config.train.use_chat_template,
+        strip_identity=config.data.strip_identity,
     )
 
     steps_per_epoch = max(1, len(train_dataset) // config.optim.micro_batch_size)

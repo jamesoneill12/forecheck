@@ -164,6 +164,60 @@ def test_evaluate_command_guardian_backend_creates_missing_run_dir(
     assert run_dir.exists()
 
 
+def _write_stripped_train_config(run_dir: Path, data_dir: Path) -> None:
+    run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / "config.resolved.yaml").write_text(
+        "model:\n  base_id: test/tiny\n"
+        f"data:\n  dir: {data_dir}\n  strip_identity: true\n"
+        f"output:\n  dir: {run_dir}\n",
+        encoding="utf-8",
+    )
+
+
+def test_evaluate_command_errors_when_run_trained_stripped_but_flag_omitted(
+    tmp_path: Path,
+) -> None:
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    _write_split(data_dir, "dev")
+    _write_split(data_dir, "test")
+    run_dir = tmp_path / "run"
+    _write_stripped_train_config(run_dir, data_dir)
+
+    with pytest.raises(typer.BadParameter, match="strip_identity=true"):
+        evaluate_command(
+            run=run_dir,
+            split="test",
+            evaluation_class=EvaluationClass.SYNTHETIC_IN_DISTRIBUTION,
+            backend="mock",
+            backend_config=None,
+            strip_identity=False,
+            data=data_dir,
+        )
+
+
+def test_evaluate_command_allows_stripped_run_when_flag_passed(tmp_path: Path) -> None:
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    _write_split(data_dir, "dev")
+    _write_split(data_dir, "test")
+    run_dir = tmp_path / "run"
+    _write_stripped_train_config(run_dir, data_dir)
+
+    evaluate_command(
+        run=run_dir,
+        split="test",
+        evaluation_class=EvaluationClass.SYNTHETIC_IN_DISTRIBUTION,
+        backend="mock",
+        backend_config=None,
+        strip_identity=True,
+        data=data_dir,
+    )
+
+    report = json.loads((run_dir / "reports" / "test" / "report.json").read_text())
+    assert report["identity_stripped"] is True
+
+
 def test_evaluate_command_missing_run_dir_raises_for_non_guardian_backend(tmp_path: Path) -> None:
     data_dir = tmp_path / "data"
     data_dir.mkdir()

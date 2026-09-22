@@ -12,6 +12,7 @@ from forecheck.calibration.store import load_bundle
 from forecheck.cli_cmds._common import (
     calibrators_from_bundle,
     load_policy_engine_by_name_or_path,
+    load_resolved_train_config,
     resolve_backend,
     resolve_data_dir,
 )
@@ -45,7 +46,10 @@ def evaluate_command(
         typer.Option(
             "--strip-identity",
             help="Omit principal entitlements, agent delegated scopes, delegation chain "
-            "and policy text from the rendered context (identity ablation).",
+            "and policy text from the rendered context (identity ablation). Required "
+            "when --run was trained with data.strip_identity=true; evaluating such a "
+            "run without this flag raises an error rather than silently feeding it "
+            "context it was never trained on.",
         ),
     ] = False,
     bundle: Annotated[str | None, typer.Option(help="Policy bundle name or path.")] = None,
@@ -125,6 +129,13 @@ def evaluate_command(
         run.mkdir(parents=True, exist_ok=True)
     elif not run.exists():
         raise typer.BadParameter(f"--run {run} does not exist")
+    train_config = load_resolved_train_config(run)
+    if train_config is not None and train_config.data.strip_identity and not strip_identity:
+        raise typer.BadParameter(
+            f"--run {run} was trained with data.strip_identity=true; pass --strip-identity "
+            "to evaluate it on the matching stripped inputs (evaluating it unstripped would "
+            "silently feed the model context it never saw during training)"
+        )
     data_dir = resolve_data_dir(data, run)
     split_path = data_dir / f"{split}.jsonl"
     examples = read_jsonl(split_path)

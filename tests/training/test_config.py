@@ -33,6 +33,16 @@ def test_load_minimal_config_applies_defaults(tmp_path: Path) -> None:
     assert config.optim.scheduler == "cosine"
     assert config.train.shared_prefill is True
     assert config.tracking.backend == "local"
+    assert config.data.strip_identity is False
+
+
+def test_data_strip_identity_overridable_by_dotted_override(tmp_path: Path) -> None:
+    path = tmp_path / "config.yaml"
+    path.write_text(MINIMAL_YAML, encoding="utf-8")
+
+    config = load_config(path, overrides=["data.strip_identity=true"])
+
+    assert config.data.strip_identity is True
 
 
 def test_dotted_overrides_set_nested_fields_with_type_coercion(tmp_path: Path) -> None:

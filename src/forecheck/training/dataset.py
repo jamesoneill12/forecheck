@@ -237,6 +237,7 @@ def encode_example(
     max_prompt_tokens: int = Limits.MAX_PROMPT_TOKENS,
     use_chat_template: bool = False,
     planner: ChatPrefillPlanner | None = None,
+    strip_identity: bool = False,
 ) -> list[EncodedSequence]:
     """Encode one example: one sequence if ``shared_prefill``, else eleven.
 
@@ -249,8 +250,11 @@ def encode_example(
     lets a caller encoding many rows (e.g. :class:`TrainableExampleDataset`) share one
     :class:`~forecheck.inference.chat_template.ChatPrefillPlanner`, which caches the
     sentinel render across rows; a single-use planner is built when omitted.
+    ``strip_identity`` mirrors :func:`forecheck.inference.hf.HFBackend`'s inference-time
+    identity ablation, using the same :func:`~forecheck.inference.serialization.render_context`
+    path, so a model trained with it sees exactly the inputs it will be evaluated on.
     """
-    context_text = render_context(example.context)
+    context_text = render_context(example.context, strip_identity=strip_identity)
     if use_chat_template:
         if shared_prefill:
             shared_planner = planner if planner is not None else ChatPrefillPlanner(tokenizer)
@@ -283,12 +287,14 @@ class TrainableExampleDataset:
         shared_prefill: bool = True,
         max_prompt_tokens: int = Limits.MAX_PROMPT_TOKENS,
         use_chat_template: bool = False,
+        strip_identity: bool = False,
     ) -> None:
         self._examples = examples
         self._tokenizer = tokenizer
         self._shared_prefill = shared_prefill
         self._max_prompt_tokens = max_prompt_tokens
         self._use_chat_template = use_chat_template
+        self._strip_identity = strip_identity
         self._planner = ChatPrefillPlanner(tokenizer) if use_chat_template else None
         self._cache: dict[int, list[EncodedSequence]] = {}
 
@@ -306,6 +312,7 @@ class TrainableExampleDataset:
             max_prompt_tokens=self._max_prompt_tokens,
             use_chat_template=self._use_chat_template,
             planner=self._planner,
+            strip_identity=self._strip_identity,
         )
         self._cache[index] = encoded
         return encoded

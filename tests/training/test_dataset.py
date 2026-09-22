@@ -4,7 +4,16 @@ from pathlib import Path
 
 import pytest
 
-from forecheck.contracts import LabelValue, RiskDimension, Split, UsageRestriction
+from forecheck.contracts import (
+    AgentIdentity,
+    Example,
+    LabelValue,
+    PolicyStatement,
+    Principal,
+    RiskDimension,
+    Split,
+    UsageRestriction,
+)
 from forecheck.data.io import write_jsonl
 from forecheck.training.dataset import (
     CONTEXT_BLOCK_ID,
@@ -15,6 +24,24 @@ from forecheck.training.dataset import (
     load_examples,
 )
 from tests.training.conftest import FakeChatTokenizer, FakeTokenizer, make_training_example
+
+
+def _make_identity_example(example_id: str = "ex-1") -> Example:
+    """A training example whose context carries entitlements, delegated scopes,
+    a delegation chain and policy text -- everything ``strip_identity`` should omit."""
+    example = make_training_example(example_id)
+    context = example.context.model_copy(
+        update={
+            "principal": Principal(id="user-1", entitlements=["billing:refund:<=500"]),
+            "agent": AgentIdentity(
+                id="agent-1", delegated_scopes=["billing:refund"], on_behalf_of="delegator-99"
+            ),
+            "policies": [
+                PolicyStatement(id="pol-1", text="Refunds over $500 require manager approval.")
+            ],
+        }
+    )
+    return example.model_copy(update={"context": context})
 
 
 def test_dimension_order_covers_every_risk_dimension() -> None:
@@ -227,3 +254,57 @@ def test_naive_chat_template_is_unaffected_by_the_same_unstable_boundary() -> No
     )
 
     assert len(sequences) == 11
+
+
+def _has_token(tokenizer: FakeTokenizer, sequence_ids: tuple[int, ...], word: str) -> bool:
+    token_id = tokenizer.encode(word, add_special_tokens=False)[0]
+    return token_id in sequence_ids
+
+
+def test_encode_example_strip_identity_true_omits_entitlements_scopes_and_policy_text(
+    fake_tokenizer: FakeTokenizer,
+) -> None:
+    example = _make_identity_example()
+
+    sequence = encode_example(example, fake_tokenizer, shared_prefill=True, strip_identity=True)[0]
+
+    assert not _has_token(fake_tokenizer, sequence.input_ids, "billing:refund:&lt;=500")
+    assert not _has_token(fake_tokenizer, sequence.input_ids, "billing:refund")
+    assert not _has_token(fake_tokenizer, sequence.input_ids, "delegator-99")
+    assert not _has_token(fake_tokenizer, sequence.input_ids, "approval.")
+
+
+def test_encode_example_strip_identity_false_includes_entitlements_scopes_and_policy_text(
+    fake_tokenizer: FakeTokenizer,
+) -> None:
+    example = _make_identity_example()
+
+    sequence = encode_example(example, fake_tokenizer, shared_prefill=True, strip_identity=False)[0]
+
+    assert _has_token(fake_tokenizer, sequence.input_ids, "billing:refund:&lt;=500")
+    assert _has_token(fake_tokenizer, sequence.input_ids, "billing:refund")
+    assert _has_token(fake_tokenizer, sequence.input_ids, "delegator-99")
+    assert _has_token(fake_tokenizer, sequence.input_ids, "approval.")
+
+
+def test_encode_example_strip_identity_defaults_to_false(fake_tokenizer: FakeTokenizer) -> None:
+    example = _make_identity_example()
+
+    default_sequence = encode_example(example, fake_tokenizer, shared_prefill=True)[0]
+    explicit_sequence = encode_example(
+        example, FakeTokenizer(), shared_prefill=True, strip_identity=False
+    )[0]
+
+    assert default_sequence.input_ids == explicit_sequence.input_ids
+
+
+def test_trainable_example_dataset_threads_strip_identity(fake_tokenizer: FakeTokenizer) -> None:
+    example = _make_identity_example()
+    stripped_dataset = TrainableExampleDataset([example], fake_tokenizer, strip_identity=True)
+    full_dataset = TrainableExampleDataset([example], FakeTokenizer(), strip_identity=False)
+
+    stripped_sequence = stripped_dataset[0][0]
+    full_sequence = full_dataset[0][0]
+
+    assert not _has_token(fake_tokenizer, stripped_sequence.input_ids, "approval.")
+    assert _has_token(full_dataset._tokenizer, full_sequence.input_ids, "approval.")

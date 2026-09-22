@@ -42,13 +42,24 @@ __all__ = [
 
 
 def load_resolved_train_config(run: Path) -> TrainConfig | None:
+    """Load ``<run>/config.resolved.yaml`` as a decoder :class:`TrainConfig`, if present.
+
+    Returns ``None`` both when the file is absent and when it does not parse as a
+    decoder ``TrainConfig`` (e.g. an encoder run's config), since callers use this to
+    opportunistically inspect a decoder run rather than to assert its shape.
+    """
     path = run / "config.resolved.yaml"
     if not path.exists():
         return None
+    from pydantic import ValidationError
+
     from forecheck.training.config import TrainConfig
 
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
-    return TrainConfig.model_validate(raw)
+    try:
+        return TrainConfig.model_validate(raw)
+    except ValidationError:
+        return None
 
 
 def _latest_checkpoint_adapter(run: Path) -> Path | None:

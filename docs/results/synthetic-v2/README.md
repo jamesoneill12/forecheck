@@ -396,7 +396,7 @@ pooling plus a linear head cannot compute "is set B a superset of set A"; the de
 `policy_conflict` is unchanged at 0.43. The encoder arm is now clearly bounded on the
 relational dimensions and stays as the cheap-latency baseline only.
 
-## Approval elimination on real probabilities (decoder 2B v2, `decoder-2b/*-approval-report.md`)
+## Approval elimination on real probabilities (decoder 2B v2 and v4, `decoder-2b*/*-approval-report.md`)
 
 Bundle `balanced`, held-out tools, n=6,640. The split's own incident base rate is 0.58
 (58% of held-out rows have at least one positive dimension the bundle covers), which is an
@@ -405,13 +405,13 @@ unweighted, and importance-reweighted to a stated deployment incident rate of 5%
 Wilson 95% upper bound on the realised incident rate (conservative; see
 `docs/evaluation/approval-elimination.md`).
 
-| budget | eliminated (unweighted, base 0.58) | eliminated (reweighted to 5%) | review rate (rw) | deny rate (rw) |
-|---|---|---|---|---|
-| 0.1% | 0.000 | 0.000 | 0.975 | 0.025 |
-| 0.5% | 0.000 | 0.000 | 0.975 | 0.025 |
-| 1% | 0.000 | **0.888** | 0.088 | 0.025 |
-| 2% | 0.000 | **0.961** | 0.017 | 0.021 |
-| 5% | 0.000 | 0.992 | 0.001 | 0.007 |
+| budget | v2 unweighted (base 0.58) | v2 reweighted to 5% | v4 reweighted to 5% | v4 test, reweighted | review rate (v4 rw) |
+|---|---|---|---|---|---|
+| 0.1% | 0.000 | 0.000 | 0.000 | 0.000 | 0.969 |
+| 0.5% | 0.000 | 0.000 | 0.000 | 0.000 | 0.969 |
+| 1% | 0.000 | **0.888** | **0.903** | 0.909 | 0.067 |
+| 2% | 0.000 | **0.961** | **0.952** | 0.959 | 0.021 |
+| 5% | 0.000 | 0.992 | 0.992 | 0.990 | 0.001 |
 
 Reading: in a deployment where 5% of sensitive actions are actually risky and every one
 today goes to a human, the calibrated v2 decoder auto-allows 89% of them while keeping the
@@ -420,11 +420,12 @@ Below 1% the Wilson bound cannot be met at the effective sample size, so the con
 curve reports zero; the point-estimate ("prefix") mode is available for that regime but is
 dominated by single rows. The unweighted column is near zero because the first-ranked
 rows on this adversarial split already contain risky examples; it is the ceiling of the
-split, not of the model. v4 curves are running.
+split, not of the model. v4 matches v2 within a point at every budget, on both
+held-out tools and in-distribution test, so the number is stable across the data fix.
 
 ## What is still to land
 
-- v4 decoder approval curves; Granite-3.3-8B-instruct LoRA on v4 (size control).
+- Granite-3.3-8B-instruct LoRA on v4 (size control); ModernBERT on v4.
 - v4 seed-1 decoder re-run (seed variance for every v4 number).
 - v5: 30 policy kinds, 4 withheld (ADR 0011). Tests whether unseen kinds generalise once
   kinds are numerous.

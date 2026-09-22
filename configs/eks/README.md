@@ -57,6 +57,18 @@ dataset -- they guard on `/opt/ml/fsx/forecheck/data/v2/train.jsonl` already exi
 (run `train-2b-b200-recipe.yaml` or `forecheck data generate`/`split` first if it does
 not) and train/calibrate/evaluate the encoder config against it.
 
+`configs/eks/train-2b-b200-v4-noid-recipe.yaml` is the training-time half of the
+identity ablation: it LoRA-trains on `/opt/ml/fsx/forecheck/data/v4` with
+`data.strip_identity=true` and evaluates every split with `--strip-identity`, so the
+run at `/opt/ml/fsx/forecheck/runs/2b-synthetic-v4-noid` never sees identity context at
+either stage -- unlike `eval-identity-ablation-v2-b200-recipe.yaml`, which only strips
+context from an already-trained model at inference. It guards on
+`/opt/ml/fsx/forecheck/data/v4/train.jsonl` already existing:
+
+```bash
+ai-infra eks submit-job /tmp/forecheck-job --recipe configs/eks/train-2b-b200-v4-noid-recipe.yaml --name forecheck-train-2b-v4-noid --gpu-type B200 --instance-type ml.p6-b200.48xlarge --az us-east-2a --gpus-per-pod 1 --cpus-per-pod 2 --memory-per-pod 60 --efas 0 --region us-east-2 --cluster eks-fsdp-cluster --fsx-id fs-0979a8395b825c774 --follow-logs
+```
+
 Job names are prefixed with your username by ai-infra and limited to 63 characters.
 
 ## What the recipe does

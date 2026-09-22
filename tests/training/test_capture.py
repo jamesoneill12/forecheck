@@ -25,6 +25,13 @@ def test_capture_prompt_contract_matches_the_live_hash() -> None:
 
     assert captured["hash"] == PROMPT_CONTRACT_HASH
     assert set(captured["questions"]) == {d.value for d in QUESTIONS}
+    assert captured["strip_identity"] is False
+
+
+def test_capture_prompt_contract_records_strip_identity() -> None:
+    captured = capture_prompt_contract(strip_identity=True)
+
+    assert captured["strip_identity"] is True
 
 
 def test_git_info_returns_a_well_typed_result() -> None:
@@ -84,8 +91,29 @@ def test_write_run_capture_writes_all_expected_files(tmp_path: Path) -> None:
     assert set(data_hashes) == {"train", "dev"}
     prompt_contract = json.loads((run_dir / "prompt_contract.json").read_text(encoding="utf-8"))
     assert prompt_contract["hash"] == PROMPT_CONTRACT_HASH
+    assert prompt_contract["strip_identity"] is False
     env = json.loads((run_dir / "env.json").read_text(encoding="utf-8"))
     assert "python_version" in env
+
+
+def test_write_run_capture_records_strip_identity_true(tmp_path: Path) -> None:
+    data_dir = tmp_path / "data"
+    example = make_training_example("ex-1")
+    write_jsonl(data_dir / "train.jsonl", [example])
+    write_jsonl(data_dir / "dev.jsonl", [example])
+    run_dir = tmp_path / "run"
+    config = TrainConfig(
+        model=ModelConfig(base_id="test/tiny"),
+        data=DataConfig(dir=data_dir, strip_identity=True),
+        output=OutputConfig(dir=run_dir),
+    )
+
+    write_run_capture(run_dir, config)
+
+    resolved = yaml.safe_load((run_dir / "config.resolved.yaml").read_text(encoding="utf-8"))
+    assert resolved["data"]["strip_identity"] is True
+    prompt_contract = json.loads((run_dir / "prompt_contract.json").read_text(encoding="utf-8"))
+    assert prompt_contract["strip_identity"] is True
 
 
 def test_write_checkpoint_manifest(tmp_path: Path) -> None:
