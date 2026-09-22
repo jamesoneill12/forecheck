@@ -32,7 +32,11 @@ and show that composing several such classifiers' decisions -- how
 guardrail stacks are deployed in practice -- fails in a specific, fixable
 way: per-policy thresholding compounds toward denying everything as more
 policies are added, while deciding from the joint calibrated probability
-vector does not.
+vector does not. On AgentDojo banking traces we did not generate, zero-shot,
+the 8B checker reaches 0.80 AUPRC on prompt-injection influence against a
+0.15 base rate and the 2B checker reaches 0.85 AUPRC on policy conflict
+against a 0.24 base rate, both against rule baselines at or near base rate,
+while the 2B checker fails outright on injection.
 
 \textbf{Contributions.} (1) An identity-ablation diagnostic separating
 which of eleven risk dimensions need delegated-authority context from
@@ -49,8 +53,12 @@ checker can (\S\ref{sec:selfjudgment}); and (6) an independent blind-judge
 check of whether the generator's labels are recoverable from the rendered
 text at all, which confirms the identity-ablation result on two of its three
 load-bearing dimensions and flags the third as unvalidated
-(\S\ref{sec:labelvalidity}). Every number here is on synthetic
-data from forecheck's own scenario generator; \S\ref{sec:limitations}
+(\S\ref{sec:labelvalidity}); (7) a zero-shot transfer result on
+AgentDojo, a published external benchmark, showing the policy-conflict and
+prompt-injection results transfer to agent traces and policies forecheck
+never saw, while unauthorized-scope does not and calibration does not
+(\S\ref{sec:external}). Every number here except \S\ref{sec:external} is on
+synthetic data from forecheck's own scenario generator; \S\ref{sec:limitations}
 states plainly what that does and does not license.
 
 \FloatBarrier

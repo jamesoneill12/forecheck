@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_DIR = REPO_ROOT / "docs" / "results" / "synthetic-v2"
 JUDGE_README = REPO_ROOT / "docs" / "results" / "judge" / "README.md"
+AGENTDOJO_DIR = REPO_ROOT / "docs" / "results" / "agentdojo"
 FIGURES_DIR = REPO_ROOT / "paper" / "figures"
 
 COLORS = {
@@ -577,6 +578,48 @@ def fig_judge_agreement() -> None:
         savefig(fig, "fig_judge_agreement.pdf")
 
 
+def fig_agentdojo() -> None:
+    dims = ["prompt_injection_influence", "unauthorized_scope", "policy_conflict"]
+    arms = [
+        ("rule-baseline-report.md", "Rule baseline", COLORS["bluish_green"]),
+        ("decoder-2b-v4-report.md", "Decoder 2B v4", COLORS["blue"]),
+        ("decoder-2b-v4-strip-report.md", "2B v4, eval-stripped", COLORS["vermillion"]),
+        ("decoder-8b-v4-report.md", "Decoder 8B v4", COLORS["reddish_purple"]),
+    ]
+    tables = {name: parse_dimension_table(AGENTDOJO_DIR / name) for name, _, _ in arms}
+    pos_rate = [tables["rule-baseline-report.md"][d]["positive_rate"] for d in dims]
+
+    log("=== fig_agentdojo ===")
+    for name, label, _ in arms:
+        vals = {d: tables[name][d]["auprc"] for d in dims}
+        log(f"  {label}: {vals}")
+
+    with plt.rc_context(RC):
+        fig, ax = plt.subplots(figsize=(5.5, 2.8))
+        x = list(range(len(dims)))
+        n = len(arms)
+        width = 0.8 / n
+        offsets = [(-((n - 1) / 2) + i) * width for i in range(n)]
+        for (name, label, color), off in zip(arms, offsets, strict=True):
+            vals = [tables[name][d]["auprc"] for d in dims]
+            ax.bar([i + off for i in x], vals, width, label=label, color=color)
+        for i, p in enumerate(pos_rate):
+            ax.plot(
+                [i - 0.4, i + 0.4],
+                [p, p],
+                linestyle="--",
+                color=COLORS["black"],
+                linewidth=0.8,
+                label="Positive rate (chance)" if i == 0 else None,
+            )
+        ax.set_xticks(x)
+        ax.set_xticklabels([DIM_SHORT[d].replace("\n", " ") for d in dims])
+        ax.set_ylabel("AUPRC")
+        ax.set_ylim(0, 1.05)
+        ax.legend(loc="upper center", ncol=3, bbox_to_anchor=(0.5, 1.35), frameon=False)
+        savefig(fig, "fig_agentdojo.pdf")
+
+
 def main() -> None:
     fig_identity_ablation()
     fig_policy_generalisation()
@@ -584,6 +627,7 @@ def main() -> None:
     fig_approval_curve()
     fig_self_judgment()
     fig_judge_agreement()
+    fig_agentdojo()
 
 
 if __name__ == "__main__":

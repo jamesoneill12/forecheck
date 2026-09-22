@@ -59,7 +59,12 @@ probabilities rather than independent thresholds. An independent blind LLM
 judge, shown only the rendered text, confirms two of the three dimensions
 the identity-ablation result rests on (policy-conflict, unauthorized-scope)
 and finds the third (insufficient-context) unrecoverable from the text at
-all, which we report as an open validity gap. All results are on
+all, which we report as an open validity gap. On AgentDojo banking traces we
+did not generate, zero-shot, the 8B checker reaches 0.80 AUPRC on
+prompt-injection influence against a 0.15 base rate and the 2B checker
+reaches 0.85 AUPRC on policy conflict against a 0.24 base rate, both against
+rule baselines at or near base rate, while the 2B checker fails outright on
+injection. All results are on
 synthetic data; we are explicit about what that does and does not license.
 \end{abstract}
 
@@ -70,6 +75,7 @@ synthetic data; we are explicit about what that does and does not license.
 \input{sections/composition}
 \input{sections/selfjudgment}
 \input{sections/labelvalidity}
+\input{sections/external}
 \input{sections/related}
 \input{sections/limitations}
 \input{sections/conclusion}

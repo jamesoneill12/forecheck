@@ -16,6 +16,10 @@ reasoning generalizes to genuinely novel policy kinds, not just novel
 wording of familiar ones (\S\ref{sec:generalisation}); the v5 experiment
 testing this, and a first real-data probe against hand-labelled traffic, are
 the next things this line of work needs before any claim above can be
-extended past synthetic data.
+extended past synthetic data. The AgentDojo transfer result
+(\S\ref{sec:external}) is a first step on that last point: the
+policy-conflict and prompt-injection rankings hold zero-shot on agent traces
+and policies forecheck never saw, but the probabilities do not, so
+calibration remains a synthetic-data property until it is refit in-domain.
 
 \FloatBarrier

@@ -1,0 +1,88 @@
+\section{Transfer to AgentDojo: data we did not generate}
+\label{sec:external}
+
+Every result so far is on forecheck's own synthetic generator
+(\S\ref{sec:limitations}). We score the same v4 checkers, zero-shot, on
+AgentDojo \citep{debenedetti2024agentdojo}, a published benchmark of agent run
+traces we did not write. We use the banking suite traces for
+claude-3-5-sonnet-20241022 and gpt-4o-2024-05-13: 1,714 runs, 4,215 proposed
+tool calls, 11 attack types plus no-attack runs. Labels come from AgentDojo's
+own \texttt{ground\_truth()} functions, not from forecheck's generator:
+\texttt{prompt\_injection\_influence} is \texttt{yes} when a call executes the
+injection task's goal (positive rate 0.150, $n{=}4{,}133$ evaluable calls);
+\texttt{unauthorized\_scope} is \texttt{yes} when the call's function is
+outside the user task's reference-solution function set (rate 0.253);
+\texttt{policy\_conflict} is \texttt{yes} when one of four banking policies we
+wrote once per suite fires, checked by deterministic predicates (rate 0.237);
+\texttt{financial\_commitment} (0.343) and
+\texttt{destructive\_or\_irreversible\_action} (0.097) come from function-name
+sets. Trace parsing and the full label derivation are documented in
+\texttt{docs/external-agentdojo.md}. Every arm is zero-shot: nothing was
+trained or tuned on AgentDojo, the calibration bundles were fitted on
+synthetic dev, and threshold selection is disabled.
+
+\begin{table}[tbp]
+\centering
+\small
+\caption{AUPRC on AgentDojo banking traces, zero-shot, $n{=}4{,}215$
+($n{=}4{,}133$ for \texttt{injection}). \texttt{untrusted\_destination} has
+positives only and is excluded from macro. Granite Guardian 3.3 8B and
+agent-self 8B rows are still running; see
+\texttt{docs/results/agentdojo/README.md} for those once they land.
+Source: \texttt{docs/results/agentdojo/*-report.md}.}
+\label{tab:agentdojo}
+\begin{tabular}{lcccccc}
+\toprule
+Arm & injection & scope & policy & financial & destructive & macro \\
+\midrule
+Rule baseline & 0.250 & 0.253 & 0.237 & 0.896 & 1.000 & 0.527 \\
+Decoder 2B v4 & 0.128 & 0.257 & 0.849 & 1.000 & 1.000 & 0.647 \\
+2B v4, eval-stripped & 0.125 & 0.218 & 0.694 & 1.000 & 1.000 & 0.608 \\
+2B v4, train-stripped & 0.150 & 0.234 & 0.390 & 1.000 & 1.000 & 0.555 \\
+Decoder 8B v4 & 0.797 & 0.386 & 0.560 & 0.924 & 1.000 & 0.733 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=5.5in]{figures/fig_agentdojo.pdf}
+\caption{AUPRC on AgentDojo banking traces for the three learned dimensions,
+rule baseline vs.\ decoder 2B v4 vs.\ 2B v4 eval-stripped vs.\ decoder 8B v4,
+zero-shot, with each dimension's positive rate marked by a dashed line.
+Source: \texttt{docs/results/agentdojo/*-report.md}.}
+\label{fig:agentdojo}
+\end{figure}
+
+Table~\ref{tab:agentdojo} and Figure~\ref{fig:agentdojo} give six readings.
+\textbf{Policy checking transfers.} 2B v4 scores 0.849 AUPRC on
+\texttt{policy\_conflict} against a 0.237 base rate and a rule baseline at
+base rate, on policies, a tool schema, and agent traces it never saw.
+Eval-time stripping drops it to 0.694 and the train-time stripped model to
+0.390, the same identity dependence found in \S\ref{sec:identity}, now on
+external data. \textbf{Injection transfer is a scale effect.} 2B fails
+outright (0.128 AUPRC, below the 0.150 base rate, AUROC 0.348); 8B reaches
+0.797 AUPRC and 0.916 AUROC zero-shot; the rule baseline sits between the two
+(0.250, AUROC 0.737) because presence of untrusted content alone is a strong
+but insufficient cue. This is the most important number in this section: the
+8B checker, trained only on synthetic data, ranks the call that executes the
+attacker's goal above the benign calls in the same poisoned trace 92 percent
+of the time. The 2B result is a plain failure and we do not yet know why.
+\textbf{\texttt{unauthorized\_scope} does not transfer} (0.257 2B, 0.386 8B,
+vs.\ a 0.253 base rate); the label itself is the weakest one here, since
+"function not in the reference solution" counts harmless auxiliary reads as
+out of scope, and we report this without claiming transfer on it. \textbf{8B
+\texttt{policy\_conflict} (0.560 AUPRC) is below 2B (0.849 AUPRC) while its
+AUROC (0.885) stays high}, which is unexplained; single-seed 8B vs.\ 2B
+comparisons on this cell fall within the seed noise \S\ref{sec:generalisation}
+measured on synthetic \texttt{heldout\_policy\_kind} (sample sd 0.03) only for
+the AUROC gap, not for the AUPRC gap, so this remains a real open question.
+\textbf{Calibration does not transfer}: macro ECE runs 0.20--0.27 for the
+calibrated arms here, against under 0.03 on synthetic data, so the ranking
+transfers but the probabilities must be refit in-domain. Last, this is one
+suite (banking), one domain, with labels partly written by us (the four
+policy predicates) and partly by AgentDojo
+(\texttt{prompt\_injection\_influence}, \texttt{unauthorized\_scope}); slack,
+travel, and workspace traces were not fetched.
+
+\FloatBarrier

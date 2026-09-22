@@ -59,6 +59,16 @@ not solve it. The supportable claim today is "one model, policies of a kind
 seen in training (or with enough capacity to partially generalize), any
 phrasing" -- not "arbitrary new policy kinds."
 
+\textbf{External result is one suite, partly self-written labels.} The
+AgentDojo transfer result (\S\ref{sec:external}) covers a single suite
+(banking), a single domain, and labels that are partly written by us (the
+four policy predicates) and partly by AgentDojo
+(\texttt{prompt\_injection\_influence}, \texttt{unauthorized\_scope}); slack,
+travel, and workspace traces exist in AgentDojo but were not fetched.
+Calibration did not transfer at all: macro ECE runs 0.20--0.27 on AgentDojo
+against under 0.03 on synthetic data, so only the ranking, not the
+probabilities, generalizes to this external distribution.
+
 \textbf{Other caveats.} A single generator family (English, template
 renderer) produces every example. The \S\ref{sec:composition} cost table is
 the default severity tier, not tuned to any organization. Generator seed
