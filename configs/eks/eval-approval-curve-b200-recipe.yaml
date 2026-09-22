@@ -13,8 +13,8 @@ trainer:
     pip install -q --no-cache-dir -e ".[train]" &&
     for v in v2 v4; do
     test -d /opt/ml/fsx/forecheck/runs/2b-synthetic-$v/calibration &&
-    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-$v --split heldout_family --class synthetic_heldout_adversarial --approval-curve balanced --out /opt/ml/fsx/forecheck/runs/2b-synthetic-$v/reports/heldout_family-approval &&
-    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-$v --split test --class synthetic_in_distribution --approval-curve balanced --out /opt/ml/fsx/forecheck/runs/2b-synthetic-$v/reports/test-approval;
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-$v --split heldout_family --class synthetic_heldout_adversarial --approval-curve balanced --approval-target-base-rate 0.05 --approval-incident-rate-mode smoothed --out /opt/ml/fsx/forecheck/runs/2b-synthetic-$v/reports/heldout_family-approval &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-$v --split test --class synthetic_in_distribution --approval-curve balanced --approval-target-base-rate 0.05 --approval-incident-rate-mode smoothed --out /opt/ml/fsx/forecheck/runs/2b-synthetic-$v/reports/test-approval;
     done'
 
   env_vars:

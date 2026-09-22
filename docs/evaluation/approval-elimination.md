@@ -130,28 +130,67 @@ ground-truth or calibration-confidence machinery:
   counterfactual re-evaluation this layer does not have. This is a simplification, not
   an equivalence.
 * **Curve and operating points.** Sort examples ascending by score. For allow-set size
-  `k`, `incident_rate(k)` is the fraction of the `k` lowest-score examples that are
-  risky; `allow_fraction(k) = k / n`. The curve is one `(allow_fraction, incident_rate)`
-  point per `k = 1..n`. For each budget `b`, the operating point takes the largest `k`
-  with `incident_rate(k) <= b` (0 if none exists) as `approvals_eliminated`; examples
-  outside that allow-set keep the bundle's own `DENY` decision (`engine.evaluate`),
-  and everything else counts as `review_fraction`.
+  `k`, `incident_rate(k)` is computed from the `k` lowest-score examples per
+  `--approval-incident-rate-mode` (below); `allow_fraction(k) = k / n` (or the weighted
+  equivalent when `--approval-target-base-rate` is set). The curve is one
+  `(allow_fraction, incident_rate)` point per `k = 1..n`. For each budget `b`, the
+  operating point takes the largest `k` with `incident_rate(k) <= b` (0 if none exists)
+  as `approvals_eliminated`; examples outside that allow-set keep the bundle's own
+  `DENY` decision (`engine.evaluate`), and everything else counts as `review_fraction`.
 * **Not implemented from §3's contract:** `AUEC`, bootstrap CIs on curve points, and
   the `evaluation_class` synthetic-disclaimer line (the caller's `EvaluationReport`
   already carries and prints that disclaimer once for the whole report).
 
+### Incident-rate definition: `--approval-incident-rate-mode`
+
+The real heldout-family run (`docs/results/synthetic-v2/decoder-2b/heldout_family-approval-report.md`,
+"Approval elimination") has a base incident rate of 0.58 because that split is
+adversarial-heavy; at small budgets the allow-set prefix is only a handful of examples,
+so a single low-scored risky row can push `incident_rate(k)` far above the point
+estimate a larger sample would show, flattening the curve near zero elimination.
+`--approval-incident-rate-mode` picks how `incident_rate(k)` is defined:
+
+* `prefix` (default): the point estimate, `risky_in_prefix / k` — matches the original
+  implementation, exact but dominated by small-`k` noise.
+* `smoothed`: the upper bound of a 95% Wilson score interval around that same point
+  estimate (using a Kish effective sample size when rows are reweighted, so it composes
+  with `--approval-target-base-rate`). This is always `>=` the `prefix` estimate, so a
+  `smoothed`-mode operating point's `approvals_eliminated` at a given budget never
+  exceeds the `prefix`-mode value at the same budget — conservative rather than
+  optimistic when the prefix is small, without letting one row zero out the whole
+  budget sweep the way a raw point estimate can.
+
+### Deployment-rate reweighting: `--approval-target-base-rate`
+
+The evaluated split's base incident rate is a property of how the split was
+constructed (e.g. 0.58 on the adversarial-heavy heldout-family split above), not
+necessarily the rate forecheck will see in production. `--approval-target-base-rate
+<rate>` (0 < rate < 1) importance-reweights rows so the *weighted* base incident rate
+equals `<rate>`: risky rows get weight `w_r = rate * n / n_risky`, benign rows get
+`w_b = (1 - rate) * n / n_benign`, chosen so `w_r * n_risky + w_b * n_benign == n`
+(weights sum to `n`, matching the unweighted case). Every fraction in the curve and
+operating points (`approvals_eliminated`, `incident_rate`, `review_fraction`,
+`deny_fraction`) is then a weighted fraction. The report records `target_base_rate`,
+the achieved `effective_base_rate` (equal to the target when both classes are
+present), and the per-row `weights`, and prints both an "Unweighted" and a
+"Reweighted" operating-point table. Off (unweighted) by default; raises if the split
+is single-class (target unreachable).
+
 ### How to run
 
 ```
-forecheck evaluate --run <run-dir> --split <split> --class <evaluation_class> --approval-curve balanced
+forecheck evaluate --run <run-dir> --split <split> --class <evaluation_class> --approval-curve balanced \
+  --approval-target-base-rate 0.05 --approval-incident-rate-mode smoothed
 ```
 
 `--approval-curve` accepts a built-in bundle name (`balanced`, `conservative`,
 `permissive`, ...) or a path to a bundle YAML; it is independent of `--bundle`
-(the bundle used for `decisions`/`stacking`) and off by default. The result is
-written to `report.json` under `approval_elimination` and rendered as an "Approval
-elimination" section in `report.md`. It is pure post-processing over scores the run
-already computed, so it is cheap to add to an existing `forecheck evaluate` command.
+(the bundle used for `decisions`/`stacking`) and off by default.
+`--approval-target-base-rate` and `--approval-incident-rate-mode` only take effect when
+`--approval-curve` is set. The result is written to `report.json` under
+`approval_elimination` and rendered as an "Approval elimination" section in
+`report.md`. It is pure post-processing over scores the run already computed, so it is
+cheap to add to an existing `forecheck evaluate` command.
 
 ## 5. Open questions (left as TODO, not blocking)
 

@@ -16,6 +16,7 @@ from forecheck.cli_cmds._common import (
     resolve_data_dir,
 )
 from forecheck.data.io import read_jsonl, sha256_file
+from forecheck.evaluation.approval_curve import IncidentRateMode
 from forecheck.evaluation.report import EvaluationClass
 from forecheck.evaluation.runner import evaluate
 from forecheck.evaluation.score_cache import load_raw_scores, save_raw_scores, score_cache_path
@@ -102,6 +103,22 @@ def evaluate_command(
             "curve against (docs/evaluation/approval-elimination.md). Off by default.",
         ),
     ] = None,
+    approval_target_base_rate: Annotated[
+        float | None,
+        typer.Option(
+            "--approval-target-base-rate",
+            help="Importance-reweight the approval-elimination curve to this deployment "
+            "incident rate (0 < rate < 1). Off (unweighted) by default.",
+        ),
+    ] = None,
+    approval_incident_rate_mode: Annotated[
+        IncidentRateMode,
+        typer.Option(
+            "--approval-incident-rate-mode",
+            help="Approval-elimination incident-rate definition: 'prefix' (point estimate) "
+            "or 'smoothed' (95% Wilson upper bound, robust to a single low-scored risky row).",
+        ),
+    ] = IncidentRateMode.PREFIX,
 ) -> None:
     """Score ``split`` with ``backend``, apply any fitted calibration, and write reports."""
     if backend in ("guardian", "agent_self"):
@@ -190,6 +207,8 @@ def evaluate_command(
             stacking_bundles=stack_bundles,
             stacking_synthetic=stacking_synthetic,
             approval_curve_engine=approval_curve_engine,
+            approval_target_base_rate=approval_target_base_rate,
+            approval_incident_rate_mode=approval_incident_rate_mode,
         )
         if backend == "agent_self" and dump_n:
             from forecheck.inference.agent_self import AgentSelfBackend

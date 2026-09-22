@@ -38,7 +38,11 @@ from forecheck.contracts import (
 from forecheck.evaluation import consistency, selective, slices
 from forecheck.evaluation import decisions as decisions_mod
 from forecheck.evaluation import stacking as stacking_mod
-from forecheck.evaluation.approval_curve import ApprovalElimination, approval_elimination_curve
+from forecheck.evaluation.approval_curve import (
+    ApprovalElimination,
+    IncidentRateMode,
+    approval_elimination_curve,
+)
 from forecheck.evaluation.bootstrap import BootstrapResult, bootstrap_ci
 from forecheck.evaluation.latency import LatencyReport, measure_latency
 from forecheck.evaluation.metrics import (
@@ -330,6 +334,8 @@ def evaluate(
     stacking_bundles: Sequence[PolicyBundle] = (),
     stacking_synthetic: bool = False,
     approval_curve_engine: DeterministicPolicyEngine | None = None,
+    approval_target_base_rate: float | None = None,
+    approval_incident_rate_mode: IncidentRateMode = IncidentRateMode.PREFIX,
 ) -> EvaluationReport:
     """Run a full evaluation of ``backend`` on ``examples`` and return a report.
 
@@ -445,7 +451,11 @@ def evaluate(
                 examples, raw, probabilities, dims, backend.model_info, calibration_info
             )
         approval_elimination_result = approval_elimination_curve(
-            approval_curve_engine, responses, examples
+            approval_curve_engine,
+            responses,
+            examples,
+            target_base_rate=approval_target_base_rate,
+            incident_rate_mode=approval_incident_rate_mode,
         )
 
     latency_report: LatencyReport | None = None
