@@ -1,0 +1,78 @@
+\documentclass{article}
+
+% ICLR 2026 conference style, used here for a workshop submission.
+% \iclrfinalcopy is deliberately left undefined (workshop = non-final /
+% double-blind mode); a workshop footer is added below \maketitle instead.
+\usepackage{styles/iclr2026_conference,times}
+\input{styles/math_commands.tex}
+
+% T1 encoding + cmap so copy-paste/text-extraction from the PDF is correct
+% (the bare ICLR template defaults to OT1, which garbles extracted text).
+\usepackage[T1]{fontenc}
+\usepackage{cmap}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{styles/placeins} % \FloatBarrier: flush floats per section so they never queue up and get "lost"
+
+% Red TODOs, used both in running text and inside table cells/captions for
+% pending numbers (e.g. \todo{pending: <job>}). \marginpar is deliberately
+% not used: called from inside a table/figure float's internal vbox it
+% corrupts the float list ("Float(s) lost"), since that context is outer
+% horizontal mode, not the restricted/inner mode \marginpar assumes.
+\newcommand{\todo}[1]{{\color{red}\footnotesize[TODO: #1]}}
+
+\title{Identity Is the Signal: Why Pre-Execution Agent-Action Risk\\
+Needs Delegated Authority, Not Just Content}
+
+% Non-final ICLR style prints "Anonymous authors / Paper under double-blind
+% review" automatically; \author is kept as an explicit placeholder.
+\author{Anonymous authors\\Paper under double-blind review}
+
+\newcommand{\fixmemargin}{}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{fancy}
+\fancyfoot[C]{\scriptsize Submitted to a workshop at ICLR 2026 -- do not distribute.}
+
+\begin{abstract}
+Guardrail models for AI agents typically classify a proposed action from its
+text alone. We show this misses the dimensions that matter most for
+delegated, tool-using agents. Stripping principal entitlements, delegated
+scopes, and policy text from a trained 2B-parameter decoder's input drops
+macro AUPRC from 0.915 to 0.736 on held-out tools, concentrated entirely in
+three dimensions --- unauthorized-scope detection falls from 1.00 to 0.12,
+policy-conflict detection from 1.00 to 0.35 --- while two zero-shot safety
+models (Granite Guardian 3.3 8B, gpt-oss-safeguard 20B) sit at chance on
+exactly these dimensions with or without that context, showing the gap is
+not something prompting a general safety model can close. We further show
+that the \emph{shape} of policy-conditioned reasoning, not just tool
+identity, must generalize to unseen policy kinds and phrasings, and that
+naive multi-policy composition collapses to a 0.97 false positive rate by
+three stacked policies unless decisions are made from calibrated joint
+probabilities rather than independent thresholds. All results are on
+synthetic data; we are explicit about what that does and does not license.
+\end{abstract}
+
+\input{sections/intro}
+\input{sections/setup}
+\input{sections/identity}
+\input{sections/generalisation}
+\input{sections/composition}
+\input{sections/selfjudgment}
+\input{sections/related}
+\input{sections/limitations}
+\input{sections/conclusion}
+
+\bibliography{refs}
+\bibliographystyle{styles/iclr2026_conference}
+
+\appendix
+\input{appendix}
+
+\end{document}

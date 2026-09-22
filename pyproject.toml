@@ -190,3 +190,8 @@ exclude_also = [
   "raise NotImplementedError",
   "@overload",
 ]
+
+[dependency-groups]
+dev = [
+    "matplotlib>=3.11.2",
+]

@@ -1,0 +1,41 @@
+\section{Related work}
+\label{sec:related}
+
+\textbf{LLM guardrails.} Llama Guard \citep{inan2023llamaguard}, Granite
+Guardian \citep{padhi2024graniteguardian}, ShieldGemma
+\citep{zeng2024shieldgemma}, NVIDIA Aegis \citep{ghosh2024aegis}, and
+gpt-oss-safeguard \citep{openai2025gptosssafeguard} are general-purpose
+content/harm classifiers over a conversation turn or action. We do not
+claim they fail at their intended purpose; \S\ref{sec:identity} shows they
+are near chance specifically on delegated-authority dimensions
+(\texttt{unauthorized\_scope}, \texttt{policy\_conflict},
+\texttt{insufficient\_context}) they were not trained to answer, regardless
+of whether identity context is in their prompt.
+
+\textbf{Agent safety benchmarks.} AgentHarm
+\citep{andriushchenko2024agentharm}, ToolEmu \citep{ruan2023toolemu},
+InjecAgent \citep{zhan2024injecagent}, and AgentDojo
+\citep{debenedetti2024agentdojo} measure end-to-end agent behavior or
+injection success via an outcome judge, not principal entitlements or
+delegated scope as structured input, and produce no per-action calibrated
+probability a downstream policy engine can compose (\S\ref{sec:setup},
+\S\ref{sec:composition}): they answer "did the agent do something bad," not
+"should this action have been allowed given who it was for."
+
+\textbf{Authorization and policy engines.} OPA \citep{opa}, Cedar
+\citep{cedar}, and XACML \citep{xacml} are deterministic, symbolic engines:
+given a fully specified request and policy, they decide allow/deny with no
+learned uncertainty. forecheck's policy layer is architecturally in this
+family, but the composition problem in \S\ref{sec:composition} exists only
+because its input is a learned, calibrated probability rather than a fact
+a symbolic engine evaluates exactly.
+
+\textbf{Calibration.} Platt/temperature scaling \citep{platt1999probabilistic},
+the modern re-examination of network calibration \citep{guo2017calibration},
+and the Wilson score interval \citep{wilson1927probable} (used for the
+approval-elimination bound, Appendix~\ref{sec:appendix}) are standard tools
+we apply directly to policy \emph{composition}, not where this literature
+is usually pointed: \S\ref{sec:composition}'s $k$-invariance result is a
+direct function of the underlying model's calibration sharpness.
+
+\FloatBarrier

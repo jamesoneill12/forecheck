@@ -1,0 +1,47 @@
+\section{Limitations}
+\label{sec:limitations}
+
+\textbf{Synthetic data only.} Every number here is on data from forecheck's
+own scenario generator (\texttt{docs/evaluation-plan.md}, classes 1--2). No
+human-labelled or production-traffic evaluation exists at submission time,
+and no real-world safety claim is made: every result measures whether an
+arm learned the generator's own label function.
+
+\textbf{Generator regularities.} The model may be exploiting template
+regularities in how the generator writes policy clauses and entitlement
+lists, rather than a general policy-reading ability. The
+\texttt{heldout\_policy\_kind}/\texttt{heldout\_policy\_phrasing} splits
+(\S\ref{sec:generalisation}) probe this and only partly rule it out:
+phrasing generalizes cleanly, kind does not, consistent with a lookup over
+kinds rather than the underlying operation. The encoder's earlier null
+result on both splits is uninformative the same way -- it never learned
+\texttt{policy\_conflict} at all, so a flat curve shows nothing.
+
+\textbf{\texttt{privilege\_escalation} render defect (v2/v3).} The
+\texttt{authority\_before}/\texttt{authority\_after} fields deciding this
+label were never rendered into the tool-call text in v2/v3, so every arm's
+0.46--0.53 AUPRC there reflects a data defect: 78 of 79 dev positives were
+textually indistinguishable from an in-scope re-grant. Fixed in v4
+(\S\ref{sec:generalisation}); numbers sourced from v2/v3 elsewhere should be
+read with this in mind.
+
+\textbf{Single seed.} Every trained-arm result is from one training seed. A
+seed-variance re-run \todo{pending: decoder-2b-v4-seed1} is needed before
+these point estimates should be read as more precise than the seed-to-seed
+variance they have not yet been measured against.
+
+\textbf{Held-out-policy-kind failure.} \texttt{policy\_conflict} AUPRC drops
+from $\sim$0.99 (in-distribution, unseen-phrasing) to 0.65--0.75 on entirely
+unseen kinds. The supportable claim today is "one model, policies of a kind
+seen in training, any phrasing" -- not "arbitrary new policy kinds." The v5
+experiment (ADR 0011) testing whether a larger kind inventory fixes this is
+pending.
+
+\textbf{Other caveats.} A single generator family (English, template
+renderer) produces every example. The \S\ref{sec:composition} cost table is
+the default severity tier, not tuned to any organization. Generator seed
+nondeterminism was found and partially fixed mid-project
+(\texttt{docs/results/notes/privilege-escalation-diagnosis.md}); v2/v3 data
+are not byte-reproducible from their configs.
+
+\FloatBarrier

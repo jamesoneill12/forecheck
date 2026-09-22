@@ -1,0 +1,132 @@
+\section{Appendix}
+\label{sec:appendix}
+
+\subsection{Full multi-policy stacking table}
+\label{sec:appendix-stacking}
+
+Table~\ref{tab:stacking-full} extends Table~\ref{tab:stacking-main} with the
+\texttt{joint} strategy (rules from all $k$ policies merged into one bundle
+and evaluated once in threshold mode, rather than decided independently and
+OR-ed), false negative rate, review rate, and the granite-embedding-r2
+encoder run on the identical examples and synthetic per-dimension policies.
+\texttt{independent} and \texttt{joint} are mathematically identical at
+every $k$ here because the synthetic stacking policies use only plain,
+non-\texttt{hard}, non-\texttt{allow\_override} rules, so there is nothing
+for the engine's combination logic to do differently between the two
+strategies on this construction (\texttt{docs/evaluation/multi-policy-stacking.md}
+\S3); the two rows diverge only once real bundles with \texttt{hard}/
+\texttt{allow\_override} rules are mixed in, which is outside this
+diagnostic.
+
+\begin{table}[tbp]
+\centering
+\small
+\caption{Multi-policy stacking, \texttt{heldout\_family} ($n{=}6640$).
+Source: \texttt{docs/results/synthetic-v2/README.md},
+\texttt{docs/evaluation/multi-policy-stacking.md}.}
+\label{tab:stacking-full}
+\begin{tabular}{llcccc}
+\toprule
+Arm & $k$ & Strategy & FPR & FNR & Review rate \\
+\midrule
+Decoder 2B & 1 & any & 0.015 & 0.253 & 0.31 \\
+Decoder 2B & 2 & independent & 0.140 & 0.080 & 0.30 \\
+Decoder 2B & 2 & expected\_cost\_joint & 0.082 & 0.070 & 0.28 \\
+Decoder 2B & 3 & independent & \textbf{0.966} & 0.016 & 0.66 \\
+Decoder 2B & 3 & joint & 0.905 & 0.051 & 0.63 \\
+Decoder 2B & 3 & expected\_cost\_joint & 0.082 & 0.070 & 0.28 \\
+Decoder 2B & 8 & independent & 0.966 & 0.007 & 0.58 \\
+Decoder 2B & 8 & expected\_cost\_joint & 0.082 & 0.070 & 0.28 \\
+\midrule
+Encoder granite-r2 & 2 & independent & 0.710 & 0.042 & 0.26 \\
+Encoder granite-r2 & 2 & expected\_cost\_joint & 0.921 & 0.010 & 0.37 \\
+Encoder granite-r2 & 3 & independent & 0.990 & 0.008 & 0.21 \\
+Encoder granite-r2 & 3 & expected\_cost\_joint & 0.921 & 0.010 & 0.37 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Note the encoder's \texttt{expected\_cost\_joint} FPR (0.921) is \emph{worse}
+than its own \texttt{independent} FPR at $k{=}2$ (0.710): on a poorly
+calibrated probability vector, aggregating across dimensions does not
+reliably help and can hurt, underscoring that the composition benefit in
+\S\ref{sec:composition} is conditional on calibration quality, not a
+property of the \texttt{expected\_cost} rule in isolation.
+
+\subsection{Approval elimination}
+\label{sec:appendix-approval}
+
+The product-facing metric is not classifier accuracy but how many of a
+deployment's human-approval reviews can be safely automated at a fixed,
+chosen incident rate: sort examples by the decoder's expected cost of
+\texttt{ALLOW}, and ask what fraction of the review queue can be
+auto-decided while the fraction of auto-allowed actions that are actually
+risky stays under a budget. Because the evaluated \texttt{heldout\_family}
+split is adversarial-heavy (58\% base incident rate), Table~\ref{tab:approval}
+reports both the raw unweighted curve and a curve importance-reweighted to a
+stated 5\% deployment incident rate, with elimination at each budget
+computed conservatively via a 95\% Wilson score upper bound
+\citep{wilson1927probable} on the realized incident rate in the auto-allowed
+set.
+
+\begin{table}[tbp]
+\centering
+\small
+\caption{Decoder 2B v2, approval elimination on \texttt{heldout\_family}
+($n{=}6640$), bundle \texttt{balanced}. ``Reweighted'' importance-reweights
+rows so the weighted incident rate equals 5\%, matching a plausible
+deployment rate rather than this adversarial split's own 58\% base rate.
+v4 curves are \todo{pending: decoder-2b-v4 --approval-curve} at submission
+time. Source: \texttt{docs/results/synthetic-v2/README.md},
+\texttt{docs/evaluation/approval-elimination.md}.}
+\label{tab:approval}
+\begin{tabular}{lccc}
+\toprule
+Budget & Eliminated (unweighted, base 0.58) & Eliminated (reweighted to 5\%) & Review rate (rw) \\
+\midrule
+0.1\% & 0.000 & 0.000 & 0.975 \\
+0.5\% & 0.000 & 0.000 & 0.975 \\
+1\% & 0.000 & 0.888 & 0.088 \\
+2\% & 0.000 & 0.961 & 0.017 \\
+5\% & 0.000 & 0.992 & 0.001 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=3.3in]{figures/fig_approval_curve.pdf}
+\caption{Approvals eliminated vs.\ incident budget, reweighted to a 5\%
+deployment incident rate, for decoder 2B v2 (\texttt{heldout\_family},
+$n{=}6640$) and v4 (\texttt{heldout\_family} $n{=}6653$, test $n{=}4412$),
+all synthetic data, log-scaled budget axis. Source:
+\texttt{docs/results/synthetic-v2/decoder-2b/heldout\_family-approval-report.md},
+\texttt{decoder-2b-v4/\{heldout\_family,test\}-approval-report.md}.}
+\label{fig:approval-curve}
+\end{figure}
+
+Figure~\ref{fig:approval-curve} shows the three curves nearly
+overlapping: v2 and v4 eliminate a comparable share of approvals at every
+budget on \texttt{heldout\_family}, and v4's \texttt{test} split tracks its
+own \texttt{heldout\_family} curve closely, so the elimination curve is not
+sensitive to the v3/v4 generator fix or to family-held-out tools.
+
+At a deployment incident rate of 5\%, the calibrated v2 decoder auto-allows
+88.8--99.2\% of actions that would otherwise need human review while keeping
+the allowed-but-risky rate at or below the stated budget. The unweighted
+column is near zero not because the model is uninformative but because the
+split's own top-ranked rows already contain risky examples by construction
+(an adversarial benchmark, not a deployment population); it is a ceiling of
+the split's design, not of the classifier. Below a 1\% budget the Wilson
+bound cannot be met at this split's effective sample size and the
+conservative curve reports zero elimination; a point-estimate mode is
+available for that regime but is dominated by single rows at small
+allow-set sizes.
+
+\subsection{Experiment matrix}
+
+The full list of experiments this paper still needs, with recipe files and
+status, is tracked in \texttt{paper/EXPERIMENTS.md} rather than duplicated
+here.
+
+\FloatBarrier

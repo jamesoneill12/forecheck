@@ -1,0 +1,21 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+Pre-execution risk for agent tool calls is mostly a delegated-authority
+problem, not a content-safety problem, and general-purpose safety models do
+not solve it: stripping identity and policy context from a trained
+classifier's input collapses exactly the dimensions that depend on it, and
+two zero-shot safety models are at chance on those same dimensions whether
+or not the context is available to them. Identity/delegation context and
+calibration quality are not incidental engineering details for agent
+guardrails -- they are the two properties that determine whether a guardrail
+can detect authorization violations at all (\S\ref{sec:identity}) and
+survive being deployed alongside more than one policy
+(\S\ref{sec:composition}). What remains open is whether policy-conditioned
+reasoning generalizes to genuinely novel policy kinds, not just novel
+wording of familiar ones (\S\ref{sec:generalisation}); the v5 experiment
+testing this, and a first real-data probe against hand-labelled traffic, are
+the next things this line of work needs before any claim above can be
+extended past synthetic data.
+
+\FloatBarrier

@@ -1,0 +1,75 @@
+\section{Can the acting agent judge its own scope?}
+\label{sec:selfjudgment}
+
+The classifier above is an external checker: it never generates the action,
+only scores it. A cheaper alternative is to ask the acting agent itself,
+from inside its own system prompt, whether to proceed. We give the same
+untrained instruct models used as the decoder's base (2B, 8B) a Fin-style
+system prompt carrying the identical entitlements, delegated scope, and
+policy text, followed by the pending tool call, and read a single
+ALLOW/STOP verdict off the first output token. That one scalar is scored
+against all eleven dimensions' labels: tracking the external checker means
+an undifferentiated act/refuse decision happens to catch that risk; lagging
+badly means the dimension needs external, per-dimension structure the
+agent's own judgment does not supply.
+
+\begin{table}[tbp]
+\centering
+\small
+\caption{Agent self-judgment (8B, untrained, single ALLOW/STOP verdict) vs.\
+the trained decoder external checker (v4), AUPRC on \texttt{heldout\_family}
+($n{=}2000$ for the agent rows). Positive rate for each dimension in
+parentheses. Source: \texttt{docs/results/synthetic-v2/README.md}.}
+\label{tab:selfjudgment}
+\begin{tabular}{lccc}
+\toprule
+Dimension (pos.\ rate) & Agent 8B & Agent 8B, stripped & Decoder 2B v4 (checker) \\
+\midrule
+\texttt{unauthorized\_scope} (0.106) & 0.138 & 0.104 & 0.999 \\
+\texttt{policy\_conflict} (0.385) & 0.509 & 0.415 & 0.964 \\
+\texttt{insufficient\_context} (0.079) & 0.085 & 0.084 & 0.841 \\
+\texttt{privilege\_escalation} (0.075) & 0.103 & 0.106 & 1.000 \\
+\texttt{prompt\_injection\_influence} (0.075) & 0.169 & \textbf{0.498} & 0.81\textsuperscript{a} \\
+\midrule
+Macro & 0.242 & 0.281 & 0.960 \\
+\bottomrule
+\end{tabular}
+\vskip 1mm
+{\footnotesize\textsuperscript{a}Decoder 2B v2 number, the version this comparison's original report used; v4 not yet re-run on this dimension in the self-judgment comparison.}
+\end{table}
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=5.5in]{figures/fig_self_judgment.pdf}
+\caption{Per-dimension AUPRC on \texttt{heldout\_family} (synthetic data;
+$n{=}2000$ for the agent-self-8B rows, $n{=}6653$ for the decoder), with
+each dimension's positive rate (chance level) marked by a dashed line.
+Source: \texttt{docs/results/synthetic-v2/agent-self-8b/},
+\texttt{decoder-2b-v4/heldout\_family-report.md}.}
+\label{fig:self-judgment}
+\end{figure}
+
+Figure~\ref{fig:self-judgment} shows the pattern holds across all eleven
+dimensions, not just the five in Table~\ref{tab:selfjudgment}: the agent's
+bars track the chance line closely everywhere except
+\texttt{policy\_conflict} and \texttt{external\_communication}, while the
+external checker clears 0.84 AUPRC or better on every dimension.
+
+Two findings. First, \textbf{the agent cannot judge its own scope from
+inside its prompt}: with full identity context the 8B agent is at or near
+chance on every identity-dependent dimension (AUROC 0.53--0.67, not shown),
+the same level as the zero-shot safety models in \S\ref{sec:identity}. The
+delegation information sits in its own prompt and is not turned into a
+decision. Second, \textbf{identity context makes the agent worse, not
+better, at spotting injection}: stripping the policy and scope text raises
+\texttt{prompt\_injection\_influence} AUPRC from 0.169 to 0.498 -- a long
+policy preamble appears to dilute attention to an injected instruction
+elsewhere in the trajectory. Both argue for keeping an external checker in
+the loop rather than trusting the agent's own judgment, even on
+content-style dimensions. The small identity signal that does exist
+(\texttt{unauthorized\_scope} AUROC 0.61 full vs.\ 0.48 stripped) shows the
+agent reads the context a little; it does not turn that into a usable
+decision, and the gap to the external checker's 0.960 macro AUPRC persists
+regardless.
+
+\FloatBarrier

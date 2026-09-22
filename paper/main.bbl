@@ -1,0 +1,143 @@
+\begin{thebibliography}{18}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Andriushchenko et~al.(2024)Andriushchenko, Souly, Dziemian, Duenas,
+  Lin, Wang, Hendrycks, Zou, Kolter, Fredrikson, Winsor, Wynne, Gal, and
+  Davies]{andriushchenko2024agentharm}
+Maksym Andriushchenko, Alexandra Souly, Mateusz Dziemian, Derek Duenas, Maxwell
+  Lin, Justin Wang, Dan Hendrycks, Andy Zou, Zico Kolter, Matt Fredrikson, Eric
+  Winsor, Eliot Wynne, Yarin Gal, and Xander Davies.
+\newblock Agentharm: A benchmark for measuring harmfulness of llm agents.
+\newblock \emph{arXiv preprint arXiv:2410.09024}, 2024.
+
+\bibitem[{Cedar Policy}()]{cedar}
+{Cedar Policy}.
+\newblock Cedar policy language documentation.
+\newblock \url{https://www.cedarpolicy.com/en/documentation}.
+\newblock Accessed 2026-09-22.
+
+\bibitem[Debenedetti et~al.(2024)Debenedetti, Zhang, Balunovi{\'c},
+  Beurer-Kellner, Fischer, and Tram{\`e}r]{debenedetti2024agentdojo}
+Edoardo Debenedetti, Jie Zhang, Mislav Balunovi{\'c}, Luca Beurer-Kellner, Marc
+  Fischer, and Florian Tram{\`e}r.
+\newblock Agentdojo: A dynamic environment to evaluate prompt injection attacks
+  and defenses for llm agents.
+\newblock \emph{arXiv preprint arXiv:2406.13352}, 2024.
+
+\bibitem[Ghosh et~al.(2024)Ghosh, Varshney, Galinkin, and
+  Parisien]{ghosh2024aegis}
+Shaona Ghosh, Prasoon Varshney, Erick Galinkin, and Christopher Parisien.
+\newblock Aegis: Online adaptive ai content safety moderation with ensemble of
+  llm experts.
+\newblock \emph{arXiv preprint arXiv:2404.05993}, 2024.
+
+\bibitem[Guo et~al.(2017)Guo, Pleiss, Sun, and Weinberger]{guo2017calibration}
+Chuan Guo, Geoff Pleiss, Yu~Sun, and Kilian~Q. Weinberger.
+\newblock On calibration of modern neural networks.
+\newblock In \emph{Proceedings of the 34th International Conference on Machine
+  Learning (ICML)}, 2017.
+
+\bibitem[Hu et~al.(2021)Hu, Shen, Wallis, Allen-Zhu, Li, Wang, Wang, and
+  Chen]{hu2021lora}
+Edward~J. Hu, Yelong Shen, Phillip Wallis, Zeyuan Allen-Zhu, Yuanzhi Li, Shean
+  Wang, Lu~Wang, and Weizhu Chen.
+\newblock Lora: Low-rank adaptation of large language models.
+\newblock \emph{arXiv preprint arXiv:2106.09685}, 2021.
+
+\bibitem[{IBM Granite Team}(2024)]{ibm2024granite3}
+{IBM Granite Team}.
+\newblock Granite 3.0 / 3.3 language models: Model card and technical report.
+\newblock Technical report, IBM Research, 2024.
+\newblock See also Granite 3.3 (2025) release notes.
+
+\bibitem[Inan et~al.(2023)Inan, Upasani, Chi, Rungta, Iyer, Mao, Tontchev, Hu,
+  Fuller, Testuggine, and Khabsa]{inan2023llamaguard}
+Hakan Inan, Kartikeya Upasani, Jianfeng Chi, Rashi Rungta, Krithika Iyer,
+  Yuning Mao, Michael Tontchev, Qing Hu, Brian Fuller, Davide Testuggine, and
+  Madian Khabsa.
+\newblock Llama guard: Llm-based input-output safeguard for human-ai
+  conversations.
+\newblock \emph{arXiv preprint arXiv:2312.06674}, 2023.
+
+\bibitem[{OASIS}(2013)]{xacml}
+{OASIS}.
+\newblock extensible access control markup language (xacml) version 3.0.
+\newblock OASIS Standard,
+  \url{http://docs.oasis-open.org/xacml/3.0/xacml-3.0-core-spec-os-en.html},
+  2013.
+
+\bibitem[{Open Policy Agent}()]{opa}
+{Open Policy Agent}.
+\newblock Open policy agent (opa) documentation.
+\newblock \url{https://www.openpolicyagent.org/docs/latest/}.
+\newblock Accessed 2026-09-22.
+
+\bibitem[{OpenAI}(2025)]{openai2025gptosssafeguard}
+{OpenAI}.
+\newblock gpt-oss-safeguard: Open-weight reasoning models for safety policy
+  classification.
+\newblock Technical report, OpenAI, 2025.
+\newblock Model and technical report.
+
+\bibitem[Padhi et~al.(2024)Padhi, Nagireddy, Cornacchia, Chaudhury, Pedapati,
+  Dognin, Murugesan, Miehling, Qian, Ramamurthy, Zizzo, Eltoukhy, Hind, Ram,
+  Das, Chen, Cunningham, Agarwal, Sattigeri, Raghavan, and
+  Varshney]{padhi2024graniteguardian}
+Inkit Padhi, Manish Nagireddy, Giandomenico Cornacchia, Subhajit Chaudhury,
+  Tejaswini Pedapati, Pierre Dognin, Keerthiram Murugesan, Erik Miehling,
+  Martin~Santillan Qian, Ramya Ramamurthy, Giulio Zizzo, Ambrish Eltoukhy,
+  Michael Hind, Prasanna Ram, Payel Das, Pin-Yu Chen, Jerret Cunningham, Ananya
+  Agarwal, Prasanna Sattigeri, Kush Raghavan, and Kush~R. Varshney.
+\newblock Granite guardian.
+\newblock \emph{arXiv preprint arXiv:2412.07724}, 2024.
+
+\bibitem[Platt(1999)]{platt1999probabilistic}
+John Platt.
+\newblock Probabilistic outputs for support vector machines and comparisons to
+  regularized likelihood methods.
+\newblock In \emph{Advances in Large Margin Classifiers}, pp.\  61--74, 1999.
+
+\bibitem[Ruan et~al.(2023)Ruan, Dong, Wang, Pitis, Zhou, Ba, Dubois, Maddison,
+  and Hashimoto]{ruan2023toolemu}
+Yangjun Ruan, Honghua Dong, Andrew Wang, Silviu Pitis, Yongchao Zhou, Jimmy Ba,
+  Yann Dubois, Chris~J. Maddison, and Tatsunori Hashimoto.
+\newblock Identifying the risks of lm agents with an lm-emulated sandbox.
+\newblock \emph{arXiv preprint arXiv:2309.15817}, 2023.
+
+\bibitem[Warner et~al.(2024)Warner, Chaffin, Clavi{\'e}, Weller, Hallstr{\"o}m,
+  Taghadouini, Gallagher, Biswas, Ladhak, Aarsen, Cooper, Adams, Howard, and
+  Poli]{warner2024modernbert}
+Benjamin Warner, Antoine Chaffin, Beno{\^i}t Clavi{\'e}, Orion Weller, Oskar
+  Hallstr{\"o}m, Said Taghadouini, Alexis Gallagher, Raja Biswas, Faisal
+  Ladhak, Tom Aarsen, Nathan Cooper, Griffin Adams, Jeremy Howard, and Iacopo
+  Poli.
+\newblock Smarter, better, faster, longer: A modern bidirectional encoder for
+  fast, memory efficient, and long context finetuning and inference.
+\newblock \emph{arXiv preprint arXiv:2412.13663}, 2024.
+
+\bibitem[Wilson(1927)]{wilson1927probable}
+Edwin~B. Wilson.
+\newblock Probable inference, the law of succession, and statistical inference.
+\newblock \emph{Journal of the American Statistical Association}, 22\penalty0
+  (158):\penalty0 209--212, 1927.
+
+\bibitem[Zeng et~al.(2024)Zeng, Liu, Mullins, Peran, Fernandez, Harkous,
+  Narasimhan, Proud, Kumar, Radharapu, Sturman, and
+  Wahltinez]{zeng2024shieldgemma}
+Wenjun Zeng, Yuchen Liu, Ryan Mullins, Ludovic Peran, Joe Fernandez, Hamza
+  Harkous, Karthik Narasimhan, Drew Proud, Piyush Kumar, Bhaktipriya Radharapu,
+  Olivia Sturman, and Oscar Wahltinez.
+\newblock Shieldgemma: Generative ai content moderation based on gemma.
+\newblock \emph{arXiv preprint arXiv:2407.21772}, 2024.
+
+\bibitem[Zhan et~al.(2024)Zhan, Liang, Ying, and Kang]{zhan2024injecagent}
+Qiusi Zhan, Zhixiang Liang, Zifan Ying, and Daniel Kang.
+\newblock Injecagent: Benchmarking indirect prompt injections in
+  tool-integrated large language model agents.
+\newblock \emph{arXiv preprint arXiv:2403.02691}, 2024.
+
+\end{thebibliography}

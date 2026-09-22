@@ -1,0 +1,52 @@
+\section{Introduction}
+\label{sec:intro}
+
+Deployed AI agents increasingly act with delegated authority: a support
+agent issues refunds for a merchant, a coding agent pushes commits for a
+developer, an operations agent grants IAM roles for an administrator.
+Before such an action executes, some system must decide whether it is safe
+to proceed. The dominant tool is a guardrail classifier that reads the
+proposed action and outputs a harm judgment
+\citep{inan2023llamaguard,padhi2024graniteguardian,zeng2024shieldgemma,ghosh2024aegis,openai2025gptosssafeguard}.
+
+We argue this conflates two questions. \textbf{Content risk} asks whether
+an action looks dangerous on its face (deletes data, moves money, contacts
+an external party) and is answerable from the action text alone.
+\textbf{Authorization risk} asks whether \emph{this} action is something
+\emph{this} agent was allowed to do, on behalf of \emph{this} principal,
+under the policy in force -- and requires the principal's entitlements, the
+agent's delegated scope, and the applicable policy clause as structured
+inputs, not prose the model must infer.
+
+We build a pre-execution risk classifier, \emph{forecheck}, whose input
+contract makes these fields explicit, then strip them from the same trained
+model's input to see what breaks. On synthetic data, three of eleven risk
+dimensions collapse from near-perfect to near-chance when identity is
+removed, while dimensions already recoverable from action text alone are
+unaffected. This is not a fine-tuning artifact prompting could fix: two
+zero-shot safety models given the same policy text in-prompt are at chance
+on exactly these dimensions, with or without identity, because they were
+never trained to use it. We further test whether policy-conditioned
+reasoning generalizes to unseen policy \emph{kinds} and \emph{phrasings},
+and show that composing several such classifiers' decisions -- how
+guardrail stacks are deployed in practice -- fails in a specific, fixable
+way: per-policy thresholding compounds toward denying everything as more
+policies are added, while deciding from the joint calibrated probability
+vector does not.
+
+\textbf{Contributions.} (1) An identity-ablation diagnostic separating
+which of eleven risk dimensions need delegated-authority context from
+which are content lookups (\S\ref{sec:identity}); (2) evidence that two
+current zero-shot safety models do not use delegated-authority context even
+when it is handed to them (\S\ref{sec:identity}); (3) a policy-generalization
+result showing robustness to unseen policy wording but not unseen policy
+kinds (\S\ref{sec:generalisation}); (4) a multi-policy composition result
+showing calibrated joint-probability decisions, not rule engineering, keep
+a guardrail stack from collapsing to "deny everything"
+(\S\ref{sec:composition}); and (5) a comparison showing an agent asked to
+judge its own action cannot recover the authorization signal an external
+checker can (\S\ref{sec:selfjudgment}). Every number here is on synthetic
+data from forecheck's own scenario generator; \S\ref{sec:limitations}
+states plainly what that does and does not license.
+
+\FloatBarrier

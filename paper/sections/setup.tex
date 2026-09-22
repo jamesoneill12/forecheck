@@ -1,0 +1,53 @@
+\section{Problem setting}
+\label{sec:setup}
+
+\textbf{Contract.} forecheck scores a proposed tool call against an
+\texttt{ActionContext}: the principal's entitlements, the scope actually
+delegated to the agent (a possibly strict subset of the principal's), a
+trust-labelled trajectory of prior observations, the applicable policy
+clause(s), and the proposed action (tool, arguments, destination) -- typed
+fields the classifier reads directly, not facts inferred from prose. A
+classifier that sees only the rendered action text, as every guardrail
+model in \S\ref{sec:related} does, can answer content-risk questions but has
+no way to check whether the agent was delegated the scope it is exercising.
+
+\textbf{Eleven risk dimensions.} Four are \emph{content/consequence}
+dimensions decidable from the action and destination alone:
+\texttt{destructive\_or\_irreversible\_action}, \texttt{financial\_commitment},
+\texttt{external\_communication}, \texttt{untrusted\_destination}. Two are
+\emph{trajectory} dimensions decidable from prior observations without
+identity: \texttt{prompt\_injection\_influence},
+\texttt{suspicious\_action\_sequence}. The remaining are where identity and
+policy are load-bearing: \texttt{unauthorized\_scope} (inside the
+principal's entitlements \emph{and} the agent's delegated scope?),
+\texttt{policy\_conflict} (violates a stated clause?),
+\texttt{insufficient\_context} (enough delegated information to decide at
+all?), and \texttt{privilege\_escalation} (does the action widen authority
+beyond what was granted?). \texttt{sensitive\_data\_exposure} behaves like a
+content dimension in practice (\S\ref{sec:identity}) because its deciding
+field renders directly into the action arguments.
+
+\textbf{Data.} All results are on synthetic data from forecheck's own
+scenario generator (49,996 rows at the \texttt{v2}/\texttt{v3}/\texttt{v4}
+scale used here), split into \texttt{train}/\texttt{calibration}/
+\texttt{dev}/\texttt{test}, a \texttt{heldout\_family} split withholding a
+stratified subset of tools, and, from \texttt{v3} on,
+\texttt{heldout\_policy\_kind}/\texttt{heldout\_policy\_phrasing} splits
+(\S\ref{sec:generalisation}). Every number measures whether an arm learned
+the generator's label function, not real-world risk; no human-labelled or
+production-traffic evaluation exists at submission time
+(\S\ref{sec:limitations}).
+
+\textbf{Arms.} A LoRA-adapted 2B decoder (\texttt{granite-3.3-2b-instruct})
+scored by candidate-token logits over the eleven dimensions
+\citep{hu2021lora}; two linear-head encoders (ModernBERT-large
+\citep{warner2024modernbert}, granite-embedding-r2); a deterministic rule
+baseline with no learned component; two zero-shot safety models with the
+same policy text in-prompt and no fine-tuning, Granite Guardian 3.3 8B
+\citep{padhi2024graniteguardian} and gpt-oss-safeguard 20B
+\citep{openai2025gptosssafeguard}; and an \emph{agent self-judgment}
+condition where an untrained instruct model (2B, 8B \citep{ibm2024granite3})
+gets the same context in a Fin-style system prompt and returns one
+ALLOW/STOP verdict (\S\ref{sec:selfjudgment}).
+
+\FloatBarrier
