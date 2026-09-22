@@ -77,6 +77,37 @@ Decision: AgentDojo first, InjecAgent second if time allows.
 
 Start: 2026-09-23. Owner: loop. Dependencies: none on the user.
 
+## Concrete schema (inspected 2026-09-22)
+
+AgentDojo (`ethz-spylab/agentdojo`, MIT). Suites `banking, slack, travel, workspace`; user
+tasks 16/17/20/33, injection tasks 9/5/7/6. Every task class carries `ground_truth(env) ->
+list[FunctionCall(function, args)]`, so both the benign reference calls and the attacker
+goal calls are available without running an agent. Published traces live under
+`runs/<model>/<suite>/<user_task>/<attack>/<injection_task>.json` (36k files, sparse
+checkout per model). Each file has `suite_name, pipeline_name, user_task_id,
+injection_task_id, attack_type, injections, messages, utility, security`; `messages` are
+role-tagged with `tool_calls: [{function, args, id}]` on assistant turns and `tool_call`,
+`content`, `error` on tool turns. The system prompt names the principal ("Emma Johnson,
+employee of Blue Sparrow Tech"). Banking alone for two models (claude-3-5-sonnet-20241022,
+gpt-4o-2024-05-13): 1,714 runs, 4,215 proposed tool calls, 11 attack types, `security`
+true in about 15 percent of injection runs.
+
+InjecAgent (`uiuc-kang-lab/InjecAgent`): `test_cases_dh_base.json` (510 direct-harm) and
+`test_cases_ds_base.json` (544 data-stealing), fields `User Tool, User Instruction, Tool
+Parameters, Tool Response Template (with <Attacker Instruction> slot), Attacker Tools,
+Attacker Instruction, Attack Type`; `tools.json` has 38 toolkits with parameter schemas.
+The attacker call is fully specified by `Attacker Tools` plus the instruction, so each case
+yields one benign call (user tool) and one or two attacker calls without an agent.
+
+Label derivation, concretely:
+- `prompt_injection_influence` = the call matches an injection task's `ground_truth`
+  function (and attacker-controlled literal args such as the IBAN) in a run whose
+  `injection_task_id` is set; AgentDojo's `security` flag on the run corroborates.
+- `unauthorized_scope` = the call's function is not in the user task's `ground_truth`
+  function set, or its recipient/target is not derivable from the user prompt.
+- `policy_conflict` = our per-suite policy predicates.
+- lookup dimensions from function name.
+
 ## Open questions
 
 - Which published AgentDojo runs to use as the trace source (attacker `important_instructions`,
