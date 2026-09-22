@@ -1,4 +1,4 @@
-\begin{thebibliography}{18}
+\begin{thebibliography}{20}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -13,6 +13,15 @@ Maksym Andriushchenko, Alexandra Souly, Mateusz Dziemian, Derek Duenas, Maxwell
   Winsor, Eliot Wynne, Yarin Gal, and Xander Davies.
 \newblock Agentharm: A benchmark for measuring harmfulness of llm agents.
 \newblock \emph{arXiv preprint arXiv:2410.09024}, 2024.
+
+\bibitem[{CapiscIO}(2026)]{capiscio2026intent}
+{CapiscIO}.
+\newblock Automated intent classification for {AI} agents is an unsolved
+  problem.
+\newblock
+  \url{https://capisc.io/blog/automated-intent-classification-for-ai-agents-is-an-unsolved-problem},
+  2026.
+\newblock Vendor position piece. Accessed 2026-09-22.
 
 \bibitem[{Cedar Policy}()]{cedar}
 {Cedar Policy}.
@@ -82,6 +91,12 @@ Hakan Inan, Kartikeya Upasani, Jianfeng Chi, Rashi Rungta, Krithika Iyer,
   classification.
 \newblock Technical report, OpenAI, 2025.
 \newblock Model and technical report.
+
+\bibitem[{OWASP GenAI Security Project}(2025)]{owasp2025agentic}
+{OWASP GenAI Security Project}.
+\newblock {OWASP} securing agentic applications guide.
+\newblock \url{https://genai.owasp.org/}, 2025.
+\newblock Accessed 2026-09-22.
 
 \bibitem[Padhi et~al.(2024)Padhi, Nagireddy, Cornacchia, Chaudhury, Pedapati,
   Dognin, Murugesan, Miehling, Qian, Ramamurthy, Zizzo, Eltoukhy, Hind, Ram,

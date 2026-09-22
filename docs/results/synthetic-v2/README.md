@@ -58,6 +58,8 @@ thresholds selected on `dev`. Sections marked *pending* are filled in as jobs fi
 | decoder 2B v4 | heldout_family | 0.960 | 0.006 | |
 | decoder 2B v4 | heldout_policy_kind | 0.944 | 0.005 | |
 | decoder 2B v4 | heldout_policy_phrasing | 0.968 | 0.023 | |
+| decoder 2B v4, identity stripped | test | 0.787 | 0.002 | 0.812 |
+| decoder 2B v4, identity stripped | heldout_family | 0.790 | 0.003 | 0.814 |
 | decoder 2B v4 seed 1 | test | 0.959 | 0.002 | 0.957 |
 | decoder 2B v4 seed 1 | heldout_family | 0.960 | 0.006 | 0.953 |
 | decoder 2B v4 seed 1 | heldout_policy_kind | 0.939 | 0.028 | 0.925 |
@@ -142,6 +144,17 @@ Caveats. Synthetic labels; the generator wrote the policy clauses and the entitl
 lists, so the model may be exploiting template regularities that real policies will not
 have. The v3 splits (`heldout_policy_kind`, `heldout_policy_phrasing`) test the first
 part of that objection.
+
+v4 replication (`decoder-2b-v4/heldout_family-noid-report.md`, `test-noid-report.md`).
+The same ablation on the v4 data (privilege_escalation render fix applied) shows the same
+collapse: macro AUPRC 0.960 to 0.790 on heldout_family, 0.960 to 0.787 on test, matching
+the v2 pattern (0.915 to 0.736) almost exactly. The same three dimensions collapse:
+`unauthorized_scope` 0.999 to 0.125, `policy_conflict` 0.964 to 0.392,
+`insufficient_context` 0.841 to 0.412. `prompt_injection_influence` is unchanged as
+before (0.804 to 0.806). The one dimension that no longer collapses is
+`privilege_escalation`, which now survives stripping entirely (1.000 to 1.000): the v4
+render fix makes `authority_before`/`authority_after` observable directly in the tool-call
+text, so it is a content dimension, not an identity one.
 
 ## Encoder ModernBERT-large, per dimension (test)
 
@@ -463,6 +476,31 @@ dimension's labels. Held-out tools, 2,000-row subsample.
   stripped, policy_conflict 0.67 vs 0.53) shows the agent reads the context a little; it
   does not turn it into a decision. An external, trained checker is load-bearing.
 
+### Row-for-row comparison on v4 (`agent-self-8b-v4/`)
+
+Same 2,000 `heldout_family` rows, the 8B agent's single ALLOW/STOP verdict scored
+against the decoder 2B v4 checker, per dimension
+(`agent-self-8b-v4/heldout_family-report.md`):
+
+| dimension | agent AUPRC | checker AUPRC | delta |
+|---|---|---|---|
+| prompt_injection_influence | 0.166 | 0.804 | -0.637 |
+| unauthorized_scope | 0.135 | 0.999 | -0.865 |
+| sensitive_data_exposure | 0.199 | 1.000 | -0.802 |
+| untrusted_destination | 0.383 | 1.000 | -0.617 |
+| privilege_escalation | 0.103 | 1.000 | -0.897 |
+| destructive_or_irreversible_action | 0.122 | 0.992 | -0.870 |
+| financial_commitment | 0.121 | 1.000 | -0.879 |
+| external_communication | 0.532 | 1.000 | -0.468 |
+| policy_conflict | 0.509 | 0.964 | -0.455 |
+| suspicious_action_sequence | 0.300 | 0.966 | -0.666 |
+| insufficient_context | 0.086 | 0.841 | -0.755 |
+
+Reading: the external checker beats the agent's own verdict on every dimension, by
+0.45 to 0.90 AUPRC. Identity context in the agent prompt still lowers its injection
+detection: `prompt_injection_influence` 0.166 full vs 0.507 stripped (stripped agent
+macro 0.281, `heldout_family-noid-report.md`).
+
 Caveat: our Fin-style prompt is a stand-in, not Fin's; the models are untrained instruct
 bases, so this is "agent without a checker", not "agent fine-tuned to self-check".
 
@@ -504,13 +542,17 @@ held-out tools and in-distribution test, so the number is stable across the data
 
 ## What is still to land
 
+- Decoder 2B v4, identity-stripped eval (`eval-v4-idself`): done, see the Macro
+  summary table and the "v4 replication" note above.
 - decoder 2B v4 seed 2 (third seed, tightens the seed-variance estimate above).
 - Train-time identity-stripped arm (train on v4 data rendered without identity fields,
   not just eval-time `--strip-identity`); running.
-- Decoder 2B v4, identity-stripped eval (fills the identity-ablation table's v4 cell);
-  running.
-- Agent self-judgment 8B vs. decoder 2B v4 checker comparison; running.
+- Agent self-judgment 8B vs. decoder 2B v4 checker comparison: done, see the
+  row-for-row comparison above.
+- Decoder 8B v4, identity-stripped eval (fills the identity-ablation table's 8B v4
+  cell); running as `eval-8b-v4-noid`.
 - decoder 2B v5 seed 1 (seed variance for the 30-kind result); running.
+- decoder 2B v5 seed 2 (same purpose, 30-kind data): recipe written, not yet submitted.
 - LLM-judge labels (real-data probe, class 3).
 
 ## Known data defect: privilege_escalation (affects every v2/v3 number above; fixed in v4)

@@ -22,7 +22,7 @@ they never used the context. Source: \texttt{docs/results/synthetic-v2/README.md
 Arm & Split & Macro AUPRC (full) & Macro AUPRC (stripped) \\
 \midrule
 Decoder 2B v2 & heldout\_family & 0.915 & 0.736 \\
-Decoder 2B v4\textsuperscript{a} & heldout\_family & 0.960 & --- \\
+Decoder 2B v4 & heldout\_family & 0.960 & 0.790 \\
 Decoder 8B v4\textsuperscript{a} & heldout\_family & 0.958 & --- \\
 Encoder ModernBERT-large & heldout\_family & 0.813 & 0.712 \\
 Encoder granite-embedding-r2 & heldout\_family & 0.841 & --- \\
@@ -33,7 +33,7 @@ Rule baseline & heldout\_family & 0.614 & 0.614 \\
 \bottomrule
 \end{tabular}
 \vskip 1mm
-{\footnotesize\textsuperscript{a}Identity-stripped v4 runs (2B and 8B) \todo{pending: decoder-2b-v4 / decoder-8b-v4 --strip-identity jobs, running}. \textsuperscript{b}Single ALLOW/STOP verdict scored against all eleven labels (\S\ref{sec:selfjudgment}), not a per-dimension classifier.}
+{\footnotesize\textsuperscript{a}Identity-stripped decoder 8B v4 run \todo{pending: decoder-8b-v4 --strip-identity job, running as \texttt{eval-8b-v4-noid}}. \textsuperscript{b}Single ALLOW/STOP verdict scored against all eleven labels (\S\ref{sec:selfjudgment}), not a per-dimension classifier.}
 \end{table}
 
 Table~\ref{tab:macro-summary}: identity-aware trained models lose
@@ -41,6 +41,13 @@ Table~\ref{tab:macro-summary}: identity-aware trained models lose
 unchanged; the zero-shot models are flat or slightly \emph{improve}. If a
 general safety model quietly used delegated-authority context, stripping it
 would hurt -- it does not, for either model.
+
+The v4 ablation replicates the v2 pattern on the fixed data: macro AUPRC drops
+0.960 to 0.790, close to v2's 0.915 to 0.736. The one change is
+\texttt{privilege\_escalation}, which now survives stripping entirely (1.000
+to 1.000): the v4 render fix makes \texttt{authority\_before}/\texttt{authority\_after}
+observable directly in the tool-call text, so it is a content dimension, not
+an identity one.
 
 \begin{table}[tbp]
 \centering

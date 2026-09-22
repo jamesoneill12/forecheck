@@ -29,13 +29,11 @@ Dimension (pos.\ rate) & Agent 8B & Agent 8B, stripped & Decoder 2B v4 (checker)
 \texttt{policy\_conflict} (0.385) & 0.509 & 0.415 & 0.964 \\
 \texttt{insufficient\_context} (0.079) & 0.085 & 0.084 & 0.841 \\
 \texttt{privilege\_escalation} (0.075) & 0.103 & 0.106 & 1.000 \\
-\texttt{prompt\_injection\_influence} (0.075) & 0.169 & \textbf{0.498} & 0.81\textsuperscript{a} \\
+\texttt{prompt\_injection\_influence} (0.075) & 0.169 & \textbf{0.498} & 0.804 \\
 \midrule
 Macro & 0.242 & 0.281 & 0.960 \\
 \bottomrule
 \end{tabular}
-\vskip 1mm
-{\footnotesize\textsuperscript{a}Decoder 2B v2 number, the version this comparison's original report used; v4 not yet re-run on this dimension in the self-judgment comparison.}
 \end{table}
 
 \begin{figure}[tbp]
@@ -71,5 +69,16 @@ content-style dimensions. The small identity signal that does exist
 agent reads the context a little; it does not turn that into a usable
 decision, and the gap to the external checker's 0.960 macro AUPRC persists
 regardless.
+
+\textbf{Row-for-row comparison on v4} (\texttt{agent-self-8b-v4/}). Scoring
+the decoder 2B v4 checker against the identical 2,000 \texttt{heldout\_family}
+rows used for the 8B agent above, it beats the agent's own single-verdict
+score on every one of the eleven dimensions, by 0.45--0.90 AUPRC:
+\texttt{unauthorized\_scope} 0.999 vs.\ 0.135, \texttt{policy\_conflict}
+0.964 vs.\ 0.509, \texttt{insufficient\_context} 0.841 vs.\ 0.086,
+\texttt{prompt\_injection\_influence} 0.804 vs.\ 0.166 (agent stripped:
+0.507). Identity context in the agent's own prompt still costs it on
+injection detection even though stripping barely moves the checker; the
+agent's own macro is 0.242 full vs.\ 0.281 stripped.
 
 \FloatBarrier
