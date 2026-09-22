@@ -77,7 +77,11 @@ positive is $-3.25$, and no call scores above zero; the residual ordering is
 noise. On the same rows the 2B \texttt{policy\_conflict} head separates
 cleanly (median raw logit $+2.5$ for positives, $-3.5$ for negatives). The 2B
 model learned injection from surface cues of the synthetic generator that
-AgentDojo's injections do not carry. The
+AgentDojo's injections do not carry. The 8B dump shows a live but shifted
+head: median raw logit $-1.75$ for positives against $-3.50$ for negatives,
+with 29\% of positives above zero against 0.7\% of negatives, so the ranking
+is right while most true positives sit below the decision boundary, which is
+the ECE of 0.272 in one number. The
 two 8B baselines separate scale from training: the same Granite-3.3-8B base
 asked \textsc{allow}/\textsc{stop} as the agent (\S\ref{sec:selfjudgment})
 scores 0.291 AUPRC on injection and Granite Guardian 3.3 8B zero-shot scores
@@ -86,7 +90,9 @@ parameter count. Stripping identity from the 8B input keeps injection (0.743)
 and drops \texttt{policy\_conflict} from 0.560 to 0.404, the same content
 versus identity split as in \S\ref{sec:identity}.
 \textbf{\texttt{unauthorized\_scope} does not transfer} (0.257 2B, 0.386 8B,
-vs.\ a 0.253 base rate); the label itself is the weakest one here, since
+vs.\ a 0.253 base rate); the 8B head scores above zero on 77\% of negatives
+and 66\% of positives, so it fires on nearly every call and carries no signal
+on this label. The label itself is the weakest one here, since
 "function not in the reference solution" counts harmless auxiliary reads as
 out of scope, and we report this without claiming transfer on it. \textbf{8B
 \texttt{policy\_conflict} (0.560 AUPRC) is below 2B (0.849 AUPRC) while its

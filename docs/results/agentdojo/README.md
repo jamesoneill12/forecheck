@@ -78,7 +78,14 @@ dimension except `prompt_injection_influence`, n=4,133.
    the 2B `policy_conflict` head separates cleanly on the same rows (median raw
    +2.5 for positives, -3.5 for negatives). The 2B model learned injection from
    surface cues of the synthetic generator that AgentDojo's injections do not
-   carry; 8B learned something that transfers. The two 8B baselines separate
+   carry; 8B learned something that transfers. The 8B dump confirms the head is
+   live but shifted: median raw -1.75 for positives vs -3.50 for negatives, and
+   29% of positives score above 0 against 0.7% of negatives, so the ranking is
+   right while most true positives still sit below the decision boundary, which
+   is the ECE 0.272 in one number. The same dump explains `unauthorized_scope`:
+   8B scores above 0 on 77% of negatives and 66% of positives (both medians
+   +6.75), i.e. the head fires on almost everything and carries no signal on
+   this label. The two 8B baselines separate
    scale from training: the same Granite-3.3-8B base asked ALLOW/STOP as the agent
    scores 0.291 / 0.775 on injection, and Granite Guardian 3.3 8B zero-shot scores
    0.103 / 0.233, below base rate. The trained 8B checker's 0.797 is therefore the
