@@ -30,6 +30,22 @@ family, but the composition problem in \S\ref{sec:composition} exists only
 because its input is a learned, calibrated probability rather than a fact
 a symbolic engine evaluates exactly.
 
+\textbf{Declared intent and deterministic enforcement.} The OWASP agentic
+security guidance \citep{owasp2025agentic} and practitioner positions built
+on it \citep{capiscio2026intent} hold that an authorization decision must be
+deterministic and auditable, so a model's judgment that an action ``looks
+fine'' cannot be the control; the agent should declare a typed mandate up
+front and a policy enforcement point should check each call against it
+symbolically. Our results support the first half: the acting agent is at
+chance on its own scope (\S\ref{sec:selfjudgment}). They also show the limit
+of the second: once the mandate is a natural-language policy, the symbolic
+checker (our rule baseline) drops to 0.33--0.50 AUPRC on
+\texttt{policy\_conflict} and \texttt{unauthorized\_scope}, and only a
+learned reader recovers it across paraphrases (\S\ref{sec:generalisation}).
+forecheck keeps the decision deterministic and puts the learned component
+where OWASP allows it: the scorer never authorises, it prices the review, and
+\S\ref{sec:composition} measures what that advisory signal is worth.
+
 \textbf{Calibration.} Platt/temperature scaling \citep{platt1999probabilistic},
 the modern re-examination of network calibration \citep{guo2017calibration},
 and the Wilson score interval \citep{wilson1927probable} (used for the
