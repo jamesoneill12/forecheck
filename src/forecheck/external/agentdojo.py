@@ -30,6 +30,7 @@ from forecheck.contracts import (
     LabelSet,
     LabelValue,
     LatentScenario,
+    Observation,
     OperationKind,
     PolicyStatement,
     Principal,
@@ -66,8 +67,8 @@ __all__ = [
     "to_example",
 ]
 
-_RESULT_TRUNCATE_CHARS = 500
-_DERIVATION_VERSION = "agentdojo-1.1.0"
+_RESULT_TRUNCATE_CHARS = 2000
+_DERIVATION_VERSION = "agentdojo-1.2.0"
 _LICENSE_URL = "https://github.com/ethz-spylab/agentdojo"
 
 _SUITE_TOOL_FAMILY: dict[str, ToolFamily] = {
@@ -327,6 +328,7 @@ class AgentDojoOverlay:
     policy_texts: dict[str, str] = field(default_factory=dict)
     policy_severities: dict[str, str] = field(default_factory=dict)
     tool_docs: dict[str, str] = field(default_factory=dict)
+    user_ground_truth_text: str = ""
 
 
 def overlay_identity(
@@ -344,6 +346,7 @@ def overlay_identity(
         policy_texts={spec.id: spec.text for spec in policy_specs},
         policy_severities={spec.id: spec.severity for spec in policy_specs},
         tool_docs=dict(suite_entry.get("tools", {})),
+        user_ground_truth_text=json.dumps(user_gt.get("ground_truth", [])),
     )
 
 
@@ -468,6 +471,20 @@ def _destination_identifier(args: dict[str, Any]) -> str | None:
     return None
 
 
+def _destination_provenance(
+    dest_id: str | None, trace: AgentDojoTrace, overlay: AgentDojoOverlay, call: ProposedCall
+) -> tuple[DestinationRelationship, TrustLevel]:
+    """Where the destination identifier came from, decided from context alone, never from labels."""
+    if dest_id is None:
+        return DestinationRelationship.SELF, TrustLevel.TRUSTED_TOOL
+    needle = dest_id.lower()
+    if needle in trace.user_prompt.lower() or needle in overlay.user_ground_truth_text.lower():
+        return DestinationRelationship.KNOWN_THIRD_PARTY, TrustLevel.PRINCIPAL
+    if any(needle in entry.result_summary.lower() for entry in call.prior_trajectory):
+        return DestinationRelationship.UNKNOWN_EXTERNAL, TrustLevel.UNTRUSTED
+    return DestinationRelationship.UNKNOWN_EXTERNAL, TrustLevel.UNKNOWN
+
+
 def _example_id(trace: AgentDojoTrace, call: ProposedCall) -> str:
     raw = f"{trace.path}:{call.message_index}:{call.tool_call_index}"
     return hashlib.sha256(raw.encode()).hexdigest()[:32]
@@ -486,7 +503,6 @@ def to_example(
     )
     destination_present = labels.values[RiskDimension.UNTRUSTED_DESTINATION] is LabelValue.YES
     injected = labels.values[RiskDimension.PROMPT_INJECTION_INFLUENCE] is LabelValue.YES
-    unauthorized = labels.values[RiskDimension.UNAUTHORIZED_SCOPE] is LabelValue.YES
     delegated = frozenset(overlay.delegated_scopes)
 
     tool = ToolSpec(
@@ -516,16 +532,10 @@ def to_example(
         f"agentdojo:{suite}:{trace.user_task_id}:{trace.injection_task_id or 'none'}:"
         f"{call.message_index}:{call.tool_call_index}"
     )
-    destination_relationship = (
-        DestinationRelationship.UNKNOWN_EXTERNAL
-        if destination_present and (injected or unauthorized)
-        else (
-            DestinationRelationship.KNOWN_THIRD_PARTY
-            if destination_present
-            else DestinationRelationship.SELF
-        )
+    dest_id = _destination_identifier(call.args)
+    destination_relationship, destination_trust = _destination_provenance(
+        dest_id, trace, overlay, call
     )
-    destination_trust = TrustLevel.UNTRUSTED if injected else TrustLevel.TRUSTED_TOOL
     resource_sensitivity = (
         Sensitivity.CONFIDENTIAL if (is_financial or is_destructive) else Sensitivity.INTERNAL
     )
@@ -579,7 +589,6 @@ def to_example(
         for entry in call.prior_trajectory
     ]
 
-    dest_id = _destination_identifier(call.args)
     destination = None
     if destination_present and dest_id is not None:
         destination = ContextDestination(
@@ -626,6 +635,17 @@ def to_example(
             idempotent=tool.idempotent,
         ),
         trajectory=trajectory_steps,
+        observations=[
+            Observation(
+                id=f"obs-{entry.index}",
+                source="tool_result",
+                trust=TrustLevel.UNTRUSTED,
+                content=entry.result_summary,
+                content_type="text/plain",
+            )
+            for entry in call.prior_trajectory
+            if entry.result_summary.strip()
+        ],
         resources=[resource],
         destination=destination,
         policies=[

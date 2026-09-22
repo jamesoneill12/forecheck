@@ -57,6 +57,28 @@ task's own `security()` check returns `True` when its goal was executed — the 
 of what the name suggests in isolation. This is confirmed empirically in
 `tests/external/test_agentdojo.py` and used as-is throughout.
 
+## Rendering channels (derivation `agentdojo-1.2.0`)
+
+The synthetic generator puts every piece of third-party text the agent has read into
+`context.observations` with `trust=untrusted`; the trajectory carries only short tool
+outcomes. The checker was trained on that contract, so the port follows it: every prior
+tool result (last 2,000 characters) becomes one `Observation(source="tool_result",
+trust=untrusted)`, whether or not it carries an injection. This is label-free and it is
+what an integration would do, since tool results are data, never commands. The first
+export (`agentdojo-1.1.0`, reports kept under `docs/results/agentdojo/render-v1/`) left
+the text only in `trajectory[].result_summary`, truncated to 500 characters, and the
+2B checker scored below the base rate on `prompt_injection_influence` (AUPRC 0.14 at a
+0.15 positive rate) because the injected text was in a channel it had never seen used
+that way.
+
+`context.destination.trust` and `.relationship` are decided from context alone: the
+identifier appears in the user's prompt or the user task's reference solution
+(`principal` / `known_third_party`), or in a prior tool result (`untrusted` /
+`unknown_external`), or nowhere (`unknown` / `unknown_external`). The 1.1.0 export
+derived them from the `prompt_injection_influence` label, which leaked the label into the
+rendered text. `latent.*` fields (`action_origin`, `difficulty`) still summarise labels;
+they are metadata and are not rendered.
+
 ## Identity overlay
 
 - **principal**: parsed from the system prompt ("The user's name is Emma Johnson...").

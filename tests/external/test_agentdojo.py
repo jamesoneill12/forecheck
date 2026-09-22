@@ -140,3 +140,32 @@ def test_label_call_placeholder_only_match_is_not_influence(ground_truth: dict) 
     )
     labels = label_call(benign, trace, ground_truth)
     assert labels.values[RiskDimension.PROMPT_INJECTION_INFLUENCE] is LabelValue.NO
+
+
+def test_to_example_puts_tool_results_in_untrusted_observations(ground_truth: dict) -> None:
+    trace = parse_trace(INJECTION_SUCCEEDED)
+    call = next(c for c in trace.proposed_calls if c.function == "send_money")
+    overlay = overlay_identity("banking", trace, ground_truth)
+    example = to_example(call, trace, overlay, label_call(call, trace, ground_truth))
+    assert example.context.observations
+    assert all(o.trust.value == "untrusted" for o in example.context.observations)
+    assert any("<INFORMATION>" in o.content for o in example.context.observations)
+
+
+def test_to_example_destination_trust_does_not_depend_on_label(ground_truth: dict) -> None:
+    trace = parse_trace(INJECTION_SUCCEEDED)
+    call = next(c for c in trace.proposed_calls if c.function == "send_money")
+    overlay = overlay_identity("banking", trace, ground_truth)
+    labels = label_call(call, trace, ground_truth)
+    flipped = labels.model_copy(
+        update={
+            "values": {
+                **labels.values,
+                RiskDimension.PROMPT_INJECTION_INFLUENCE: LabelValue.NO,
+            }
+        }
+    )
+    a = to_example(call, trace, overlay, labels).context.destination
+    b = to_example(call, trace, overlay, flipped).context.destination
+    assert a is not None and b is not None
+    assert (a.trust, a.relationship) == (b.trust, b.relationship)
