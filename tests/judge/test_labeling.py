@@ -157,3 +157,32 @@ def test_write_then_load_label_cache_round_trips_and_reruns_are_idempotent(tmp_p
     reloaded = load_label_cache(out)
     assert len(reloaded) == 1
     assert reloaded[next(iter(reloaded))].example_id == "ex-1"
+
+
+def test_provider_exception_becomes_error_row_and_is_not_cached(tmp_path):
+    from forecheck.judge.labeling import label_examples, load_label_cache, write_label_rows
+    from forecheck.judge.schema import JudgeSampleRow
+
+    class Boom:
+        model = "m"
+
+        def complete(self, *, system, user, client):
+            raise RuntimeError("codex CLI timed out after 600.0s")
+
+    row = JudgeSampleRow(
+        example_id="e1",
+        family_id="f",
+        split="test",
+        tool_family="mcp",
+        policy_kinds=[],
+        difficulty="easy",
+        rendered_full="x",
+        rendered_stripped="x",
+        generator_labels={},
+    )
+    result = label_examples([row], provider_name="codex_cli", model="m", provider=Boom())
+    assert result.rows[0].parse_ok is False
+    assert result.rows[0].error.startswith("provider error")
+    out = tmp_path / "labels.jsonl"
+    write_label_rows(out, result.rows)
+    assert load_label_cache(out) == {}

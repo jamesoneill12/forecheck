@@ -159,7 +159,7 @@ def test_codex_cli_provider_builds_expected_argv_and_reads_last_message(
     assert response.text == '{"ok": true}'
     assert response.output_tokens == 1234
     assert response.input_tokens == 0
-    assert captured["kwargs"]["timeout"] == 120.0
+    assert captured["kwargs"]["timeout"] == 600.0
 
 
 def test_codex_cli_provider_reads_token_count_from_stderr(monkeypatch: pytest.MonkeyPatch) -> None:

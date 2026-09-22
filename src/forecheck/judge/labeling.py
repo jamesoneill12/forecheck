@@ -38,6 +38,8 @@ def load_label_cache(path: Path) -> dict[tuple[str, str, bool], JudgeLabelRow]:
             stripped = line.strip()
             if stripped:
                 row = JudgeLabelRow.model_validate_json(stripped)
+                if row.error and row.error.startswith("provider error"):
+                    continue  # transient failure: let a rerun try again
                 cache[row.cache_key] = row
     return cache
 
@@ -84,6 +86,30 @@ def _parse_verdicts(text: str) -> dict[RiskDimension, JudgeDimensionVerdict] | N
     return verdicts
 
 
+def _error_row(
+    row: JudgeSampleRow,
+    provider: JudgeProvider,
+    provider_name: str,
+    strip_identity: bool,
+    error: str,
+) -> JudgeLabelRow:
+    return JudgeLabelRow(
+        example_id=row.example_id,
+        model=provider.model,
+        provider=provider_name,
+        strip_identity=strip_identity,
+        labels=dict.fromkeys(RiskDimension, None),
+        parse_ok=False,
+        retried=False,
+        raw_completion="",
+        input_tokens=0,
+        output_tokens=0,
+        cost_usd=None,
+        created_at=datetime.now(UTC),
+        error=error,
+    )
+
+
 def _label_one(
     row: JudgeSampleRow,
     provider: JudgeProvider,
@@ -94,7 +120,10 @@ def _label_one(
     strip_identity: bool,
 ) -> JudgeLabelRow:
     user_text = row.rendered_stripped if strip_identity else row.rendered_full
-    response = provider.complete(system=system_prompt, user=user_text, client=client)
+    try:
+        response = provider.complete(system=system_prompt, user=user_text, client=client)
+    except Exception as exc:  # noqa: BLE001 - one bad call must not kill a 600-row run
+        return _error_row(row, provider, provider_name, strip_identity, f"provider error: {exc}")
     verdicts = _parse_verdicts(response.text)
     raw_completion = response.text
     input_tokens = response.input_tokens
@@ -102,7 +131,12 @@ def _label_one(
     retried = False
     if verdicts is None:
         retried = True
-        retry_response = provider.complete(system=system_prompt, user=user_text, client=client)
+        try:
+            retry_response = provider.complete(system=system_prompt, user=user_text, client=client)
+        except Exception as exc:  # noqa: BLE001
+            return _error_row(
+                row, provider, provider_name, strip_identity, f"provider error on retry: {exc}"
+            )
         raw_completion = retry_response.text
         input_tokens += retry_response.input_tokens
         output_tokens += retry_response.output_tokens

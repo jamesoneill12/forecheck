@@ -144,7 +144,7 @@ class CodexCliProvider:
         model: str,
         *,
         reasoning_effort: str = "low",
-        timeout: float = 120.0,
+        timeout: float = 600.0,
     ) -> None:
         binary = os.environ.get("FORECHECK_CODEX_BIN") or shutil.which("codex")
         if not binary:
