@@ -16,9 +16,9 @@ HAS_TORCH = importlib.util.find_spec("torch") is not None
 requires_torch = pytest.mark.skipif(not HAS_TORCH, reason="torch is not installed")
 
 _STOP_ID = 301
-_PROCEED_ID = 302
+_ALLOW_ID = 302
 _MARKER_ID = 303
-_WORD_IDS = {"STOP": _STOP_ID, "PROCEED": _PROCEED_ID}
+_WORD_IDS = {"STOP": _STOP_ID, "ALLOW": _ALLOW_ID}
 
 
 def test_agent_self_module_imports_without_torch() -> None:
@@ -84,9 +84,9 @@ def test_parse_verdict_word_prefers_earliest_match() -> None:
     from forecheck.inference.agent_self import _parse_verdict_word
 
     assert _parse_verdict_word("STOP. This looks unauthorized.") == "STOP"
-    assert _parse_verdict_word("PROCEED. This is routine.") == "PROCEED"
-    assert _parse_verdict_word("no clear verdict here") == "PROCEED"
-    assert _parse_verdict_word("first PROCEED then reconsider: STOP") == "PROCEED"
+    assert _parse_verdict_word("ALLOW. This is routine.") == "ALLOW"
+    assert _parse_verdict_word("no clear verdict here") == "ALLOW"
+    assert _parse_verdict_word("first ALLOW then reconsider: STOP") == "ALLOW"
 
 
 def test_single_token_ids_skips_multi_token_forms() -> None:
@@ -164,7 +164,7 @@ class _FakeTokenizer:
         return {"input_ids": input_ids, "attention_mask": attention_mask}
 
     def batch_decode(self, sequences: Any, skip_special_tokens: bool = True) -> list[str]:
-        words = {_STOP_ID: "STOP", _PROCEED_ID: "PROCEED"}
+        words = {_STOP_ID: "STOP", _ALLOW_ID: "ALLOW"}
         return [" ".join(words.get(int(t), str(int(t))) for t in seq.tolist()) for seq in sequences]
 
 
@@ -178,7 +178,7 @@ class _FakeModel:
         for i in range(batch):
             risky = bool((input_ids[i] == _MARKER_ID).any())
             logits[i, 0, _STOP_ID] = 10.0 if risky else -10.0
-            logits[i, 0, _PROCEED_ID] = -10.0 if risky else 10.0
+            logits[i, 0, _ALLOW_ID] = -10.0 if risky else 10.0
         return SimpleNamespace(logits=logits)
 
     def generate(
@@ -194,7 +194,7 @@ class _FakeModel:
         tokens = []
         for i in range(batch):
             risky = bool((input_ids[i] == _MARKER_ID).any())
-            tokens.append([_STOP_ID if risky else _PROCEED_ID] * max_new_tokens)
+            tokens.append([_STOP_ID if risky else _ALLOW_ID] * max_new_tokens)
         return torch.cat([input_ids, torch.tensor(tokens, dtype=torch.long)], dim=1)
 
 
@@ -206,7 +206,7 @@ def _wired_backend(**config_kwargs: Any) -> Any:
     backend._tokenizer = _FakeTokenizer()
     backend._device = "cpu"
     backend._stop_ids = {_STOP_ID}
-    backend._proceed_ids = {_PROCEED_ID}
+    backend._allow_ids = {_ALLOW_ID}
     return backend
 
 
@@ -272,7 +272,7 @@ def test_generate_dump_produces_verdict_and_completion() -> None:
     results = backend.generate_dump([risky, benign])
 
     assert results[0]["verdict"] == "STOP"
-    assert results[1]["verdict"] == "PROCEED"
+    assert results[1]["verdict"] == "ALLOW"
     assert "completion" in results[0]
 
 
@@ -287,9 +287,7 @@ def test_dump_verdicts_writes_jsonl(tmp_path: Path) -> None:
     backend.dump_verdicts([example], out_path)
 
     rows = [json.loads(line) for line in out_path.read_text(encoding="utf-8").splitlines()]
-    assert rows == [
-        {"example_id": "ex-1", "verdict": "PROCEED", "completion": rows[0]["completion"]}
-    ]
+    assert rows == [{"example_id": "ex-1", "verdict": "ALLOW", "completion": rows[0]["completion"]}]
 
 
 def test_render_self_judgment_section_reports_agent_metrics_and_delta() -> None:

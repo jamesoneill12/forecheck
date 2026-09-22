@@ -96,7 +96,7 @@ own scope, or does it need an external checker?" (see
 `docs/evaluation/agent-self-judgment.md`): it feeds the `heldout_family` and
 `adversarial` splits of `/opt/ml/fsx/forecheck/data/v3` to a Fin-style
 customer-service-agent prompt (`configs/baselines/agent-self-granite-2b.yaml`,
-`agent-self-granite-8b.yaml`) that gets one PROCEED/STOP decision, with and without
+`agent-self-granite-8b.yaml`) that gets one ALLOW/STOP decision, with and without
 `--strip-identity`, `--max-examples 2000`, writing to
 `/opt/ml/fsx/forecheck/runs/baselines/agent-self-<size>/reports/<split>[-noid]`. It
 guards on `/opt/ml/fsx/forecheck/data/v3/train.jsonl` already existing:

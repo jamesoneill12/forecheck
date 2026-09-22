@@ -8,7 +8,7 @@ forecheck's classifier (`forecheck evaluate --backend hf`) to an instruct model
 (default `ibm-granite/granite-3.3-8b-instruct`) wrapped in a Fin-style
 customer-service-agent system prompt, carrying the same principal entitlements,
 delegated scopes, and policy text the classifier sees, then the pending tool call, and
-reads one PROCEED/STOP verdict off it.
+reads one ALLOW/STOP verdict off it.
 
 ## Why one scalar instead of eleven dimensions
 
@@ -16,7 +16,7 @@ forecheck's trained backends (`hf`, `encoder`) and the zero-shot guardian baseli
 each answer all eleven `RiskDimension` questions independently per example. A
 production agent does not know this taxonomy: it only decides whether to act. So
 `AgentSelfBackend` produces a single `p_stop` per example — read off the softmax over
-the first output token's STOP vs PROCEED logits, exactly as `forecheck.inference.hf`
+the first output token's STOP vs ALLOW logits, exactly as `forecheck.inference.hf`
 reads yes/no — and copies that one score to every dimension's raw score.
 
 Scoring the same scalar against all eleven dimensions' labels is deliberate, not a
@@ -49,7 +49,7 @@ qualitative spot-checking. This generation path is never used for scoring.
   reasonable customer-service-agent framing we designed for this comparison, not
   Intercom's actual production Fin prompt. A different system prompt (more or less
   cautious phrasing, different tool-call framing, few-shot examples) could move the
-  agent's PROCEED/STOP boundary substantially. Treat results as a lower/upper bound on
+  agent's ALLOW/STOP boundary substantially. Treat results as a lower/upper bound on
   what a *reasonably prompted* agent could do, not a claim about Fin specifically.
 - **Synthetic data.** Like every other class 1/2 report in this suite (see
   `docs/evaluation-plan.md` §1), the underlying examples are synthetic. A model that
