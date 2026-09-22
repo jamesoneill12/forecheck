@@ -68,7 +68,16 @@ dimension except `prompt_injection_influence`, n=4,133.
    single most important number in this report: the 8B checker, trained only on
    synthetic data, ranks the call that executes the attacker's goal above the
    benign calls in the same poisoned trace 92 percent of the time. The 2B result
-   is a plain failure and we do not yet know why. The two 8B baselines separate
+   is a plain failure, and the per-example dump (`--dump-scores`, job
+   `eval-agentdojo-diag`) says why: the 2B injection head never fires on this
+   domain. Raw logits for all 4,133 evaluable calls lie between -5.0 and -3.0;
+   the highest-scoring positive is -3.25 and no row scores above 0. The
+   ordering that remains is noise, slightly inverted because calls with a
+   prior tool result score a quarter-logit lower than first calls. By contrast
+   the 2B `policy_conflict` head separates cleanly on the same rows (median raw
+   +2.5 for positives, -3.5 for negatives). The 2B model learned injection from
+   surface cues of the synthetic generator that AgentDojo's injections do not
+   carry; 8B learned something that transfers. The two 8B baselines separate
    scale from training: the same Granite-3.3-8B base asked ALLOW/STOP as the agent
    scores 0.291 / 0.775 on injection, and Granite Guardian 3.3 8B zero-shot scores
    0.103 / 0.233, below base rate. The trained 8B checker's 0.797 is therefore the
@@ -110,8 +119,9 @@ render-v1.
 
 ## Next
 
-- Dump per-example scores for the external split so the 2B injection failure can
-  be diagnosed; scores are not currently cached for external splits.
+- Find which synthetic cue the 2B injection head keys on (ablate observation
+  source names, `attacker.example` domains, the "Note to assistant" phrasing) and
+  diversify the generator's injection templates so 2B transfers too.
 - Fetch slack, workspace and travel traces from AgentDojo.
 - Port InjecAgent as a second external benchmark.
 - Refit calibration on a held-out AgentDojo split instead of using the

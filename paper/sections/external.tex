@@ -69,7 +69,14 @@ outright (0.128 AUPRC, below the 0.150 base rate, AUROC 0.348); 8B reaches
 but insufficient cue. This is the most important number in this section: the
 8B checker, trained only on synthetic data, ranks the call that executes the
 attacker's goal above the benign calls in the same poisoned trace 92 percent
-of the time. The 2B result is a plain failure and we do not yet know why. The
+of the time. The 2B result is a plain failure, and a per-example score dump
+says why: the 2B injection head never fires on this domain. Raw logits for all
+4,133 evaluable calls lie between $-5.0$ and $-3.0$, the highest-scoring
+positive is $-3.25$, and no call scores above zero; the residual ordering is
+noise. On the same rows the 2B \texttt{policy\_conflict} head separates
+cleanly (median raw logit $+2.5$ for positives, $-3.5$ for negatives). The 2B
+model learned injection from surface cues of the synthetic generator that
+AgentDojo's injections do not carry. The
 two 8B baselines separate scale from training: the same Granite-3.3-8B base
 asked \textsc{allow}/\textsc{stop} as the agent (\S\ref{sec:selfjudgment})
 scores 0.291 AUPRC on injection and Granite Guardian 3.3 8B zero-shot scores
