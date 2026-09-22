@@ -21,6 +21,8 @@ from forecheck.evaluation.approval_curve import IncidentRateMode
 from forecheck.evaluation.report import EvaluationClass
 from forecheck.evaluation.runner import evaluate
 from forecheck.evaluation.score_cache import load_raw_scores, save_raw_scores, score_cache_path
+from forecheck.judge.labeling import load_label_cache
+from forecheck.judge.relabel import relabel_with_judge
 from forecheck.policies.dsl import PolicyBundle
 
 __all__ = ["evaluate_command"]
@@ -54,6 +56,14 @@ def evaluate_command(
     ] = False,
     bundle: Annotated[str | None, typer.Option(help="Policy bundle name or path.")] = None,
     data: Annotated[Path | None, typer.Option(help="Dataset directory.")] = None,
+    labels_from: Annotated[
+        Path | None,
+        typer.Option(
+            "--labels-from",
+            help="Judge labels jsonl from 'forecheck judge label'; re-score against these "
+            "verdicts instead of generator ground truth, restricted to the judged example ids.",
+        ),
+    ] = None,
     out: Annotated[Path | None, typer.Option(help="Report output directory.")] = None,
     threshold_split: Annotated[
         str,
@@ -141,6 +151,17 @@ def evaluate_command(
     examples = read_jsonl(split_path)
     if not examples:
         raise typer.BadParameter(f"no examples found at {split_path}")
+    labels_source: str | None = None
+    if labels_from is not None:
+        judge_rows = list(load_label_cache(labels_from).values())
+        if not judge_rows:
+            raise typer.BadParameter(f"no judge labels found at {labels_from}")
+        examples, labels_source = relabel_with_judge(examples, judge_rows)
+        if not examples:
+            raise typer.BadParameter(
+                f"no rows in --split {split} match any judged example id in {labels_from}"
+            )
+        typer.echo(f"restricted to {len(examples)} judged examples from {labels_from}")
     if max_examples is not None and max_examples < len(examples):
         examples = random.Random(_SUBSAMPLE_SEED).sample(examples, max_examples)  # noqa: S311
         typer.echo(f"evaluating a seeded subsample of {max_examples} rows from {split}")
@@ -213,6 +234,7 @@ def evaluate_command(
             dataset_sha256=sha256_file(split_path),
             threshold_selection_examples=selection_examples,
             identity_stripped=strip_identity,
+            labels_source=labels_source,
             threshold_selection_scores=selection_scores,
             on_threshold_selection_scored=on_selection_scored,
             stacking_bundles=stack_bundles,

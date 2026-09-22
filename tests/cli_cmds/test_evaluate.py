@@ -11,9 +11,11 @@ from forecheck.calibration.base import CalibratorBundle
 from forecheck.calibration.store import save_bundle
 from forecheck.cli_cmds._common import resolve_backend
 from forecheck.cli_cmds.evaluate import evaluate_command
-from forecheck.contracts import LABEL_SCHEMA_VERSION
+from forecheck.contracts import LABEL_SCHEMA_VERSION, LabelValue, RiskDimension
 from forecheck.data.io import write_jsonl
 from forecheck.evaluation.report import EvaluationClass
+from forecheck.judge.labeling import write_label_rows
+from forecheck.judge.schema import JudgeDimensionVerdict, JudgeLabelRow
 from forecheck.version import __version__
 from tests.evaluation.conftest import make_example
 
@@ -384,3 +386,78 @@ def test_evaluate_command_caches_threshold_selection_scores(
 
     assert "reusing cached dev scores" in out
     assert first["dimensions"] == second["dimensions"]
+
+
+def _write_judge_labels(path: Path, example_ids: list[str]) -> None:
+    rows = [
+        JudgeLabelRow(
+            example_id=example_id,
+            model="judge-v1",
+            provider="openai_compat",
+            strip_identity=False,
+            labels={
+                d: JudgeDimensionVerdict(value=LabelValue.YES, rationale="r") for d in RiskDimension
+            },
+            parse_ok=True,
+            retried=False,
+            raw_completion="{}",
+            input_tokens=1,
+            output_tokens=1,
+            created_at=datetime.now(UTC),
+        )
+        for example_id in example_ids
+    ]
+    write_label_rows(path, rows)
+
+
+def test_evaluate_command_labels_from_restricts_to_judged_ids_and_records_header(
+    tmp_path: Path,
+) -> None:
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    _write_split(data_dir, "dev")
+    _write_split(data_dir, "test", n=5)
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    labels_path = tmp_path / "labels.jsonl"
+    _write_judge_labels(labels_path, ["test-0", "test-2"])
+
+    evaluate_command(
+        run=run_dir,
+        split="test",
+        evaluation_class=EvaluationClass.SYNTHETIC_IN_DISTRIBUTION,
+        backend="mock",
+        backend_config=None,
+        strip_identity=False,
+        data=data_dir,
+        labels_from=labels_path,
+    )
+
+    report = json.loads((run_dir / "reports" / "test" / "report.json").read_text())
+    assert report["dataset"]["n"] == 2
+    assert report["labels_source"] == "llm judge judge-v1"
+    markdown = (run_dir / "reports" / "test" / "report.md").read_text()
+    assert "Labels: llm judge judge-v1" in markdown
+
+
+def test_evaluate_command_labels_from_errors_when_no_ids_match(tmp_path: Path) -> None:
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    _write_split(data_dir, "dev")
+    _write_split(data_dir, "test", n=3)
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    labels_path = tmp_path / "labels.jsonl"
+    _write_judge_labels(labels_path, ["not-in-split"])
+
+    with pytest.raises(typer.BadParameter, match="no rows in --split"):
+        evaluate_command(
+            run=run_dir,
+            split="test",
+            evaluation_class=EvaluationClass.SYNTHETIC_IN_DISTRIBUTION,
+            backend="mock",
+            backend_config=None,
+            strip_identity=False,
+            data=data_dir,
+            labels_from=labels_path,
+        )

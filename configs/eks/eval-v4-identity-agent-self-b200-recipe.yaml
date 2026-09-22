@@ -1,0 +1,32 @@
+# v4 eval-only arm: decoder 2B v4 scored identity-stripped (paper Table macro-summary row a) and the 8B Fin-style agent
+# self-judgment compared row-for-row against the trained v4 checker on heldout_family. Guards on runs/2b-synthetic-v4 existing.
+trainer:
+  runtime_name: "torch-runtime"
+  project_name: "forecheck"
+  experiment_name: "eval-v4-identity-agent-self"
+
+  ecr_image: "812836555640.dkr.ecr.us-east-2.amazonaws.com/ai/fin-base-training:latest"
+
+  command: >-
+    bash -c 'set -euo pipefail &&
+    cd /workspace/forecheck-job &&
+    pip install -q --no-cache-dir -e ".[train]" &&
+    test -f /opt/ml/fsx/forecheck/runs/2b-synthetic-v4/reports/heldout_family/report.json &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v4 --split heldout_family --class synthetic_heldout_adversarial --strip-identity --out /opt/ml/fsx/forecheck/runs/2b-synthetic-v4/reports/heldout_family-noid &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v4 --split test --class synthetic_in_distribution --strip-identity --out /opt/ml/fsx/forecheck/runs/2b-synthetic-v4/reports/test-noid &&
+    forecheck evaluate --backend agent_self --backend-config configs/baselines/agent-self-granite-8b.yaml --run /opt/ml/fsx/forecheck/runs/baselines/agent-self-8b-v4 --data /opt/ml/fsx/forecheck/data/v4 --split heldout_family --class synthetic_heldout_adversarial --threshold-split none --max-examples 2000 --compare-report /opt/ml/fsx/forecheck/runs/2b-synthetic-v4/reports/heldout_family/report.json --out /opt/ml/fsx/forecheck/runs/baselines/agent-self-8b-v4/reports/heldout_family &&
+    forecheck evaluate --backend agent_self --backend-config configs/baselines/agent-self-granite-8b.yaml --run /opt/ml/fsx/forecheck/runs/baselines/agent-self-8b-v4 --data /opt/ml/fsx/forecheck/data/v4 --split heldout_family --class synthetic_heldout_adversarial --threshold-split none --max-examples 2000 --strip-identity --out /opt/ml/fsx/forecheck/runs/baselines/agent-self-8b-v4/reports/heldout_family-noid'
+
+  env_vars:
+    FORECHECK_TRACKING_BACKEND: "local"
+    HF_HOME: "/opt/ml/fsx/forecheck/hf_cache"
+    TOKENIZERS_PARALLELISM: "false"
+    PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+
+  nnodes: 1
+
+  resources:
+    worker:
+      instance_type: ml.p6-b200.48xlarge
+      gpus_per_pod: 1
+      cpus_per_pod: 2
