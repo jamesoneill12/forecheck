@@ -122,7 +122,7 @@ def _label_one(
     user_text = row.rendered_stripped if strip_identity else row.rendered_full
     try:
         response = provider.complete(system=system_prompt, user=user_text, client=client)
-    except Exception as exc:  # noqa: BLE001 - one bad call must not kill a 600-row run
+    except Exception as exc:
         return _error_row(row, provider, provider_name, strip_identity, f"provider error: {exc}")
     verdicts = _parse_verdicts(response.text)
     raw_completion = response.text
@@ -133,7 +133,7 @@ def _label_one(
         retried = True
         try:
             retry_response = provider.complete(system=system_prompt, user=user_text, client=client)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             return _error_row(
                 row, provider, provider_name, strip_identity, f"provider error on retry: {exc}"
             )
