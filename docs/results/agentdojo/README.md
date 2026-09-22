@@ -48,6 +48,7 @@ dimension except `prompt_injection_influence`, n=4,133.
 | decoder 2B v4, eval-stripped | 0.125 / 0.292 | 0.218 / 0.409 | 0.694 / 0.849 | 1.000 / 1.000 | 1.000 / 1.000 | 0.608 | 0.036 (uncalibrated) |
 | decoder 2B v4 train-stripped | 0.150 / 0.475 | 0.234 / 0.426 | 0.390 / 0.660 | 1.000 / 1.000 | 1.000 / 1.000 | 0.555 | 0.203 |
 | decoder 8B v4 | 0.797 / 0.916 | 0.386 / 0.509 | 0.560 / 0.885 | 0.924 / 0.924 | 1.000 / 1.000 | 0.733 | 0.272 |
+| decoder 8B v4, eval-stripped | 0.743 / 0.915 | 0.266 / 0.523 | 0.404 / 0.787 | 0.934 / 0.936 | 1.000 / 1.000 | 0.669 | 0.014 (uncalibrated) |
 | Granite Guardian 3.3 8B zero-shot (n=1000) | 0.103 / 0.233 | 0.289 / 0.494 | 0.224 / 0.450 | 0.257 / 0.237 | 0.217 / 0.697 | 0.218 | 0.275 |
 | agent-self 8B, ALLOW/STOP (n=1000) | 0.291 / 0.775 | 0.442 / 0.734 | 0.449 / 0.792 | 0.591 / 0.804 | 0.105 / 0.580 | 0.375 | 0.398 |
 
@@ -82,6 +83,9 @@ dimension except `prompt_injection_influence`, n=4,133.
    scores 0.291 / 0.775 on injection, and Granite Guardian 3.3 8B zero-shot scores
    0.103 / 0.233, below base rate. The trained 8B checker's 0.797 is therefore the
    training, not the parameter count; 8B is necessary but not sufficient.
+   Stripping identity from the 8B input keeps injection (0.743 / 0.915) and drops
+   `policy_conflict` from 0.560 to 0.404, the same split between content and
+   identity dimensions the synthetic identity ablation showed.
 
 3. **`unauthorized_scope` does not transfer.** 0.257 (2B) and 0.386 (8B) AUPRC
    against a 0.253 base rate is chance to marginal. The label itself is the

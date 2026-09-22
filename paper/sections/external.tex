@@ -39,6 +39,7 @@ Decoder 2B v4 & 0.128 & 0.257 & 0.849 & 1.000 & 1.000 & 0.647 \\
 2B v4, eval-stripped & 0.125 & 0.218 & 0.694 & 1.000 & 1.000 & 0.608 \\
 2B v4, train-stripped & 0.150 & 0.234 & 0.390 & 1.000 & 1.000 & 0.555 \\
 Decoder 8B v4 & 0.797 & 0.386 & 0.560 & 0.924 & 1.000 & 0.733 \\
+8B v4, eval-stripped & 0.743 & 0.266 & 0.404 & 0.934 & 1.000 & 0.669 \\
 \midrule
 Granite Guardian 3.3 8B & 0.103 & 0.289 & 0.224 & 0.257 & 0.217 & 0.218 \\
 Agent-self 8B (\textsc{allow}/\textsc{stop}) & 0.291 & 0.442 & 0.449 & 0.591 & 0.105 & 0.375 \\
@@ -81,7 +82,9 @@ two 8B baselines separate scale from training: the same Granite-3.3-8B base
 asked \textsc{allow}/\textsc{stop} as the agent (\S\ref{sec:selfjudgment})
 scores 0.291 AUPRC on injection and Granite Guardian 3.3 8B zero-shot scores
 0.103, below base rate. The trained checker's 0.797 is the training, not the
-parameter count.
+parameter count. Stripping identity from the 8B input keeps injection (0.743)
+and drops \texttt{policy\_conflict} from 0.560 to 0.404, the same content
+versus identity split as in \S\ref{sec:identity}.
 \textbf{\texttt{unauthorized\_scope} does not transfer} (0.257 2B, 0.386 8B,
 vs.\ a 0.253 base rate); the label itself is the weakest one here, since
 "function not in the reference solution" counts harmless auxiliary reads as
