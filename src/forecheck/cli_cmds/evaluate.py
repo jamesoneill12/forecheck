@@ -20,7 +20,12 @@ from forecheck.data.io import read_jsonl, sha256_file
 from forecheck.evaluation.approval_curve import IncidentRateMode
 from forecheck.evaluation.report import EvaluationClass
 from forecheck.evaluation.runner import evaluate
-from forecheck.evaluation.score_cache import load_raw_scores, save_raw_scores, score_cache_path
+from forecheck.evaluation.score_cache import (
+    load_raw_scores,
+    save_raw_scores,
+    score_cache_path,
+    write_score_dump,
+)
 from forecheck.judge.labeling import load_label_cache
 from forecheck.judge.relabel import relabel_with_judge
 from forecheck.policies.dsl import PolicyBundle
@@ -101,6 +106,13 @@ def evaluate_command(
             "delta to the --backend agent_self self-judgment section.",
         ),
     ] = None,
+    dump_scores: Annotated[
+        bool,
+        typer.Option(
+            "--dump-scores",
+            help="Write <out>/scores.jsonl with per-example labels, raw scores and probabilities.",
+        ),
+    ] = False,
     dump_n: Annotated[
         int | None,
         typer.Option(
@@ -206,6 +218,14 @@ def evaluate_command(
         names = [name.strip() for name in stacking_bundles.split(",") if name.strip()]
         stack_bundles = [load_policy_engine_by_name_or_path(name).bundle for name in names]
 
+    on_scored = None
+    if dump_scores:
+        dump_dir = out or (run / "reports" / split)
+
+        def on_scored(raw, probabilities) -> None:  # noqa: ANN001
+            dump_dir.mkdir(parents=True, exist_ok=True)
+            write_score_dump(dump_dir / "scores.jsonl", examples, raw, probabilities)
+
     selection_scores = None
     on_selection_scored = None
     if selection_examples is not None and threshold_split != "none":
@@ -243,6 +263,7 @@ def evaluate_command(
             approval_curve_engine=approval_curve_engine,
             approval_target_base_rate=approval_target_base_rate,
             approval_incident_rate_mode=approval_incident_rate_mode,
+            on_scored=on_scored,
         )
         if backend == "agent_self" and dump_n:
             from forecheck.inference.agent_self import AgentSelfBackend

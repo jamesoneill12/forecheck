@@ -9,11 +9,12 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from forecheck.contracts.enums import RiskDimension
 from forecheck.contracts.io import TruncationInfo
+from forecheck.contracts.records import Example
 from forecheck.inference.base import RawScores
 
 __all__ = ["load_raw_scores", "save_raw_scores", "score_cache_path"]
@@ -70,3 +71,23 @@ def load_raw_scores(path: Path, expected_rows: int) -> list[RawScores] | None:
         )
         for row in rows
     ]
+
+
+def write_score_dump(
+    path: Path,
+    examples: Sequence[Example],
+    raw: Sequence[RawScores],
+    probabilities: Mapping[RiskDimension, Sequence[float | None]],
+) -> None:
+    """One JSON line per example: labels, raw scores and probabilities, for error analysis."""
+    with path.open("w", encoding="utf-8") as f:
+        for i, (example, r) in enumerate(zip(examples, raw, strict=True)):
+            row = {
+                "example_id": example.example_id,
+                "tool_name": example.context.proposed_action.tool_name,
+                "notes": example.latent.notes,
+                "labels": {d.value: v.value for d, v in example.labels.values.items()},
+                "raw": {d.value: s for d, s in r.scores.items()},
+                "probability": {d.value: probs[i] for d, probs in probabilities.items()},
+            }
+            f.write(json.dumps(row) + "\n")

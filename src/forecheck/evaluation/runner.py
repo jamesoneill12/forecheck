@@ -340,6 +340,8 @@ def evaluate(
     approval_curve_engine: DeterministicPolicyEngine | None = None,
     approval_target_base_rate: float | None = None,
     approval_incident_rate_mode: IncidentRateMode = IncidentRateMode.PREFIX,
+    on_scored: Callable[[Sequence[RawScores], Mapping[RiskDimension, list[float | None]]], None]
+    | None = None,
 ) -> EvaluationReport:
     """Run a full evaluation of ``backend`` on ``examples`` and return a report.
 
@@ -350,6 +352,8 @@ def evaluate(
     dims = list(dimensions) if dimensions is not None else list(RiskDimension)
     raw = _score_examples(backend, examples, dims)
     probabilities = _probability_matrix(raw, dims, calibrators)
+    if on_scored is not None:
+        on_scored(raw, probabilities)
 
     threshold_selection = (
         _build_threshold_selection(

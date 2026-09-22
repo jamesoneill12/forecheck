@@ -1,0 +1,33 @@
+trainer:
+  runtime_name: "torch-runtime"
+  project_name: "forecheck"
+  experiment_name: "eval-agentdojo-diag"
+
+  ecr_image: "812836555640.dkr.ecr.us-east-2.amazonaws.com/ai/fin-base-training:latest"
+
+  command: >-
+    bash -c 'set -euo pipefail &&
+    cd /workspace/forecheck-job &&
+    pip install -q --no-cache-dir -e ".[train]" &&
+    D=/opt/ml/fsx/forecheck/data/agentdojo && test -f $D/agentdojo.jsonl &&
+    R=/opt/ml/fsx/forecheck/runs &&
+    forecheck evaluate --run $R/2b-synthetic-v4 --data $D --split agentdojo --class external_or_human --threshold-split none --dump-scores --out $R/2b-synthetic-v4/reports/agentdojo &&
+    forecheck evaluate --run $R/8b-synthetic-v4 --data $D --split agentdojo --class external_or_human --threshold-split none --strip-identity --dump-scores --out $R/8b-synthetic-v4/reports/agentdojo-noid &&
+    forecheck evaluate --run $R/8b-synthetic-v4 --data $D --split agentdojo --class external_or_human --threshold-split none --dump-scores --out $R/8b-synthetic-v4/reports/agentdojo &&
+    echo "=== BEGIN scores-2b" && cat $R/2b-synthetic-v4/reports/agentdojo/scores.jsonl && echo "=== END scores-2b" &&
+    echo "=== BEGIN scores-8b" && cat $R/8b-synthetic-v4/reports/agentdojo/scores.jsonl && echo "=== END scores-8b" &&
+    echo "=== BEGIN report-8b-noid" && cat $R/8b-synthetic-v4/reports/agentdojo-noid/report.md && echo "=== END report-8b-noid"'
+
+  env_vars:
+    FORECHECK_TRACKING_BACKEND: "local"
+    HF_HOME: "/opt/ml/fsx/forecheck/hf_cache"
+    TOKENIZERS_PARALLELISM: "false"
+    PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+
+  nnodes: 1
+
+  resources:
+    worker:
+      instance_type: ml.p6-b200.48xlarge
+      gpus_per_pod: 1
+      cpus_per_pod: 2
