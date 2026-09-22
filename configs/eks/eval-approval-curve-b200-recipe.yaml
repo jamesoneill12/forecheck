@@ -1,0 +1,32 @@
+# Eval-only: approval-elimination curve (--approval-curve balanced) on the trained decoders.
+# Guards on each run's calibration bundle already existing.
+trainer:
+  runtime_name: "torch-runtime"
+  project_name: "forecheck"
+  experiment_name: "eval-approval-curve"
+
+  ecr_image: "812836555640.dkr.ecr.us-east-2.amazonaws.com/ai/fin-base-training:latest"
+
+  command: >-
+    bash -c 'set -euo pipefail &&
+    cd /workspace/forecheck-job &&
+    pip install -q --no-cache-dir -e ".[train]" &&
+    for v in v2 v4; do
+    test -d /opt/ml/fsx/forecheck/runs/2b-synthetic-$v/calibration &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-$v --split heldout_family --class synthetic_heldout_adversarial --approval-curve balanced --out /opt/ml/fsx/forecheck/runs/2b-synthetic-$v/reports/heldout_family-approval &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-$v --split test --class synthetic_in_distribution --approval-curve balanced --out /opt/ml/fsx/forecheck/runs/2b-synthetic-$v/reports/test-approval;
+    done'
+
+  env_vars:
+    FORECHECK_TRACKING_BACKEND: "local"
+    HF_HOME: "/opt/ml/fsx/forecheck/hf_cache"
+    TOKENIZERS_PARALLELISM: "false"
+    PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+
+  nnodes: 1
+
+  resources:
+    worker:
+      instance_type: ml.p6-b200.48xlarge
+      gpus_per_pod: 1
+      cpus_per_pod: 2
