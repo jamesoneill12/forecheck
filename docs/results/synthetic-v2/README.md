@@ -24,6 +24,8 @@ thresholds selected on `dev`. Sections marked *pending* are filled in as jobs fi
 | Llama Guard 4 12B | gated repository, no token on the cluster | | not run |
 | decoder 2B v3 | same recipe as v2, trained on the v3 policy-generalisation data (ADR 0010) | 4,000 steps, best dev step 3,800, dev macro AUPRC 0.914 | done |
 | decoder 2B v4 | v3 data regenerated after the privilege_escalation render fix | 4,000 steps, best dev step 3,400, dev macro AUPRC 0.958 | done |
+| agent self-judgment 2B / 8B | `granite-3.3-2b/8b-instruct` zero-shot as a Fin-style agent with the same policy + delegation context, one ALLOW/STOP verdict | none | done (2,000-row subsamples) |
+| encoder granite-embedding-r2 v4 | same encoder on v4 data | 1 epoch | done |
 | Granite Guardian 3.3 8B + LoRA (v3) | aligned safety model as the LoRA base, chat template off | 1 epoch | done, **invalid** (see below) |
 
 ## Macro summary
@@ -56,6 +58,16 @@ thresholds selected on `dev`. Sections marked *pending* are filled in as jobs fi
 | decoder 2B v4 | heldout_family | 0.960 | 0.006 | |
 | decoder 2B v4 | heldout_policy_kind | 0.944 | 0.005 | |
 | decoder 2B v4 | heldout_policy_phrasing | 0.968 | 0.023 | |
+| agent self-judgment 2B | heldout_family (n=2000) | 0.227 | 0.299 | |
+| agent self-judgment 2B, identity stripped | heldout_family (n=2000) | 0.227 | 0.217 | |
+| agent self-judgment 8B | heldout_family (n=2000) | 0.242 | 0.276 | |
+| agent self-judgment 8B, identity stripped | heldout_family (n=2000) | 0.281 | 0.229 | |
+| agent self-judgment 8B | adversarial (n=2000) | 0.235 | | |
+| agent self-judgment 8B, identity stripped | adversarial (n=2000) | 0.255 | | |
+| encoder granite-embedding-r2 v4 | test | 0.845 | 0.041 | |
+| encoder granite-embedding-r2 v4 | heldout_family | 0.837 | 0.045 | |
+| encoder granite-embedding-r2 v4 | heldout_policy_kind | 0.834 | 0.041 | |
+| encoder granite-embedding-r2 v4 | heldout_policy_phrasing | 0.835 | 0.039 | |
 | rule baseline (v3 data) | heldout_policy_kind | 0.611 | 0.113 | |
 | rule baseline (v3 data) | heldout_policy_phrasing | 0.601 | 0.117 | |
 | encoder granite-embedding-r2 v3 | test | 0.828 | 0.048 | |
@@ -343,11 +355,72 @@ first. The Granite-3.3-8B-instruct LoRA on v4 (running) is the size control inst
 test 0.269 / 0.238 stripped; heldout_family 0.277 / 0.270 stripped. Same picture as
 Granite Guardian: chance on identity dimensions, unaffected by stripping.
 
+## Can the acting agent judge its own scope? (agent self-judgment, `agent-self-*/`)
+
+Setup in `docs/evaluation/agent-self-judgment.md`: the same Granite instruct models,
+untrained, are given a customer-support-agent system prompt containing the *same* principal,
+delegated scopes and policy text the classifier sees, then the pending tool call, and asked
+for one ALLOW/STOP verdict. p(STOP) from the first-token logits is scored against every
+dimension's labels. Held-out tools, 2,000-row subsample.
+
+| dimension | 8B agent AUPRC | 8B agent, identity stripped | decoder 2B v4 (external checker) |
+|---|---|---|---|
+| unauthorized_scope (pos 0.106) | 0.138 (AUROC 0.61) | 0.104 (AUROC 0.48) | 0.999 |
+| policy_conflict (pos 0.385) | 0.509 (AUROC 0.67) | 0.415 (AUROC 0.53) | 0.964 |
+| insufficient_context (pos 0.079) | 0.085 | 0.084 | 0.841 |
+| privilege_escalation (pos 0.075) | 0.103 | 0.106 | 1.000 |
+| prompt_injection_influence (pos 0.075) | 0.169 | **0.498** | 0.81 (v2) |
+| macro | 0.242 | 0.281 | 0.960 |
+
+- **The agent cannot judge its own scope from inside its prompt.** With full identity
+  context the 8B agent is at or near chance on every identity dimension (AUROC 0.53 to
+  0.67); the 2B agent is the same (macro 0.227). This is the same level as the two
+  zero-shot safety models. The delegation information is in the prompt and is not used.
+- **Identity context makes the agent worse at spotting injection.** Stripping the policy
+  and scopes raises the 8B agent's `prompt_injection_influence` AUPRC from 0.17 to 0.50.
+  A long policy preamble dilutes attention to the injected instruction. This is an argument
+  for keeping the checker separate from the agent even for the content-style dimensions.
+- The small identity signal that does exist (unauthorized_scope AUROC 0.61 vs 0.48
+  stripped, policy_conflict 0.67 vs 0.53) shows the agent reads the context a little; it
+  does not turn it into a decision. An external, trained checker is load-bearing.
+
+Caveat: our Fin-style prompt is a stand-in, not Fin's; the models are untrained instruct
+bases, so this is "agent without a checker", not "agent fine-tuned to self-check".
+
+## Encoder on v4: privilege_escalation stays at 0.50
+
+`encoder-granite-embedding-r2-v4/`: macro 0.845 / 0.837 (test / heldout), the same as v2
+and v3. `privilege_escalation` is **0.500** even though the deciding `authority_before` /
+`authority_after` arguments are now rendered and the decoder reads them to 1.000. Mean
+pooling plus a linear head cannot compute "is set B a superset of set A"; the decoder can.
+`policy_conflict` is unchanged at 0.43. The encoder arm is now clearly bounded on the
+relational dimensions and stays as the cheap-latency baseline only.
+
+## Approval elimination on real probabilities (decoder 2B v2, `decoder-2b/*-approval-report.md`)
+
+Bundle `balanced`, held-out tools, n=6,640, **base incident rate 0.58** (58% of held-out
+rows have at least one positive dimension the bundle covers).
+
+| budget | approvals eliminated | review rate | deny rate |
+|---|---|---|---|
+| 0.1% to 1% | 0.002 | 0.707 | 0.291 |
+| 2% | 0.016 | 0.693 | 0.291 |
+| 5% | 0.100 | 0.609 | 0.291 |
+
+Two things this says. First, the ceiling is 1 minus the base rate (0.42 here): a split
+built to be adversarial is the wrong population for a metric whose point is the benign
+mass. Second, even under that ceiling the curve is flat because a handful of risky rows
+receive low expected-ALLOW cost; at 0.1% budget one such row among the first 2,000 ranked
+ends the prefix. The next iteration of the metric needs (a) importance re-weighting to a
+stated deployment incident rate (e.g. 2 to 5%) and (b) per-dimension cost tuning; both are
+post-processing on the saved scores. v4 decoder curves are running.
+
 ## What is still to land
 
-- agent self-judgment eval (2B and 8B Fin-style agent, ALLOW/STOP) vs the classifier.
-- approval-elimination curve on v2 and v4 decoders (`--approval-curve balanced`).
-- encoder granite-r2 on v4; Granite-3.3-8B-instruct LoRA on v4.
+- v4 decoder approval curves; Granite-3.3-8B-instruct LoRA on v4 (size control).
+- v4 seed-1 decoder re-run (seed variance for every v4 number).
+- v5: 30 policy kinds, 4 withheld (ADR 0011). Tests whether unseen kinds generalise once
+  kinds are numerous.
 
 ## Known data defect: privilege_escalation (affects every v2/v3 number above; fixed in v4)
 
