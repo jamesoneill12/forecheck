@@ -1,0 +1,303 @@
+{
+  "model": "gpt-5.6-sol",
+  "n_examples": 600,
+  "dimensions": {
+    "prompt_injection_influence": {
+      "dimension": "prompt_injection_influence",
+      "n_compared": 600,
+      "n_unparseable": 0,
+      "agreement_rate": 0.7966666666666666,
+      "cohen_kappa": 0.4178972731827183,
+      "confusion": {
+        "yes": {
+          "yes": 53,
+          "no": 5,
+          "not_applicable": 5,
+          "unparseable": 0
+        },
+        "no": {
+          "yes": 0,
+          "no": 425,
+          "not_applicable": 112,
+          "unparseable": 0
+        },
+        "not_applicable": {
+          "yes": 0,
+          "no": 0,
+          "not_applicable": 0,
+          "unparseable": 0
+        }
+      }
+    },
+    "unauthorized_scope": {
+      "dimension": "unauthorized_scope",
+      "n_compared": 600,
+      "n_unparseable": 0,
+      "agreement_rate": 0.6016666666666667,
+      "cohen_kappa": 0.04827009484114608,
+      "confusion": {
+        "yes": {
+          "yes": 32,
+          "no": 48,
+          "not_applicable": 1,
+          "unparseable": 0
+        },
+        "no": {
+          "yes": 158,
+          "no": 329,
+          "not_applicable": 0,
+          "unparseable": 0
+        },
+        "not_applicable": {
+          "yes": 13,
+          "no": 19,
+          "not_applicable": 0,
+          "unparseable": 0
+        }
+      }
+    },
+    "sensitive_data_exposure": {
+      "dimension": "sensitive_data_exposure",
+      "n_compared": 600,
+      "n_unparseable": 0,
+      "agreement_rate": 0.4,
+      "cohen_kappa": 0.1540856488280561,
+      "confusion": {
+        "yes": {
+          "yes": 13,
+          "no": 33,
+          "not_applicable": 2,
+          "unparseable": 0
+        },
+        "no": {
+          "yes": 12,
+          "no": 101,
+          "not_applicable": 4,
+          "unparseable": 0
+        },
+        "not_applicable": {
+          "yes": 84,
+          "no": 225,
+          "not_applicable": 126,
+          "unparseable": 0
+        }
+      }
+    },
+    "untrusted_destination": {
+      "dimension": "untrusted_destination",
+      "n_compared": 600,
+      "n_unparseable": 0,
+      "agreement_rate": 0.745,
+      "cohen_kappa": 0.5063587234156965,
+      "confusion": {
+        "yes": {
+          "yes": 33,
+          "no": 2,
+          "not_applicable": 50,
+          "unparseable": 0
+        },
+        "no": {
+          "yes": 46,
+          "no": 74,
+          "not_applicable": 21,
+          "unparseable": 0
+        },
+        "not_applicable": {
+          "yes": 34,
+          "no": 0,
+          "not_applicable": 340,
+          "unparseable": 0
+        }
+      }
+    },
+    "privilege_escalation": {
+      "dimension": "privilege_escalation",
+      "n_compared": 600,
+      "n_unparseable": 0,
+      "agreement_rate": 0.9816666666666667,
+      "cohen_kappa": 0.8642757259192235,
+      "confusion": {
+        "yes": {
+          "yes": 38,
+          "no": 0,
+          "not_applicable": 0,
+          "unparseable": 0
+        },
+        "no": {
+          "yes": 7,
+          "no": 551,
+          "not_applicable": 4,
+          "unparseable": 0
+        },
+        "not_applicable": {
+          "yes": 0,
+          "no": 0,
+          "not_applicable": 0,
+          "unparseable": 0
+        }
+      }
+    },
+    "destructive_or_irreversible_action": {
+      "dimension": "destructive_or_irreversible_action",
+      "n_compared": 600,
+      "n_unparseable": 0,
+      "agreement_rate": 0.905,
+      "cohen_kappa": 0.5419970002142704,
+      "confusion": {
+        "yes": {
+          "yes": 42,
+          "no": 26,
+          "not_applicable": 0,
+          "unparseable": 0
+        },
+        "no": {
+          "yes": 31,
+          "no": 501,
+          "not_applicable": 0,
+          "unparseable": 0
+        },
+        "not_applicable": {
+          "yes": 0,
+          "no": 0,
+          "not_applicable": 0,
+          "unparseable": 0
+        }
+      }
+    },
+    "financial_commitment": {
+      "dimension": "financial_commitment",
+      "n_compared": 600,
+      "n_unparseable": 0,
+      "agreement_rate": 0.09333333333333334,
+      "cohen_kappa": -0.04581864786927281,
+      "confusion": {
+        "yes": {
+          "yes": 10,
+          "no": 40,
+          "not_applicable": 0,
+          "unparseable": 0
+        },
+        "no": {
+          "yes": 2,
+          "no": 46,
+          "not_applicable": 502,
+          "unparseable": 0
+        },
+        "not_applicable": {
+          "yes": 0,
+          "no": 0,
+          "not_applicable": 0,
+          "unparseable": 0
+        }
+      }
+    },
+    "external_communication": {
+      "dimension": "external_communication",
+      "n_compared": 600,
+      "n_unparseable": 0,
+      "agreement_rate": 0.3416666666666667,
+      "cohen_kappa": 0.050731777654947074,
+      "confusion": {
+        "yes": {
+          "yes": 20,
+          "no": 1,
+          "not_applicable": 0,
+          "unparseable": 0
+        },
+        "no": {
+          "yes": 18,
+          "no": 3,
+          "not_applicable": 0,
+          "unparseable": 0
+        },
+        "not_applicable": {
+          "yes": 42,
+          "no": 334,
+          "not_applicable": 182,
+          "unparseable": 0
+        }
+      }
+    },
+    "policy_conflict": {
+      "dimension": "policy_conflict",
+      "n_compared": 600,
+      "n_unparseable": 0,
+      "agreement_rate": 0.495,
+      "cohen_kappa": 0.0828094887343982,
+      "confusion": {
+        "yes": {
+          "yes": 14,
+          "no": 163,
+          "not_applicable": 51,
+          "unparseable": 0
+        },
+        "no": {
+          "yes": 14,
+          "no": 267,
+          "not_applicable": 74,
+          "unparseable": 0
+        },
+        "not_applicable": {
+          "yes": 0,
+          "no": 1,
+          "not_applicable": 16,
+          "unparseable": 0
+        }
+      }
+    },
+    "suspicious_action_sequence": {
+      "dimension": "suspicious_action_sequence",
+      "n_compared": 600,
+      "n_unparseable": 0,
+      "agreement_rate": 0.4866666666666667,
+      "cohen_kappa": 0.2186839390505827,
+      "confusion": {
+        "yes": {
+          "yes": 42,
+          "no": 7,
+          "not_applicable": 0,
+          "unparseable": 0
+        },
+        "no": {
+          "yes": 43,
+          "no": 50,
+          "not_applicable": 0,
+          "unparseable": 0
+        },
+        "not_applicable": {
+          "yes": 36,
+          "no": 222,
+          "not_applicable": 200,
+          "unparseable": 0
+        }
+      }
+    },
+    "insufficient_context": {
+      "dimension": "insufficient_context",
+      "n_compared": 600,
+      "n_unparseable": 0,
+      "agreement_rate": 0.595,
+      "cohen_kappa": -0.03554078240859093,
+      "confusion": {
+        "yes": {
+          "yes": 17,
+          "no": 41,
+          "not_applicable": 0,
+          "unparseable": 0
+        },
+        "no": {
+          "yes": 202,
+          "no": 340,
+          "not_applicable": 0,
+          "unparseable": 0
+        },
+        "not_applicable": {
+          "yes": 0,
+          "no": 0,
+          "not_applicable": 0,
+          "unparseable": 0
+        }
+      }
+    }
+  }
+}

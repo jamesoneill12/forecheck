@@ -37,24 +37,27 @@ textually indistinguishable from an in-scope re-grant. Fixed in v4
 (\S\ref{sec:generalisation}); numbers sourced from v2/v3 elsewhere should be
 read with this in mind.
 
-\textbf{Seed variance (two seeds).} Two training seeds for decoder v4 agree
-on macro AUPRC to within 0.005 on every split (e.g.\ 0.960 vs.\ 0.959 on
-test). But the \texttt{heldout\_policy\_kind} \texttt{policy\_conflict} cell
-moves by 0.06 between seeds (0.752 vs.\ 0.689) -- an order of magnitude more
-than the macro noise floor -- so differences smaller than that on this
-specific cell are not distinguishable from seed noise. A third seed
-\todo{pending: decoder-2b-v4-seed2} is running to tighten this estimate.
+\textbf{Seed variance (three seeds each for v4 and v5).} Three training
+seeds for decoder v4 agree on macro AUPRC to within 0.001 on every split
+(e.g.\ 0.960, 0.959, 0.960 on test). But the \texttt{heldout\_policy\_kind}
+\texttt{policy\_conflict} cell moves across a 0.06 range between seeds
+(0.752, 0.689, 0.711; mean 0.717, sample sd 0.032) -- an order of magnitude
+more than the macro noise floor -- so differences smaller than that on this
+specific cell are not distinguishable from seed noise. Three seeds of the
+v5 (30-kind) recipe show the same range (0.704, 0.755, 0.717; mean 0.725,
+sample sd 0.026), which is what lets \S\ref{sec:generalisation} compare the
+two bands directly instead of a single point each.
 
 \textbf{Held-out-policy-kind failure (now tested at 30 kinds and 8B).}
 \texttt{policy\_conflict} AUPRC drops from $\sim$0.98--0.99
-(in-distribution, unseen-phrasing) to 0.65--0.75 on entirely unseen kinds at
-2B. The v5 experiment (ADR 0011, 30 kinds, 4 withheld) has landed and is
-negative: 0.704 AUPRC, within the seed-noise band of v4's 0.752 -- tripling
-the kind inventory did not fix this at 2B. An 8B LoRA on the unchanged v4
-data reaches 0.851, so capacity helps partially but does not solve it. The
-supportable claim today is "one model, policies of a kind seen in training
-(or with enough capacity to partially generalize), any phrasing" -- not
-"arbitrary new policy kinds."
+(in-distribution, unseen-phrasing) to 0.65--0.76 on entirely unseen kinds at
+2B. The v5 experiment (ADR 0011, 30 kinds, 4 withheld) has landed across
+three seeds and is negative: mean 0.725, inside one sample sd of v4's mean
+0.717 -- tripling the kind inventory did not fix this at 2B. An 8B LoRA on
+the unchanged v4 data reaches 0.851, so capacity helps partially but does
+not solve it. The supportable claim today is "one model, policies of a kind
+seen in training (or with enough capacity to partially generalize), any
+phrasing" -- not "arbitrary new policy kinds."
 
 \textbf{Other caveats.} A single generator family (English, template
 renderer) produces every example. The \S\ref{sec:composition} cost table is

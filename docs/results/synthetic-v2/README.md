@@ -82,6 +82,14 @@ thresholds selected on `dev`. Sections marked *pending* are filled in as jobs fi
 | decoder 2B v5 | heldout_family | 0.951 | 0.008 | 0.945 |
 | decoder 2B v5 | heldout_policy_kind | 0.941 | 0.029 | 0.923 |
 | decoder 2B v5 | heldout_policy_phrasing | 0.970 | 0.008 | 0.950 |
+| decoder 2B v5 seed 1 | test | 0.958 | 0.003 | 0.958 |
+| decoder 2B v5 seed 1 | heldout_family | 0.954 | 0.006 | 0.947 |
+| decoder 2B v5 seed 1 | heldout_policy_kind | 0.950 | 0.018 | 0.937 |
+| decoder 2B v5 seed 1 | heldout_policy_phrasing | 0.971 | 0.005 | 0.960 |
+| decoder 2B v5 seed 2 | test | 0.958 | 0.005 | 0.958 |
+| decoder 2B v5 seed 2 | heldout_family | 0.952 | 0.011 | 0.928 |
+| decoder 2B v5 seed 2 | heldout_policy_kind | 0.946 | 0.030 | 0.922 |
+| decoder 2B v5 seed 2 | heldout_policy_phrasing | 0.970 | 0.008 | 0.956 |
 | agent self-judgment 2B | heldout_family (n=2000) | 0.227 | 0.299 | |
 | agent self-judgment 2B, identity stripped | heldout_family (n=2000) | 0.227 | 0.217 | |
 | agent self-judgment 8B | heldout_family (n=2000) | 0.242 | 0.276 | |
@@ -446,19 +454,38 @@ phrasing already is.
 | decoder 2B v3 (15 kinds, 2 withheld) | 0.653 | 0.590 |
 | decoder 2B v4 seed 0 (15 kinds, 2 withheld) | 0.752 | 0.767 |
 | decoder 2B v4 seed 1 (15 kinds, 2 withheld) | 0.689 | 0.673 |
-| decoder 2B v5 (30 kinds, 4 withheld) | 0.704 | 0.773 |
+| decoder 2B v4 seed 2 (15 kinds, 2 withheld) | 0.711 | 0.691 |
+| decoder 2B v5 seed 0 (30 kinds, 4 withheld) | 0.704 | 0.773 |
+| decoder 2B v5 seed 1 (30 kinds, 4 withheld) | 0.755 | 0.846 |
+| decoder 2B v5 seed 2 (30 kinds, 4 withheld) | 0.717 | 0.769 |
 | decoder 8B v4 (15 kinds, 2 withheld) | **0.851** | 0.916 |
 
 Answer: no, honestly. Going from 15 to 30 kinds did not fix unseen-kind generalisation
-at 2B scale: v5's 0.704 sits inside the 0.689-0.752 band the same 2B recipe already
-shows across two training seeds on the old 15-kind data, i.e. it is within seed noise,
-not a real improvement. The model still clears the rule baseline by a wide margin (0.704
-vs 0.325), so it is not doing nothing; it just isn't generalising the *shape* of
-"check predicate against rendered fact" the way it generalises phrasing. Phrasing
-generalisation continues to hold on v5: `policy_conflict` on `heldout_policy_phrasing` is
-0.980, matching the in-distribution ceiling. `heldout_policy_kind` also has the worst
-calibration of any split on v5 (macro ECE 0.029, vs under 0.01 on every other split),
+at 2B scale, now checked across three seeds on each side. v5 scores 0.704, 0.755 and
+0.717 (mean 0.725, sample sd 0.026, n=3); the old 15-kind v4 recipe scores 0.752, 0.689
+and 0.711 (mean 0.717, sample sd 0.032, n=3). The v5 mean sits inside one sample sd of
+the v4 mean, so this is seed noise, not a real improvement. The model still clears the
+rule baseline by a wide margin (0.70-0.76 vs 0.325), so it is not doing nothing; it just
+isn't generalising the *shape* of "check predicate against rendered fact" the way it
+generalises phrasing. Phrasing generalisation continues to hold on v5: `policy_conflict`
+on `heldout_policy_phrasing` ranges 0.974-0.985 across the three seeds, matching the
+in-distribution ceiling. `heldout_policy_kind` also has the worst calibration of any
+split on v5 in every seed (macro ECE 0.018-0.030, vs under 0.01 on every other split),
 consistent with the model being unsure rather than confidently wrong on unseen kinds.
+
+## Seed variance (v5, seeds 0, 1, 2; `decoder-2b-v5/`, `decoder-2b-v5-seed1/`, `decoder-2b-v5-seed2/`)
+
+| split | seed 0 | seed 1 | seed 2 | mean | sample sd (n=3) |
+|---|---|---|---|---|---|
+| test | 0.957 | 0.958 | 0.958 | 0.957 | 0.0005 |
+| heldout_family | 0.951 | 0.954 | 0.952 | 0.952 | 0.0013 |
+| heldout_policy_kind | 0.941 | 0.950 | 0.946 | 0.946 | 0.0048 |
+| heldout_policy_phrasing | 0.970 | 0.971 | 0.970 | 0.970 | 0.0008 |
+
+`policy_conflict` on `heldout_policy_kind`: seed 0 0.704, seed 1 0.755, seed 2 0.717 --
+mean 0.725, sample sd 0.026 (n=3). Compare the v4 15-kind three-seed band directly above:
+mean 0.717, sample sd 0.032 (n=3). The two bands overlap; 30 kinds does not move the
+unseen-kind result outside the noise the 15-kind recipe already showed.
 
 ## Seed variance (v4, seeds 0, 1, 2; `decoder-2b-v4/`, `decoder-2b-v4-seed1/`, `decoder-2b-v4-seed2/`)
 
@@ -521,6 +548,14 @@ solid) and `insufficient_context` (0.06, unvalidated). Treat `insufficient_conte
 numbers everywhere in this document as measuring whether the model learned a generator
 regularity, not a real property of the text, until the generator makes the context gap
 explicit in the rendering.
+
+A second judge pass re-labelled the same 600 rows with identity stripped from the
+rendered context (`../judge/README.md`, "Judge without identity context"). Kappa drops
+from 0.714 to 0.029 on `policy_conflict` and from 0.391 to 0.040 on `unauthorized_scope`;
+every other dimension is unchanged within noise, including `insufficient_context` (0.059
+to -0.036, unrecoverable either way). This is an independent replication of the model
+identity ablation on labels rather than on model scores: a blind frontier reader loses
+the same two dimensions the trained checker loses when identity is stripped.
 
 ## Granite Guardian 3.3 8B as a LoRA base: invalid run
 
@@ -644,12 +679,14 @@ held-out tools and in-distribution test, so the number is stable across the data
   row-for-row comparison above.
 - Decoder 8B v4, identity-stripped eval (fills the identity-ablation table's 8B v4
   cell): done, see the Macro summary table and the "8B replication" note above.
-- decoder 2B v5 seed 1 (seed variance for the 30-kind result); running.
-- decoder 2B v5 seed 2 (same purpose, 30-kind data): running.
-- LLM-judge labels (real-data probe, class 3): done for the full-context pass, see
-  "Label validity" above and `../judge/README.md`. Still running: the
-  identity-stripped judge pass (`v4-labels-gpt56-noid.jsonl`) and scoring the v4
-  checker against judge labels (`eval-v4-judge`).
+- decoder 2B v5 seed 1 (seed variance for the 30-kind result): done, see "Seed variance
+  (v5, seeds 0, 1, 2)" above.
+- decoder 2B v5 seed 2 (same purpose, 30-kind data): done, see "Seed variance (v5, seeds
+  0, 1, 2)" above.
+- LLM-judge labels (real-data probe, class 3): done, both the full-context pass and the
+  identity-stripped pass (`v4-labels-gpt56-noid.jsonl`), see "Label validity" above and
+  `../judge/README.md`. Scoring the v4 checker against judge labels (`eval-v4-judge`) is
+  also done, see `../judge/README.md`.
 
 ## Known data defect: privilege_escalation (affects every v2/v3 number above; fixed in v4)
 

@@ -20,26 +20,28 @@ learning a generator regularity, not a fact about the text.
 \small
 \caption{Independent LLM-judge agreement with the generator label, yes vs.\
 not-yes, $n{=}600$ \texttt{v4} rows (gpt-5.6-sol, blind to the generator's
-latent scenario). Judge recall/precision are against the generator's positive
-class. Source: \texttt{docs/results/judge/README.md}.}
+latent scenario). ``Stripped'' re-judges the same 600 rows with the
+\texttt{--strip-identity} rendering used for the model identity ablation
+(\S\ref{sec:identity}). Agreement/recall/precision are for the full-context
+pass. Source: \texttt{docs/results/judge/README.md}.}
 \label{tab:judge-agreement}
-\begin{tabular}{lcccc}
+\begin{tabular}{lccccc}
 \toprule
-Dimension & Cohen's $\kappa$ & Agreement & Judge recall & Judge precision \\
+Dimension & $\kappa$ full & $\kappa$ stripped & Agreement & Judge recall & Judge precision \\
 \midrule
-\texttt{privilege\_escalation} & 0.909 & 0.988 & 1.00 & 0.84 \\
-\texttt{prompt\_injection\_influence} & 0.905 & 0.983 & 0.84 & 1.00 \\
-\texttt{policy\_conflict} & 0.714 & 0.862 & 0.89 & 0.78 \\
+\texttt{privilege\_escalation} & 0.909 & 0.909 & 0.988 & 1.00 & 0.84 \\
+\texttt{prompt\_injection\_influence} & 0.905 & 0.905 & 0.983 & 0.84 & 1.00 \\
+\texttt{policy\_conflict} & 0.714 & 0.029 & 0.862 & 0.89 & 0.78 \\
 \midrule
-\texttt{destructive\_or\_irreversible\_action} & 0.511 & 0.897 & 0.60 & 0.54 \\
-\texttt{suspicious\_action\_sequence} & 0.404 & 0.852 & 0.82 & 0.33 \\
-\texttt{unauthorized\_scope} & 0.391 & 0.800 & 0.74 & 0.38 \\
-\texttt{financial\_commitment} & 0.359 & 0.935 & 0.24 & 0.92 \\
-\texttt{external\_communication} & 0.331 & 0.897 & 0.86 & 0.23 \\
-\texttt{untrusted\_destination} & 0.213 & 0.777 & 0.41 & 0.29 \\
+\texttt{destructive\_or\_irreversible\_action} & 0.511 & 0.542 & 0.897 & 0.60 & 0.54 \\
+\texttt{suspicious\_action\_sequence} & 0.404 & 0.428 & 0.852 & 0.82 & 0.33 \\
+\texttt{unauthorized\_scope} & 0.391 & 0.040 & 0.800 & 0.74 & 0.38 \\
+\texttt{financial\_commitment} & 0.359 & 0.300 & 0.935 & 0.24 & 0.92 \\
+\texttt{external\_communication} & 0.331 & 0.361 & 0.897 & 0.86 & 0.23 \\
+\texttt{untrusted\_destination} & 0.213 & 0.205 & 0.777 & 0.41 & 0.29 \\
 \midrule
-\texttt{insufficient\_context} & 0.059 & 0.843 & 0.14 & 0.15 \\
-\texttt{sensitive\_data\_exposure} & 0.002 & 0.783 & 0.17 & 0.08 \\
+\texttt{insufficient\_context} & 0.059 & $-$0.036 & 0.843 & 0.14 & 0.15 \\
+\texttt{sensitive\_data\_exposure} & 0.002 & 0.061 & 0.783 & 0.17 & 0.08 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -115,6 +117,31 @@ rendering. The two content dimensions that survive identity stripping in
 \texttt{privilege\_escalation}) are exactly the two the judge recovers best,
 consistent with them being genuine properties of the text rather than
 generator lookups.
+
+\textbf{Judging without identity context.} We re-ran the same judge on the same 600
+rows with identity stripped from the rendered context -- the
+\texttt{--strip-identity} rendering used in \S\ref{sec:identity} -- to test
+whether a blind reader loses the same dimensions the trained checker loses.
+It does, and only those two. \texttt{policy\_conflict}'s $\kappa$ falls from
+0.714 to 0.029: the judge finds 28 positives instead of 259 because the
+policy text it would check the action against is no longer in the context.
+\texttt{unauthorized\_scope}'s $\kappa$ falls from 0.391 to 0.040: the judge
+now flags 203 rows at precision 0.16, which means it is guessing from the
+action alone rather than reading an entitlement. Every other dimension is
+unchanged within noise (Table~\ref{tab:judge-agreement}); the largest other
+move is \texttt{destructive\_or\_irreversible\_action}, 0.511 to 0.542.
+\texttt{insufficient\_context} stays unrecoverable in both passes (0.059 and
+$-$0.036), the third leg of the identity-ablation claim that remains
+unvalidated. This is an independent replication of the identity-ablation
+result on labels rather than on model scores: a blind frontier reader loses
+the same two dimensions the trained checker loses when identity is stripped
+(\texttt{unauthorized\_scope} 0.999 to 0.125 AUPRC,
+\texttt{policy\_conflict} 0.964 to 0.392 AUPRC,
+Table~\ref{tab:identity-ablation}), and keeps the same content dimensions
+(\texttt{prompt\_injection\_influence}, \texttt{privilege\_escalation}) the
+checker keeps. The content dimensions' judge-yes and generator-yes counts
+are identical between the two passes, which also confirms that stripping
+identity left the tool-call and trajectory text itself unchanged.
 
 \textbf{Scoring the checker against the judge's labels.} Re-scoring the
 trained 2B v4 decoder and the rule baseline against the judge's labels on the
