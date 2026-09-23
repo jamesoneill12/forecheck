@@ -36,6 +36,7 @@ AUPRC / AUROC, positive rate in the header. n=4,250 except
 | decoder 8B v4, eval-stripped | 0.556 / 0.545 | 0.843 / 0.642 | 0.968 / 0.973 | 0.766 / 0.967 | 1.000 / 1.000 | 0.827 |
 | decoder 2B v6 (leak-free generator) | 0.878 / 0.865 | 0.704 / 0.376 | 0.922 / 0.914 | 0.970 / 0.999 | 0.998 / 1.000 | 0.894 |
 | decoder 8B v6 (leak-free generator) | 0.943 / 0.936 | 0.677 / 0.369 | 0.965 / 0.963 | 0.771 / 0.967 | 0.997 / 1.000 | 0.870 |
+| decoder 8B v6, eval-stripped | 0.953 / 0.949 | 0.917 / 0.786 | 0.963 / 0.965 | 0.839 / 0.984 | 0.998 / 1.000 | 0.934 |
 | Granite Guardian 3.3 8B zero-shot (n=1000) | 0.511 / 0.537 | 0.613 / 0.147 | 0.359 / 0.293 | 0.102 / 0.724 | 0.197 / 0.588 | 0.356 |
 | agent-self 8B ALLOW/STOP (n=1000) | 0.530 / 0.597 | 1.000 / 1.000 | 0.647 / 0.756 | 0.061 / 0.612 | 0.178 / 0.587 | 0.483 |
 
@@ -49,6 +50,7 @@ output; 1,598 pairs, raw logits from `--dump-scores`):
 | 8B v4, eval-stripped | 0.382 | 0.397 | -4.00 | -4.00 |
 | 2B v6 (leak-free generator) | 0.977 | 0.005 | +3.50 | -6.25 |
 | 8B v6 (leak-free generator) | 0.977 | 0.012 | +2.25 | -3.50 |
+| 8B v6, eval-stripped | 0.978 | 0.016 | +3.25 | -4.00 |
 
 Reproduce with `scripts/injecagent_paired.py injecagent.jsonl NAME=scores.jsonl ...`.
 
@@ -103,7 +105,12 @@ Reproduce with `scripts/injecagent_paired.py injecagent.jsonl NAME=scores.jsonl 
    paired poisoned-vs-clean fraction is the metric; 0.5 is chance; v6 is at
    0.977 at both sizes (reading 0). `unauthorized_scope` for v6 (0.704 2B,
    0.677 8B) is below the 0.752 base rate; the 8B v4 signal on it (0.849) did
-   not survive the retrain.
+   not survive the retrain. Stripping identity at eval time from 8B v6 raises
+   it to 0.917 / 0.786: the port fills principal and delegated-scope fields
+   with placeholders, and the v6 head reads them as authorising the attacker
+   call. Stripping leaves injection (0.953 / 0.949, pair win 0.978, median raw
+   +3.25 vs -4.00) and policy (0.963) unchanged, so the v6 injection signal is
+   carried by the observation text, not by identity fields.
 
 6. **Baselines.** Granite Guardian is at chance on injection (0.537 AUROC) and
    below base rate elsewhere. The same Granite-3.3-8B base asked ALLOW/STOP as
@@ -116,6 +123,6 @@ Reproduce with `scripts/injecagent_paired.py injecagent.jsonl NAME=scores.jsonl 
    rates 0.471 / 0.767 / 0.466 / 0.048 / 0.154).
 
 Reports: `rule-baseline-report.md`, `decoder-2b-v4-report.md`,
-`decoder-8b-v4-report.md`, `decoder-8b-v4-strip-report.md`, `decoder-2b-v6-report.md`, `decoder-8b-v6-report.md`, `guardian-3.3-8b-report.md`, `agent-self-8b-report.md` (ECE column is raw
+`decoder-8b-v4-report.md`, `decoder-8b-v4-strip-report.md`, `decoder-2b-v6-report.md`, `decoder-8b-v6-report.md`, `decoder-8b-v6-strip-report.md`, `guardian-3.3-8b-report.md`, `agent-self-8b-report.md` (ECE column is raw
 margins, no calibration bundle applies when identity is stripped at eval time).
 Score dumps are on FSx under `runs/<run>/reports/injecagent/scores.jsonl`.

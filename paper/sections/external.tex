@@ -178,6 +178,7 @@ Decoder 8B v4 & 0.544 & 0.849 & 0.977 & 0.734 & 1.000 & 0.821 & 0.353 \\
 \midrule
 Decoder 2B v6 (leak-free) & 0.878 & 0.704 & 0.922 & 0.970 & 0.998 & 0.894 & 0.977 \\
 Decoder 8B v6 (leak-free) & 0.943 & 0.677 & 0.965 & 0.771 & 0.997 & 0.870 & 0.977 \\
+8B v6, eval-stripped & 0.953 & 0.917 & 0.963 & 0.839 & 0.998 & 0.934 & 0.978 \\
 \midrule
 Granite Guardian 3.3 8B & 0.511 & 0.613 & 0.359 & 0.102 & 0.197 & 0.356 & -- \\
 Agent-self 8B (\textsc{allow}/\textsc{stop}) & 0.530 & 1.000 & 0.647 & 0.061 & 0.178 & 0.483 & -- \\
@@ -205,7 +206,11 @@ rule baseline at base rate; stripping identity barely moves it here because
 these five policies are global rules about the call rather than about what
 the principal named; the v6 checkers hold it (0.922, 0.965).
 \texttt{unauthorized\_scope} has signal at 8B v4 (0.849 vs.\ 0.752 base),
-none at 2B, and the 8B signal does not survive the v6 retrain (0.677). Both baselines are at chance on injection
+none at 2B, and the 8B signal does not survive the v6 retrain (0.677) unless
+identity is stripped at evaluation (0.917): the port's placeholder principal
+and scope fields mislead the v6 head, and removing them also leaves injection
+(0.953) and the pair win (0.978) unchanged, so the v6 injection reading is
+content-driven, as it should be. Both baselines are at chance on injection
 too (AUROC 0.54 and 0.60); the untrained agent flags every attacker call as
 \textsc{stop} (\texttt{unauthorized\_scope} 1.000), the same call-level
 judgement; the two v6 checkers are the only arms in this table that read the
