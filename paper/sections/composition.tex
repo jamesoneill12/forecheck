@@ -1,82 +1,54 @@
 \section{Multi-policy composition and the calibration hinge}
 \label{sec:composition}
 
-Guardrail deployments commonly run several independently-tuned policies at
-once and act on the most restrictive decision -- OR-ing $k$ binary guards.
-Each guard's false-positive rate compounds under that OR purely as a
-function of $k$, independent of any guard getting worse. forecheck's
-alternative is one calibrated probability vector over the eleven
-dimensions, composed by one policy engine, decided either by per-dimension
-thresholds (\texttt{threshold} mode) or by the argmin of expected cost over
-the joint vector (\texttt{expected\_cost} mode).
+Guardrail deployments run several independently tuned policies and act on
+the most restrictive decision, OR-ing $k$ binary guards, so false positives
+compound in $k$ alone. forecheck instead emits one calibrated probability
+vector over the eleven dimensions, composed by one policy engine and decided
+either by per-dimension thresholds or by the argmin of expected cost over the
+joint vector under a fixed cost table.
 
-\begin{table}[tbp]
+\begin{table}[htbp]
 \centering
 \small
-\caption{Decoder 2B, false positive rate on covered-benign examples,
+\caption{False positive rate on covered-benign examples,
 \texttt{heldout\_family} ($n{=}6640$), stacking $k$ synthetic per-dimension
-policies. \texttt{independent} ORs $k$ separately-thresholded decisions;
-\texttt{expected\_cost\_joint} merges the same $k$ policies into one bundle
-and decides from the joint probability vector. Full table with the
-\texttt{joint} strategy, FNR, review rate, and the granite-embedding-r2
-encoder is Table~\ref{tab:stacking-full} in the appendix. Source:
-\texttt{docs/evaluation/multi-policy-stacking.md}.}
+policies. \texttt{independent} ORs $k$ separately thresholded decisions;
+\texttt{expected\_cost\_joint} merges the same policies into one bundle and
+decides from the joint probability vector. FNR, review rate, the
+\texttt{joint} strategy, and curves in Appendix~\ref{sec:appendix-stacking}.}
 \label{tab:stacking-main}
-\begin{tabular}{lccc}
+\begin{tabular}{llccc}
 \toprule
-$k$ & 1 & 2 & 3 (8 identical) \\
+Arm (macro ECE) & Strategy & $k{=}1$ & $k{=}2$ & $k{=}3$ (same to 8) \\
 \midrule
-\texttt{independent} FPR & 0.015 & 0.140 & \textbf{0.966} \\
-\texttt{expected\_cost\_joint} FPR & 0.015 & 0.082 & 0.082 \\
+Decoder 2B (0.004) & \texttt{independent} & 0.015 & 0.140 & \textbf{0.966} \\
+Decoder 2B (0.004) & \texttt{expected\_cost\_joint} & 0.015 & 0.082 & 0.082 \\
+Encoder granite-r2 (0.049) & \texttt{independent} & --- & 0.710 & 0.990 \\
+Encoder granite-r2 (0.049) & \texttt{expected\_cost\_joint} & --- & 0.921 & 0.921 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\begin{figure}[tbp]
-\centering
-\includegraphics[width=5.5in]{figures/fig_stacking.pdf}
-\caption{Decoder 2B, FPR (left) and FNR (right) vs.\ number of stacked
-policies $k$ on \texttt{heldout\_family} ($n{=}6640$, synthetic data), for
-\texttt{independent}, \texttt{joint}, and \texttt{expected\_cost\_joint}
-strategies; the granite-embedding-r2 encoder's
-\texttt{expected\_cost\_joint} curve is shown dotted for comparison. Source:
-\texttt{docs/results/synthetic-v2/decoder-2b/heldout\_family-stacking-report.md},
-\texttt{encoder-granite-embedding-r2/heldout\_family-stacking-report.md}.}
-\label{fig:stacking}
-\end{figure}
-
-Figure~\ref{fig:stacking} shows the independent and joint threshold
-strategies' FPR climbing sharply as $k$ grows past 2, while
-\texttt{expected\_cost\_joint} stays flat; the encoder's
-\texttt{expected\_cost\_joint} curve, by contrast, sits near the top of the
-FPR panel throughout, illustrating that the flat curve is a property of the
-decoder's calibration, not of the decision rule alone.
-
-Threshold-based independent stacking pushes the decoder's FPR from 0.015 at
-$k{=}1$ to 0.966 by $k{=}3$, staying there through $k{=}8$ -- effectively
-denying everything, not because any policy got worse but purely because
-more were added. Deciding from the joint calibrated probability vector under
-\texttt{expected\_cost} is invariant to $k$ from $k{=}2$ on
-(FPR/FNR/review rate flat at 0.082/0.070/0.28): the decision depends on the
-probability vector and a fixed cost table, not on how many rules mention a
-dimension, so stacking more policies cannot by itself make the classifier
-more conservative.
+\textbf{Threshold stacking denies everything by $k{=}3$.} Independent
+stacking pushes the decoder's FPR from 0.015 to 0.966 by three policies and
+holds it there through eight, not because any policy got worse but because
+more were added. Deciding from the joint calibrated vector is invariant in
+$k$ from $k{=}2$ on (FPR/FNR/review rate flat at 0.082/0.070/0.28): the
+decision depends on the probability vector and the cost table, not on how many
+rules mention a dimension.
 
 \textbf{The invariance is a calibration property, not a decision-rule
-property.} The same rule on the granite-embedding-r2 encoder's
-probabilities -- identical examples and policies -- settles at FPR 0.921, not
-0.08 (Table~\ref{tab:stacking-full}). The decoder is well calibrated (macro
-ECE 0.004 on \texttt{heldout\_family}, temperature-scaled on the calibration
-split \citep{guo2017calibration,platt1999probabilistic}); the encoder is
-flatter (ECE 0.049). Expected-cost composition only keeps a stack from
-collapsing when the probabilities feeding it are sharp and calibrated, and
-cannot be recovered by rule engineering alone on a poorly-calibrated model.
-
-The cost table used throughout is the default severity-tier table, not
-tuned to any deployment: the $k{=}1$ row already trades false positives for
-false negatives relative to the F1-optimal threshold (FPR/FNR 0.058/0.170
-vs.\ 0.015/0.253). The $k$-invariance claim is about the \emph{shape} of the
-composition curve, not that this default cost table is right for any given
-customer.
+property.} The same rule on the granite-embedding-r2 encoder's probabilities,
+identical examples and policies, settles at FPR 0.921, worse than its own
+independent stacking at $k{=}2$. The decoder is calibrated (macro ECE 0.004,
+temperature-scaled \citep{guo2017calibration,platt1999probabilistic}); the
+encoder is not (0.049). Expected-cost composition keeps a stack from
+collapsing only when the probabilities feeding it are calibrated. The cost
+table is the default severity tier, so the claim is about the curve's shape
+in $k$, not the table. The product-facing form of the same probabilities is in
+Appendix~\ref{sec:appendix-approval}: at a 5\% deployment incident rate,
+89--99\% of human approvals can be auto-decided under a 1--5\% incident
+budget.
 
 \FloatBarrier

@@ -1,32 +1,20 @@
 \section{Conclusion}
 \label{sec:conclusion}
 
-Pre-execution risk for agent tool calls is mostly a delegated-authority
+Pre-execution risk for agent tool calls is largely a delegated-authority
 problem, not a content-safety problem, and general-purpose safety models do
-not solve it: stripping identity and policy context from a trained
-classifier's input collapses exactly the dimensions that depend on it, and
-two zero-shot safety models are at chance on those same dimensions whether
-or not the context is available to them. Identity/delegation context and
-calibration quality are not incidental engineering details for agent
-guardrails -- they are the two properties that determine whether a guardrail
-can detect authorization violations at all (\S\ref{sec:identity}) and
-survive being deployed alongside more than one policy
-(\S\ref{sec:composition}). What remains open is whether policy-conditioned
-reasoning generalizes to genuinely novel policy kinds, not just novel
-wording of familiar ones (\S\ref{sec:generalisation}); the v5 experiment
-testing this, and a first real-data probe against hand-labelled traffic, are
-the next things this line of work needs before any claim above can be
-extended past synthetic data. The AgentDojo and InjecAgent results
-(\S\ref{sec:external}) are a first step on that last point: the
-policy-conflict ranking holds zero-shot on agent traces and policies
-forecheck never saw, the injection ranking holds only where the call itself
-carries the evidence, and the probabilities need a few hundred in-domain
-labels to refit. The external evaluation also exposed a label leak in our
-generator that the synthetic splits could not, and fixing it turned the 2B
-checker's injection failure on AgentDojo into a 0.69 AUPRC transfer and its
-chance-level InjecAgent pair discrimination into 0.98 at both sizes, while
-the synthetic score on the same dimension did not move. The case
-for evaluating on data one did not generate is the strongest result in this
-paper.
+not solve it: removing identity and policy context from a trained checker
+collapses exactly the dimensions that depend on it, a blind judge loses the
+same dimensions, and zero-shot safety models and the acting agent are at
+chance on them with or without the context. Two properties decide whether a
+guardrail can detect authorization violations and survive deployment
+alongside several policies: delegated-authority context at its input and
+calibrated probabilities at its output. Policy-conditioned reasoning
+generalizes to new wording but not yet to new policy kinds; that gap, and a
+hand-labelled real-traffic probe, are what this line of work needs next. On
+the two external benchmarks the policy-conflict ranking held zero-shot, the
+probabilities needed a few hundred in-domain labels, and the injection result
+was wrong for a reason no synthetic split could show. The case for evaluating
+on data one did not generate is the strongest result here.
 
 \FloatBarrier

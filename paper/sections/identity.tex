@@ -4,125 +4,84 @@
 At evaluation time only, we remove principal entitlements, delegated scope,
 \texttt{on\_behalf\_of}, and policy text from the trained decoder's rendered
 context (\texttt{--strip-identity}), leaving action, destination, and
-trajectory untouched, and compare against a rule baseline (action and
-destination fields only) and two zero-shot safety models given the same
-policy text in-prompt.
+trajectory untouched. We compare against the rule baseline, the two zero-shot
+safety models, a decoder \emph{trained} on identity-free renderings, and the
+same ablation at 8B (Tables~\ref{tab:macro-summary} and
+\ref{tab:identity-ablation}; all eleven dimensions in
+Appendix~\ref{sec:appendix-identity}).
 
-\begin{table}[tbp]
+\begin{table}[htbp]
 \centering
 \small
-\caption{Macro AUPRC with and without identity/policy context. Decoder and
-encoder rows are on \texttt{heldout\_family} unless noted; zero-shot rows
-use a 2,000-row (Granite Guardian) or 400-row (gpt-oss-safeguard) subsample.
-Zero-shot models are unaffected or slightly helped by stripping, showing
-they never used the context. Source: \texttt{docs/results/synthetic-v2/README.md}.}
+\caption{Macro AUPRC with and without identity/policy context,
+\texttt{heldout\_family} unless noted. Zero-shot rows use a 2,000-row
+(Granite Guardian) or 400-row (gpt-oss-safeguard) subsample. Source:
+\texttt{docs/results/synthetic-v2/README.md}.}
 \label{tab:macro-summary}
-\begin{tabular}{lccc}
+\begin{tabular}{lcc}
 \toprule
-Arm & Split & Macro AUPRC (full) & Macro AUPRC (stripped) \\
+Arm & Full & Stripped \\
 \midrule
-Decoder 2B v2 & heldout\_family & 0.915 & 0.736 \\
-Decoder 2B v4 & heldout\_family & 0.960 & 0.790 \\
-Decoder 8B v4 & heldout\_family & 0.958 & 0.786 \\
-Decoder 2B v4, trained stripped & heldout\_family & --- & 0.784 \\
-Encoder ModernBERT-large & heldout\_family & 0.813 & 0.712 \\
-Encoder granite-embedding-r2 & heldout\_family & 0.841 & --- \\
-Granite Guardian 3.3 8B (zero-shot) & heldout\_family & 0.257 & 0.271 \\
-gpt-oss-safeguard 20B (zero-shot) & test (n=400) & 0.269 & 0.238 \\
-Agent self-judgment 8B\textsuperscript{a} & heldout\_family (n=2000) & 0.242 & 0.281 \\
-Rule baseline & heldout\_family & 0.614 & 0.614 \\
+Decoder 2B v2 & 0.915 & 0.736 \\
+Decoder 2B v4 & 0.960 & 0.790 \\
+Decoder 8B v4 & 0.958 & 0.786 \\
+Decoder 2B v4, trained stripped & --- & 0.784 \\
+Encoder ModernBERT-large & 0.813 & 0.712 \\
+Rule baseline & 0.614 & 0.614 \\
+Granite Guardian 3.3 8B (zero-shot) & 0.257 & 0.271 \\
+gpt-oss-safeguard 20B (zero-shot, test) & 0.269 & 0.238 \\
+Agent self-judgment 8B (\S\ref{sec:selfjudgment}) & 0.242 & 0.281 \\
 \bottomrule
 \end{tabular}
-\vskip 1mm
-{\footnotesize\textsuperscript{a}Single ALLOW/STOP verdict scored against all eleven labels (\S\ref{sec:selfjudgment}), not a per-dimension classifier.}
 \end{table}
 
-Table~\ref{tab:macro-summary}: identity-aware trained models lose
-0.10--0.18 macro AUPRC when identity is removed; the rule baseline is
-unchanged; the zero-shot models are flat or slightly \emph{improve}. If a
-general safety model quietly used delegated-authority context, stripping it
-would hurt -- it does not, for either model.
-
-The v4 ablation replicates the v2 pattern on the fixed data: macro AUPRC drops
-0.960 to 0.790, close to v2's 0.915 to 0.736. The one change is
-\texttt{privilege\_escalation}, which now survives stripping entirely (1.000
-to 1.000): the v4 render fix makes \texttt{authority\_before}/\texttt{authority\_after}
-observable directly in the tool-call text, so it is a content dimension, not
-an identity one. An 8B decoder on the same v4 data shows the identical collapse
-(0.958 to 0.786, Table~\ref{tab:macro-summary}), with the same three dimensions
-falling and the same two surviving -- model scale gives the classifier no way to
-infer entitlements or policy text that were simply not in its input.
-
-Training on data rendered without identity fields from the start, rather than
-stripping only at evaluation time, gives the same ceiling: macro AUPRC
-0.780/0.784 on test/heldout\_family, within a point of the eval-time-stripped
-model's 0.787/0.790. The three delegated-authority dimensions still do not
-recover: heldout\_family \texttt{unauthorized\_scope} falls to 0.107,
-\texttt{policy\_conflict} to 0.429, \texttt{insufficient\_context} to 0.357,
-matching or below the eval-time-stripped model and nowhere near the full
-model's 0.999/0.964/0.841. This rules out the reading that eval-time stripping
-merely broke a fragile mechanism the model had learned to use -- the
-information is absent from the rendered content itself.
-
-\begin{table}[tbp]
+\begin{table}[htbp]
 \centering
 \small
-\caption{Decoder 2B v2, heldout\_family AUPRC per dimension: full,
-identity-stripped, and rule baseline. First three rows are
-delegated-authority dimensions; the last is a representative content/lookup
-dimension. Source: \texttt{docs/results/synthetic-v2/README.md}.}
+\caption{Decoder 2B v4, \texttt{heldout\_family} ($n{=}6653$) AUPRC per
+dimension: full input, identity removed at evaluation, identity removed at
+training, and rule baseline. Positive rate in parentheses. First three rows
+are the delegated-authority dimensions.}
 \label{tab:identity-ablation}
-\begin{tabular}{lccc}
+\begin{tabular}{lcccc}
 \toprule
-Dimension & Decoder (full) & Decoder (stripped) & Rule baseline \\
+Dimension (pos.\ rate) & Full & Eval-stripped & Train-stripped & Rule \\
 \midrule
-\texttt{unauthorized\_scope} & 1.000 & 0.116 & 0.512 \\
-\texttt{policy\_conflict} & 0.999 & 0.345 & 0.315 \\
-\texttt{insufficient\_context} & 0.849 & 0.418 & 0.235 \\
-\texttt{financial\_commitment} (lookup) & 1.000 & 1.000 & 1.000 \\
+\texttt{unauthorized\_scope} (0.106) & 0.999 & 0.125 & 0.107 & 0.507 \\
+\texttt{policy\_conflict} (0.385) & 0.964 & 0.392 & 0.429 & 0.370 \\
+\texttt{insufficient\_context} (0.079) & 0.841 & 0.412 & 0.357 & 0.232 \\
+\midrule
+\texttt{privilege\_escalation} (0.075) & 1.000 & 1.000 & --- & 0.364 \\
+\texttt{prompt\_injection\_influence} (0.075) & 0.804 & 0.806 & --- & 0.287 \\
+\texttt{financial\_commitment} & 1.000 & 1.000 & 1.000 & 1.000 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\begin{figure}[tbp]
-\centering
-\includegraphics[width=5.5in]{figures/fig_identity_ablation.pdf}
-\caption{Decoder 2B v2, per-dimension AUPRC on \texttt{heldout\_family}
-($n{=}6640$, synthetic data): full model vs.\ identity-stripped vs.\ rule
-baseline, with each dimension's positive rate (chance level) marked by a
-dashed line. Source: \texttt{docs/results/synthetic-v2/decoder-2b/}.}
-\label{fig:identity-ablation}
-\end{figure}
+\textbf{The loss is confined to three dimensions.} Macro AUPRC falls 0.17,
+and Table~\ref{tab:identity-ablation} locates all of it.
+\texttt{unauthorized\_scope} falls below the rule baseline once the
+entitlements it must be checked against are gone; \texttt{policy\_conflict}
+falls to the rule floor because no clause is left to violate;
+\texttt{insufficient\_context} halves. Content and trajectory dimensions do
+not move: \texttt{privilege\_escalation} survives because the v4 renderer
+puts the deciding authority fields into the call text, and injection is read
+from the trajectory.
 
-Figure~\ref{fig:identity-ablation} shows the same pattern across all eleven
-dimensions: the drop from stripping identity is concentrated in
-\texttt{unauthorized\_scope}, \texttt{policy\_conflict}, and
-\texttt{insufficient\_context}, while the remaining dimensions barely move.
+\textbf{Not a fragile mechanism; scale does not recover it.} Training on
+identity-free renderings from the start gives the same ceiling as stripping
+at evaluation (macro 0.784 vs.\ 0.790, per-dimension within 0.06), so
+stripping did not merely break a shortcut: the information is absent from the
+content. An 8B decoder collapses identically (0.958 to 0.786) on the same
+three dimensions.
 
-The macro drop is concentrated entirely in the three delegated-authority
-dimensions. \texttt{unauthorized\_scope} falls below the rule baseline
-(0.116 vs.\ 0.512) once the entitlements it must be checked against are
-gone; \texttt{policy\_conflict} falls to 0.345, barely above the 0.315 rule
-floor, because there is no clause left to violate; \texttt{insufficient\_context}
-falls by half. The fourth row is untouched: its deciding fact renders
-directly into the action arguments regardless of identity, and the rule
-baseline already gets it right. Four more dimensions
-(\texttt{destructive\_or\_irreversible\_action}, \texttt{untrusted\_destination},
-\texttt{external\_communication}, \texttt{sensitive\_data\_exposure}) show
-the same flat, lookup pattern; two more
-(\texttt{prompt\_injection\_influence} 0.810, \texttt{suspicious\_action\_sequence}
-0.952) are learned from trajectory order and are identity-independent.
-
-The zero-shot models' near-chance macro AUPRC (0.24--0.27), unmoved by
-identity, shows this is not a prompting gap: both were trained for harm,
-jailbreak, and groundedness criteria, not for checking an action against
-entitlements or policy. gpt-oss-safeguard is also $\sim$50$\times$ slower
-per row than the 2B decoder, for no benefit on the dimensions that matter
-here.
-
-This whole claim rests on the three delegated-authority dimensions being real
-labels, not generator artifacts an independent reader cannot recover;
-\S\ref{sec:labelvalidity} checks that directly and finds the claim solid for
-two of the three, with \texttt{insufficient\_context} unvalidated.
+\textbf{Zero-shot safety models never used the context.} Their macro AUPRC is
+0.24--0.27, at chance, and unchanged or slightly higher when identity is
+removed. If a general safety model quietly used delegated-authority context,
+stripping would hurt; it does not, for either model. Both were trained for
+harm, jailbreak, and groundedness, not for checking an action against
+entitlements or a clause. This claim rests on the three dimensions being
+labels an independent reader can recover; \S\ref{sec:labelvalidity} finds
+that holds for two of the three.
 
 \FloatBarrier

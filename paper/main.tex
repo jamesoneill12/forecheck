@@ -25,7 +25,7 @@
 % horizontal mode, not the restricted/inner mode \marginpar assumes.
 \newcommand{\todo}[1]{{\color{red}\footnotesize[TODO: #1]}}
 
-\title{Identity Is the Signal: Why Pre-Execution Agent-Action Risk\\
+\title{Identity Is the Signal: Agent-Action Risk\\
 Needs Delegated Authority, Not Just Content}
 
 % Non-final ICLR style prints "Anonymous authors / Paper under double-blind
@@ -41,40 +41,27 @@ Needs Delegated Authority, Not Just Content}
 \fancyfoot[C]{\scriptsize Submitted to a workshop at ICLR 2026 -- do not distribute.}
 
 \begin{abstract}
-Guardrail models for AI agents typically classify a proposed action from its
-text alone. We show this misses the dimensions that matter most for
-delegated, tool-using agents. Stripping principal entitlements, delegated
-scopes, and policy text from a trained 2B-parameter decoder's input drops
-macro AUPRC from 0.915 to 0.736 on held-out tools, concentrated entirely in
-three dimensions --- unauthorized-scope detection falls from 1.00 to 0.12,
-policy-conflict detection from 1.00 to 0.35 --- while two zero-shot safety
-models (Granite Guardian 3.3 8B, gpt-oss-safeguard 20B) sit at chance on
-exactly these dimensions with or without that context, showing the gap is
-not something prompting a general safety model can close. We further show
-that the \emph{shape} of policy-conditioned reasoning, not just tool
-identity, must generalize to unseen policy kinds and phrasings, and that
-naive multi-policy composition collapses to a 0.97 false positive rate by
-three stacked policies unless decisions are made from calibrated joint
-probabilities rather than independent thresholds. An independent blind LLM
-judge, shown only the rendered text, confirms two of the three dimensions
-the identity-ablation result rests on (policy-conflict, unauthorized-scope)
-and finds the third (insufficient-context) unrecoverable from the text at
-all, which we report as an open validity gap. On AgentDojo banking traces we
-did not generate, zero-shot, the 2B checker reaches 0.85 AUPRC on policy
-conflict against a 0.24 base rate and the 8B checker 0.70 AUPRC on
-prompt-injection influence against a 0.15 base rate, both against rule
-baselines at or near base rate, while the 2B checker fails outright on
-injection. On InjecAgent, which holds the call fixed and varies only whether
-the attacker's instruction is in the tool output, neither v4 checker separates
-poisoned from clean (AUROC 0.53--0.60), so what transferred was call-level
-judgement, not reading of untrusted text. We trace this to a label leak in
-our generator, fix it, and retrain: the leak-free checkers reach 0.69 (2B)
-and 0.84 (8B) AUPRC on AgentDojo injection, both rank the poisoned
-InjecAgent variant above its clean twin on 98\% of pairs (50\% and 35\%
-before), and
-the synthetic injection score does not move (0.80 to 0.79), so the leak had
-hidden what was learned, not inflated the score. All other results are on synthetic data;
-we are explicit about what that does and does not license.
+Guardrail models for AI agents classify a proposed action from its text
+alone. We show this misses the dimensions that matter most for delegated,
+tool-using agents. Removing principal entitlements, delegated scope, and
+policy text from a trained 2B checker's input drops macro AUPRC from 0.960 to
+0.790 on held-out tools, and the loss is confined to three dimensions
+(unauthorized-scope 1.00 to 0.13, policy-conflict 0.96 to 0.39) while content
+dimensions do not move. Two zero-shot safety models and the acting agent
+asked to judge its own call are at chance on exactly these dimensions with or
+without the context, so prompting cannot close the gap; a blind LLM judge
+loses the same dimensions when identity is removed. Policy-conditioned
+reasoning generalizes to unseen policy phrasings (0.98 AUPRC) but not unseen
+kinds (0.72 at 2B, 0.84 at 8B), and stacking independently thresholded
+policies reaches a 0.97 false positive rate by three policies unless
+decisions come from calibrated joint probabilities. On AgentDojo and
+InjecAgent, traces we did not generate, policy-conflict transfers zero-shot
+(0.85 and 0.97 AUPRC against 0.24 and 0.46 base rates). Prompt-injection did
+not transfer at 2B until the external data exposed a label leak in our
+generator; the leak-free checkers reach 0.69 (2B) and 0.84 (8B) AUPRC on
+AgentDojo and rank the poisoned InjecAgent tool output above its clean twin
+on 98\% of pairs (50\% and 35\% before), while the synthetic score on the
+same dimension did not move.
 \end{abstract}
 
 \input{sections/intro}

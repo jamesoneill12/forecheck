@@ -1,122 +1,49 @@
 \section{Limitations}
 \label{sec:limitations}
 
-\textbf{Synthetic data only.} Every number here is on data from forecheck's
-own scenario generator (\texttt{docs/evaluation-plan.md}, classes 1--2). No
-human-labelled or production-traffic evaluation exists at submission time,
-and no real-world safety claim is made: every result measures whether an
-arm learned the generator's own label function.
+\textbf{Synthetic data.} Every number outside \S\ref{sec:external} is on data
+from forecheck's own generator and measures whether an arm learned the
+generator's label function. No human-labelled or production-traffic
+evaluation exists and no real-world safety claim is made. The blind judge
+checks whether a label is observable in the text, not whether it is right; it
+finds \texttt{insufficient\_context} unrecoverable, and every number on that
+dimension carries that caveat. The judge is one frontier model with one
+prompt.
 
-\textbf{Independent labels exist for label validity, not for real-world
-risk.} \S\ref{sec:labelvalidity} adds a blind LLM judge as an independent
-reader of the same rendered text, which is a check on whether a label is
-observable in the text at all, not a check against real-world ground truth
--- the judge never saw production traffic either. That check is reassuring
-on \texttt{policy\_conflict} ($\kappa{=}0.71$) and directionally consistent
-on \texttt{unauthorized\_scope} ($\kappa{=}0.39$, differing definitions), but
-finds \texttt{insufficient\_context} ($\kappa{=}0.06$) unrecoverable from the
-text by an independent reader. Every \texttt{insufficient\_context} number
-in this paper should be read with that caveat attached until the generator's
-rendering makes the context gap explicit.
+\textbf{Generator regularities.} The model may exploit template regularities
+in how the generator writes clauses and entitlement lists. The phrasing and
+kind splits only partly rule this out: phrasing generalizes, kind does not,
+which is consistent with a lookup over kinds. The \texttt{privilege\_escalation}
+fields were not rendered before v4, so every v2/v3 number on that dimension
+(0.46--0.53 AUPRC) reflects a data defect. The v1--v5 injection leak means
+every synthetic injection number before v6, and the judge's $\kappa{=}0.905$
+on it, is on text where a key-presence detector would score 1.0; the trained
+arms scored about 0.80, so the leak did not inflate the score but determined
+what was learned, and only the external pairs could reveal it. Retrained on
+v6, every other synthetic dimension is within 0.01 of v4 except
+\texttt{policy\_conflict} on \texttt{heldout\_policy\_kind} (0.692 at 2B,
+inside the seed band; 0.767 at 8B, 0.08 below the v4 mean).
 
-\textbf{Generator regularities.} The model may be exploiting template
-regularities in how the generator writes policy clauses and entitlement
-lists, rather than a general policy-reading ability. The
-\texttt{heldout\_policy\_kind}/\texttt{heldout\_policy\_phrasing} splits
-(\S\ref{sec:generalisation}) probe this and only partly rule it out:
-phrasing generalizes cleanly, kind does not, consistent with a lookup over
-kinds rather than the underlying operation. The encoder's earlier null
-result on both splits is uninformative the same way -- it never learned
-\texttt{policy\_conflict} at all, so a flat curve shows nothing.
+\textbf{Seeds.} Three 2B seeds on v4 and on v5 agree on macro AUPRC to within
+0.001, but the \texttt{heldout\_policy\_kind} \texttt{policy\_conflict} cell
+spans 0.06 (sd 0.03), so smaller differences on that cell are noise. 8B has
+two seeds on v4 (test macro 0.956 and 0.948, the gap entirely on
+\texttt{insufficient\_context}); both v6 checkers are single-seed, so
+2B-vs-8B comparisons on v6 are unqualified.
 
-\textbf{\texttt{privilege\_escalation} render defect (v2/v3).} The
-\texttt{authority\_before}/\texttt{authority\_after} fields deciding this
-label were never rendered into the tool-call text in v2/v3, so every arm's
-0.46--0.53 AUPRC there reflects a data defect: 78 of 79 dev positives were
-textually indistinguishable from an in-scope re-grant. Fixed in v4
-(\S\ref{sec:generalisation}); numbers sourced from v2/v3 elsewhere should be
-read with this in mind.
+\textbf{External labels are partly self-written and uneven.} AgentDojo's
+policy predicates and InjecAgent's five policies are ours; injection and scope
+labels are the benchmarks' own. Banking has four tool-specific policies, the
+other suites one generic policy each, so policy transfer rests on banking and
+InjecAgent. AgentDojo's \texttt{unauthorized\_scope} counts harmless auxiliary
+reads as out of scope. The InjecAgent port fills principal and scope with
+placeholders, which the 8B v6 head reads as authorising the attacker call.
+The v6 checkers have not been run on the four-suite export. Calibration does
+not transfer without a few hundred in-domain labels.
 
-\textbf{\texttt{prompt\_injection\_influence} label leak (v1--v5).} After the
-2B checker failed on AgentDojo injection (\S\ref{sec:external}) we contrasted
-the rendered call between injected and non-injected synthetic examples. The
-generator wrote an \texttt{instructed\_target} argument into every injected
-call and into no other call (presence 1.00 vs.\ 0.00 over 13,312 v4 rows), put
-a \texttt{to} argument into 100\% of injected calls vs.\ 3\% of others, and
-drew the injected target from five literals, three containing the word
-``attacker''. A key-presence detector would score 1.0 AUPRC on this
-dimension, above every trained arm's $\sim$0.80, so the synthetic injection
-numbers in this paper (Tables \ref{tab:identity-ablation},
-\ref{tab:model-vs-judge}) and the judge's $\kappa{=}0.905$ on it are not
-evidence of injection detection; the judge saw the same argument. The identity dimensions do not use the leaked keys and are
-unaffected. The AgentDojo and InjecAgent results are the first leak-free
-measurements of the v4 checkers: 2B fails (0.128 AUPRC), 8B partly transfers
-(0.701). The generator is fixed in v6 (renderer 2.0.0: no
-\texttt{instructed\_target}, target argument key chosen from the tool kind
-and filled for benign calls too, shared target pools, 300--2,000 character
-multi-format observations) with a leakage check on argument-key presence
-parity. Retrained on v6, the synthetic injection AUPRC is unchanged (0.802 to
-0.788 for 2B, 0.791 to 0.795 for 8B) while the AgentDojo injection AUPRC
-rises to 0.693 (2B) and 0.838 (8B) and the InjecAgent poisoned-over-clean
-pair win rises from 0.504 (2B) and 0.353 (8B) to 0.977 at both sizes
-(\S\ref{sec:external}): the leak did not inflate the synthetic score, it
-changed what the head learned to read
-(\texttt{docs/results/notes/injection-label-leak-diagnosis.md}).
-Every other synthetic dimension is within 0.01 of v4 except
-\texttt{policy\_conflict} on \texttt{heldout\_policy\_kind}, which drops to
-0.692 (2B) and 0.767 (8B), inside the seed band below for 2B and 0.08 below
-the single v4 seed for 8B.
-
-\textbf{Seed variance (three seeds each for v4 and v5).} Three training
-seeds for decoder v4 agree on macro AUPRC to within 0.001 on every split
-(e.g.\ 0.960, 0.959, 0.960 on test). But the \texttt{heldout\_policy\_kind}
-\texttt{policy\_conflict} cell moves across a 0.06 range between seeds
-(0.752, 0.689, 0.711; mean 0.717, sample sd 0.032) -- an order of magnitude
-more than the macro noise floor -- so differences smaller than that on this
-specific cell are not distinguishable from seed noise. Three seeds of the
-v5 (30-kind) recipe show the same range (0.704, 0.755, 0.717; mean 0.725,
-sample sd 0.026), which is what lets \S\ref{sec:generalisation} compare the
-two bands directly instead of a single point each. The 8B numbers are from
-one seed except where noted; a second 8B seed reaches macro AUPRC 0.948 on
-test against 0.956 for the first, with the whole gap on
-\texttt{insufficient\_context} (0.682 vs.\ 0.767) and the other ten
-dimensions within 0.003, so 8B-vs-2B gaps on that dimension are inside seed
-noise. On \texttt{heldout\_policy\_kind} the second seed puts
-\texttt{policy\_conflict} at 0.825 against 0.851, inside the 2B seed band
-above.
-
-\textbf{Held-out-policy-kind failure (now tested at 30 kinds and 8B).}
-\texttt{policy\_conflict} AUPRC drops from $\sim$0.98--0.99
-(in-distribution, unseen-phrasing) to 0.65--0.76 on entirely unseen kinds at
-2B. The v5 experiment (ADR 0011, 30 kinds, 4 withheld) has landed across
-three seeds and is negative: mean 0.725, inside one sample sd of v4's mean
-0.717 -- tripling the kind inventory did not fix this at 2B. An 8B LoRA on
-the unchanged v4 data reaches 0.851, so capacity helps partially but does
-not solve it. The supportable claim today is "one model, policies of a kind
-seen in training (or with enough capacity to partially generalize), any
-phrasing" -- not "arbitrary new policy kinds."
-
-\textbf{External labels are partly self-written and uneven across suites.}
-The AgentDojo labels (\S\ref{sec:external}) are partly written by us (the
-policy predicates) and partly by AgentDojo
-(\texttt{prompt\_injection\_influence}, \texttt{unauthorized\_scope}). The
-banking suite has four tool-specific policies; slack, travel, and workspace
-have one generic policy each, so the policy-transfer claim rests on banking
-alone, and the four-suite injection result is one training run (8B v4, with
-and without identity) on a label whose positive rate is 2.5\% on travel.
-Calibration did not transfer: macro ECE runs 0.20--0.27 on AgentDojo against
-under 0.03 on synthetic data, so only the ranking generalizes to this external
-distribution. Refitting isotonic calibrators on half of the AgentDojo calls
-brings macro ECE on the other half to 0.008 (2B) and 0.010 (8B) with AUPRC
-unchanged, and most of the gain arrives by 250--500 labelled calls
-(\texttt{docs/results/agentdojo/recalibration.md}), so a deployment needs a
-few hundred in-domain labels for its probabilities, not for its ranking.
-
-\textbf{Other caveats.} A single generator family (English, template
-renderer) produces every example. The \S\ref{sec:composition} cost table is
-the default severity tier, not tuned to any organization. Generator seed
-nondeterminism was found and partially fixed mid-project
-(\texttt{docs/results/notes/privilege-escalation-diagnosis.md}); v2/v3 data
-are not byte-reproducible from their configs.
+\textbf{Other.} A single English template generator produces every synthetic
+example. The cost table in \S\ref{sec:composition} is the default severity
+tier. Generator seed nondeterminism was found and fixed mid-project; v2/v3
+data are not byte-reproducible from their configs.
 
 \FloatBarrier
