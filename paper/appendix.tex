@@ -2,7 +2,7 @@
 \label{sec:appendix-identity}
 
 Table~\ref{tab:identity-ablation-v2} gives the v2 per-dimension numbers behind
-Figure~\ref{fig:identity-ablation}. The v4 ablation (Table~\ref{tab:identity-ablation})
+Figure~\ref{fig:identity-ablation}; Table~\ref{tab:identity-ablation} gives the v4 numbers behind Figure~\ref{fig:identity-body}. The v4 ablation
 replicates the pattern with one change: \texttt{privilege\_escalation}
 survives stripping in v4 (1.000 to 1.000) because the v4 renderer puts the
 deciding \texttt{authority\_before}/\texttt{authority\_after} fields into the
@@ -38,6 +38,26 @@ Dimension & Decoder (full) & Decoder (stripped) & Rule baseline \\
 \texttt{financial\_commitment} & 1.000 & 1.000 & 1.000 \\
 \bottomrule
 \end{tabular}
+\end{table*}
+
+\begin{table*}[t]
+\centering
+\small
+\begin{tabular}{@{}lrcccc@{}}
+\toprule
+Dimension & $n$ (pos.\ rate) & Full & Eval-stripped & Train-stripped & Rule \\
+\midrule
+\texttt{unauthorized\_scope} & 6335 (.108) & 0.999 & 0.125 & 0.107 & 0.507 \\
+\texttt{policy\_conflict} & 1834 (.371) & 0.964 & 0.392 & 0.429 & 0.370 \\
+\texttt{insufficient\_context} & 6653 (.087) & 0.841 & 0.412 & 0.357 & 0.232 \\
+\midrule
+\texttt{privilege\_escalation} & 6653 (.071) & 1.000 & 1.000 & --- & 0.364 \\
+\texttt{prompt\_injection\_influence}$^{\dagger}$ & 6653 (.082) & 0.804 & 0.806 & --- & 0.287 \\
+\texttt{financial\_commitment} & 6653 (.095) & 1.000 & 1.000 & 1.000 & 1.000 \\
+\bottomrule
+\end{tabular}
+\caption{Numbers behind Figure~\ref{fig:identity-body}. Decoder 2B v4, \texttt{heldout\_family}, AUPRC per dimension with evaluable $n$ and positive rate: full input, identity removed at evaluation, identity removed at training, and the rule baseline. First three rows are functions of the removed fields. $^{\dagger}$v4 text carries the injection label leak (\S\ref{sec:external}); its evidence is in the call arguments, which stripping does not touch.}
+\label{tab:identity-ablation}
 \end{table*}
 
 \begin{table*}[t]
@@ -113,7 +133,7 @@ rendering the deciding fields lifts it from 0.505 to 1.000 AUPRC on
 \section{Multi-policy stacking: full table and curves}
 \label{sec:appendix-stacking}
 
-Table~\ref{tab:stacking-full} extends Table~\ref{tab:stacking-main} with the
+Table~\ref{tab:stacking-full} gives the numbers behind Figure~\ref{fig:stacking-body} plus the
 \texttt{joint} strategy (rules from all $k$ policies merged into one bundle
 and evaluated once in threshold mode), review rate, covered-benign count,
 and the mean risk-weighted cost the expected-cost rule optimises. The stack

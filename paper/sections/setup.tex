@@ -2,10 +2,10 @@
 \label{sec:setup}
 
 \textbf{Contract.} forecheck scores a proposed tool call against an
-\texttt{ActionContext}: the principal's entitlements, the scope actually
-delegated to the agent (a possibly strict subset), a trust-labelled
-trajectory of prior observations, the applicable policy clause(s), and the
-proposed action (tool, arguments, destination), all as typed fields. It
+\texttt{ActionContext}: the principal's entitlements, the scope delegated to
+the agent (a possibly strict subset), a trust-labelled trajectory of prior
+observations, the applicable policy clause(s), and the proposed action (tool,
+arguments, destination), all as typed fields. It
 returns one probability per risk dimension. A separate policy engine turns
 the vector into \textsc{allow}/\textsc{review}/\textsc{deny} under a
 customer-authored bundle; the checker itself never authorises.

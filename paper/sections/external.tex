@@ -64,19 +64,25 @@ On InjecAgent the same dimension scores 0.92--0.98 and stripping barely moves
 it: the five policies are rules about the call's shape, so it is a content
 result.
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/fig_injecagent_margins.pdf}
+\caption{InjecAgent pairs: empirical CDF of the poisoned-minus-clean injection logit over the 1,598 pairs, per checker. The v4 heads (dashed) put a quarter to two fifths of pairs exactly at zero and a further quarter below it; the v6 heads (solid) rank the poisoned variant higher on 98\% of pairs. Counts and intervals in Table~\ref{tab:injecagent-audit}.}
+\label{fig:injecagent-margins}
+\end{figure}
+
 \textbf{Injection before the fix: the v4 heads barely read the untrusted
 text.} 2B v4 is below base rate on AgentDojo injection (0.128, AUROC 0.348):
 its injection head never fires on this domain (raw logits for all 4,133 calls
-between $-5.0$ and $-3.0$) while its policy head separates on the same rows.
-8B v4 reaches 0.701. On InjecAgent, with the call held fixed, both v4 heads
+in $[-5,-3]$) while its policy head separates the same rows; 8B v4 reaches
+0.701. On InjecAgent, with the call held fixed, both v4 heads
 sit near raw logit $-4$ on poisoned and clean alike and return an identical
-score on 24\% (2B) and 39\% (8B) of pairs. Counting ties as half, they rank
+score on 24\% (2B) and 39\% (8B) of pairs (Figure~\ref{fig:injecagent-margins}). Counting ties as half, they rank
 the poisoned variant higher on 0.624 and 0.546 of pairs, significantly above
 0.5 (sign test on decided pairs, $p<10^{-5}$) but small. Whether the 8B
-AgentDojo transfer was call-level reading or a head alive on long
-observations and dead on short ones is not determined by these data; deleting
-the payload from an AgentDojo trace with the call held fixed would decide it
-and has not been run.
+AgentDojo transfer was call-level reading or a head that only fires on long
+observations is undetermined; a payload-deletion counterfactual with the call
+held fixed would decide it and has not been run.
 
 \textbf{The cause was a label leak in our generator.} Contrasting rendered
 calls between injected and non-injected synthetic examples showed that the
@@ -86,10 +92,9 @@ drew its value from five literals, three containing ``attacker''
 (Appendix~\ref{sec:appendix-leak}). The synthetic metric could not show this.
 A quarter of synthetic injection positives come from a compromised tool
 schema and render no injected text at all, so a detector that reads only the
-observation is capped near 0.75--0.80 AUPRC on this label, and a detector
-that reads only the leaked key is capped at the same place; the checker's
-0.80 is consistent with either. The synthetic score measured the ceiling,
-not what the head read.
+observation and a detector that reads only the leaked key are both capped
+near 0.75--0.80 AUPRC; the checker's 0.80 is consistent with either. The
+synthetic score measured the ceiling, not what the head read.
 
 \textbf{v6 restores transfer; the fix is a bundle.} v6 removes the key,
 fills the target argument for benign calls too, and lengthens and randomises
@@ -120,11 +125,10 @@ rate (0.677 vs.\ 0.752) until the port's placeholder principal and scope
 fields are removed (0.917). Removing identity \emph{helps} on several
 external cells, which fits the thesis only in its narrow form: the right
 fields help, generic ones hurt. Calibration does not transfer (macro ECE
-0.20--0.27 on AgentDojo vs.\ under 0.03 synthetic); refitting isotonic
-calibrators on half the banking calls brings the other half to ECE 0.01 with
-AUPRC unchanged, most of the gain by 250--500 labelled calls. Over all four
-AgentDojo suites (30,143 calls), the 8B v4 injection transfer holds on three
-and is weak on travel; 2B v4 is at base rate everywhere; the v6 checkers
-have not been run on that export (Appendix~\ref{sec:appendix-external}).
+0.20--0.27 on AgentDojo vs.\ under 0.03 synthetic); isotonic refitting on
+250--500 labelled calls restores ECE 0.01 with AUPRC unchanged. Over all
+four AgentDojo suites (30,143 calls), 8B v4 injection holds on three and is
+weak on travel; 2B v4 is at base rate everywhere; v6 has not been run on that
+export (Appendix~\ref{sec:appendix-external}).
 
 \FloatBarrier

@@ -6,6 +6,7 @@ paper/figures/. Run with: uv run python scripts/paper_figures.py
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import matplotlib
@@ -13,11 +14,32 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+from injecagent_pair_audit import load_export, load_scores
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_DIR = REPO_ROOT / "docs" / "results" / "synthetic-v2"
 JUDGE_README = REPO_ROOT / "docs" / "results" / "judge" / "README.md"
 AGENTDOJO_DIR = REPO_ROOT / "docs" / "results" / "agentdojo"
 FIGURES_DIR = REPO_ROOT / "paper" / "figures"
+INJECAGENT_DIR = Path("/tmp/fc-injecagent")
+
+BODY_RC = {
+    "font.size": 7,
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Helvetica", "DejaVu Sans"],
+    "axes.titlesize": 7,
+    "axes.labelsize": 7.5,
+    "xtick.labelsize": 6.5,
+    "ytick.labelsize": 6.5,
+    "legend.fontsize": 6,
+    "axes.spines.top": False,
+    "axes.spines.right": False,
+    "axes.linewidth": 0.6,
+    "xtick.major.width": 0.6,
+    "ytick.major.width": 0.6,
+    "pdf.fonttype": 42,
+    "ps.fonttype": 42,
+}
 
 COLORS = {
     "orange": "#E69F00",
@@ -622,7 +644,229 @@ def fig_agentdojo() -> None:
         savefig(fig, "fig_agentdojo.pdf")
 
 
+IDENTITY_BODY_DIMS = [
+    "unauthorized_scope",
+    "policy_conflict",
+    "insufficient_context",
+    "privilege_escalation",
+    "prompt_injection_influence",
+    "financial_commitment",
+]
+IDENTITY_BODY_SHORT = {
+    "unauthorized_scope": "scope",
+    "policy_conflict": "policy",
+    "insufficient_context": "insufficient ctx",
+    "privilege_escalation": "priv. escalation",
+    "prompt_injection_influence": "injection",
+    "financial_commitment": "financial",
+}
+IDENTITY_BODY_DATA = {
+    "unauthorized_scope": (0.108, 0.999, 0.125, 0.107, 0.507),
+    "policy_conflict": (0.371, 0.964, 0.392, 0.429, 0.370),
+    "insufficient_context": (0.087, 0.841, 0.412, 0.357, 0.232),
+    "privilege_escalation": (0.071, 1.000, 1.000, None, 0.364),
+    "prompt_injection_influence": (0.082, 0.804, 0.806, None, 0.287),
+    "financial_commitment": (0.095, 1.000, 1.000, 1.000, 1.000),
+}
+
+
+def fig_identity_body() -> None:
+    log("=== fig_identity_body ===")
+    dims = IDENTITY_BODY_DIMS
+    series_labels = ["Full", "Eval-stripped", "Train-stripped", "Rule"]
+    series_colors = [
+        COLORS["blue"],
+        COLORS["vermillion"],
+        COLORS["reddish_purple"],
+        COLORS["bluish_green"],
+    ]
+    for d in dims:
+        log(f"  {d}: {IDENTITY_BODY_DATA[d]}")
+
+    h = 0.18
+    offsets = [-1.5 * h, -0.5 * h, 0.5 * h, 1.5 * h]
+
+    with plt.rc_context(BODY_RC):
+        fig, ax = plt.subplots(figsize=(3.2, 2.4))
+        for i, d in enumerate(dims):
+            pos_rate, *vals = IDENTITY_BODY_DATA[d]
+            for off, val, label, color in zip(offsets, vals, series_labels, series_colors, strict=True):
+                if val is None:
+                    continue
+                ax.barh(
+                    i + off,
+                    val,
+                    height=h,
+                    color=color,
+                    label=label if i == 0 else None,
+                )
+            ax.plot(
+                [pos_rate, pos_rate],
+                [i - 2 * h, i + 2 * h],
+                color=COLORS["black"],
+                linewidth=1.1,
+                zorder=5,
+                label="Positive rate (chance)" if i == 0 else None,
+            )
+        ax.axhline(2.5, color="black", linewidth=0.5)
+        ax.set_yticks(range(len(dims)))
+        ax.set_yticklabels([IDENTITY_BODY_SHORT[d] for d in dims])
+        ax.invert_yaxis()
+        ax.set_xlim(0, 1.05)
+        ax.set_xlabel("AUPRC")
+        ax.legend(loc="upper right", frameon=False, fontsize=6, handlelength=1.4)
+        savefig(fig, "fig_identity_body.pdf")
+
+
+INJECAGENT_ARMS = [
+    ("2B v4", "scores-2b.jsonl", "--", COLORS["blue"]),
+    ("8B v4", "scores-8b.jsonl", "--", COLORS["orange"]),
+    ("8B v4 stripped", "scores-8b-noid.jsonl", "--", COLORS["bluish_green"]),
+    ("2B v6", "scores-2b-v6.jsonl", "-", COLORS["blue"]),
+    ("8B v6", "scores-8b-v6.jsonl", "-", COLORS["orange"]),
+    ("8B v6 stripped", "scores-8b-v6-noid.jsonl", "-", COLORS["bluish_green"]),
+]
+
+INJECAGENT_KNOWN_COUNTS = {
+    "2B v4": (410, 382, 806),
+    "2B v6": (28, 8, 1562),
+    "8B v6": (17, 19, 1562),
+    "8B v6 stripped": (10, 25, 1563),
+    "8B v4": (418, 616, 564),
+    "8B v4 stripped": (353, 634, 611),
+}
+
+
+def _injecagent_margins(pairs: dict, raw: dict) -> list[float]:
+    margins = []
+    for ids in pairs.values():
+        a = raw.get(ids["poisoned"], {}).get("prompt_injection_influence")
+        b = raw.get(ids["clean"], {}).get("prompt_injection_influence")
+        if a is None or b is None:
+            continue
+        margins.append(a - b)
+    return margins
+
+
+def fig_injecagent_margins() -> None:
+    _, pairs = load_export(INJECAGENT_DIR / "injecagent.jsonl")
+    log(f"=== fig_injecagent_margins === complete pairs={len(pairs)}")
+
+    with plt.rc_context(BODY_RC):
+        fig, ax = plt.subplots(figsize=(3.2, 2.2))
+        for name, fname, ls, color in INJECAGENT_ARMS:
+            raw, _ = load_scores(INJECAGENT_DIR / fname)
+            margins = _injecagent_margins(pairs, raw)
+            neg = sum(1 for m in margins if m < 0)
+            zero = sum(1 for m in margins if m == 0)
+            pos = sum(1 for m in margins if m > 0)
+            known = INJECAGENT_KNOWN_COUNTS.get(name)
+            match = "OK" if known == (neg, zero, pos) else f"MISMATCH (expected {known})"
+            log(f"  {name}: margin<0={neg} margin=0={zero} margin>0={pos} n={len(margins)} {match}")
+
+            xs = sorted(margins)
+            n = len(xs)
+            ys = [j / n for j in range(1, n + 1)]
+            ax.step(xs, ys, where="post", linestyle=ls, color=color, linewidth=1.1, label=name)
+
+        ax.axvline(0, color=COLORS["black"], linestyle=":", linewidth=0.9, zorder=0)
+        ax.set_xscale("symlog", linthresh=1.0, linscale=1.0)
+        ax.set_xlim(-6, 30)
+        ax.set_xticks([-5, -2, -1, 0, 1, 2, 5, 10, 20])
+        ax.set_xticklabels(["-5", "-2", "-1", "0", "1", "2", "5", "10", "20"])
+        ax.set_xlabel("poisoned $-$ clean injection logit (symlog)")
+        ax.set_ylabel("fraction of pairs")
+        ax.set_ylim(0, 1.02)
+        ax.legend(loc="center right", frameon=False, fontsize=6, ncol=1)
+        savefig(fig, "fig_injecagent_margins.pdf")
+
+
+STACKING_ANCHORS = [
+    ("decoder", "independent", 1, "fpr", 0.015),
+    ("decoder", "independent", 1, "fnr", 0.253),
+    ("decoder", "independent", 2, "fpr", 0.140),
+    ("decoder", "independent", 2, "fnr", 0.080),
+    ("decoder", "independent", 3, "fpr", 0.966),
+    ("decoder", "independent", 3, "fnr", 0.016),
+    ("decoder", "independent", 8, "fpr", 0.966),
+    ("decoder", "independent", 8, "fnr", 0.007),
+    ("decoder", "independent", 15, "fpr", 0.967),
+    ("decoder", "independent", 15, "fnr", 0.003),
+    ("decoder", "expected_cost_joint", 1, "fpr", 0.058),
+    ("decoder", "expected_cost_joint", 1, "fnr", 0.170),
+    ("decoder", "expected_cost_joint", 2, "fpr", 0.082),
+    ("decoder", "expected_cost_joint", 2, "fnr", 0.070),
+    ("decoder", "joint", 2, "fpr", 0.131),
+    ("decoder", "joint", 2, "fnr", 0.105),
+    ("decoder", "joint", 3, "fpr", 0.905),
+    ("decoder", "joint", 3, "fnr", 0.051),
+    ("encoder", "independent", 1, "fpr", 0.346),
+    ("encoder", "independent", 1, "fnr", 0.163),
+    ("encoder", "independent", 2, "fpr", 0.710),
+    ("encoder", "independent", 2, "fnr", 0.042),
+    ("encoder", "expected_cost_joint", 1, "fpr", 0.589),
+    ("encoder", "expected_cost_joint", 1, "fnr", 0.050),
+    ("encoder", "expected_cost_joint", 2, "fpr", 0.921),
+    ("encoder", "expected_cost_joint", 2, "fnr", 0.010),
+]
+
+
+def fig_stacking_body() -> None:
+    dec_path = RESULTS_DIR / "decoder-2b" / "heldout_family-stacking-report.md"
+    enc_path = RESULTS_DIR / "encoder-granite-embedding-r2" / "heldout_family-stacking-report.md"
+    dec_rows = parse_stacking_table(dec_path)
+    enc_rows = parse_stacking_table(enc_path)
+    by_arm = {"decoder": dec_rows, "encoder": enc_rows}
+
+    def series(rows: list[dict], strategy: str, field: str) -> tuple[list[int], list[float]]:
+        pts = [(r["k"], r[field]) for r in rows if r["strategy"] == strategy]
+        pts.sort()
+        return [p[0] for p in pts], [p[1] for p in pts]
+
+    log("=== fig_stacking_body ===")
+    dec_ks = sorted({r["k"] for r in dec_rows})
+    enc_ks = sorted({r["k"] for r in enc_rows})
+    log(f"  decoder k values: {dec_ks}")
+    log(f"  encoder k values: {enc_ks}")
+
+    for arm, strategy, k, field, expected in STACKING_ANCHORS:
+        rows = by_arm[arm]
+        val = next((r[field] for r in rows if r["strategy"] == strategy and r["k"] == k), None)
+        match = "OK" if val is not None and abs(val - expected) < 0.002 else "MISMATCH"
+        log(f"  anchor {arm}/{strategy}/k={k}/{field}: got={val} expected={expected} {match}")
+
+    plot_series = [
+        ("decoder", "independent", "Decoder 2B independent", COLORS["blue"], "-"),
+        ("decoder", "joint", "Decoder 2B joint", COLORS["orange"], "-"),
+        ("decoder", "expected_cost_joint", "Decoder 2B expected_cost", COLORS["vermillion"], "-"),
+        ("encoder", "independent", "Encoder r2 independent", COLORS["blue"], "--"),
+        ("encoder", "expected_cost_joint", "Encoder r2 expected_cost", COLORS["vermillion"], "--"),
+    ]
+
+    with plt.rc_context(BODY_RC):
+        fig, (ax_fpr, ax_fnr) = plt.subplots(1, 2, figsize=(3.2, 2.1), sharex=True)
+        for arm, strategy, label, color, ls in plot_series:
+            ks, fprs = series(by_arm[arm], strategy, "fpr")
+            _, fnrs = series(by_arm[arm], strategy, "fnr")
+            ax_fpr.plot(ks, fprs, color=color, linestyle=ls, linewidth=1.0, marker="o", markersize=2, label=label)
+            ax_fnr.plot(ks, fnrs, color=color, linestyle=ls, linewidth=1.0, marker="o", markersize=2, label=label)
+        for ax in (ax_fpr, ax_fnr):
+            ax.axvline(3, color="gray", linestyle=":", linewidth=0.8, alpha=0.7, zorder=0)
+            ax.set_xticks([1, 3, 5, 10, 15])
+            ax.set_xlabel("$k$ stacked policies")
+        ax_fpr.set_ylabel("FPR")
+        ax_fnr.set_ylabel("FNR")
+        ax_fpr.set_ylim(0, 1.02)
+        ax_fnr.set_ylim(0, 0.3)
+        handles, labels = ax_fpr.get_legend_handles_labels()
+        fig.legend(handles, labels, loc="lower center", bbox_to_anchor=(0.5, -0.12), ncol=3, frameon=False, fontsize=5.2, handlelength=1.3, columnspacing=1.0)
+        savefig(fig, "fig_stacking_body.pdf")
+
+
 def main() -> None:
+    fig_identity_body()
+    fig_injecagent_margins()
+    fig_stacking_body()
     fig_identity_ablation()
     fig_policy_generalisation()
     fig_stacking()

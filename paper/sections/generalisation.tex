@@ -2,8 +2,7 @@
 \label{sec:generalisation}
 
 Robustness to unseen \emph{tools} is not robustness to unseen
-\emph{policies}, and the latter is the deployment test: customers write
-their own clauses. \texttt{heldout\_policy\_kind} withholds entire predicate
+\emph{policies}, and customers write their own clauses. \texttt{heldout\_policy\_kind} withholds entire predicate
 kinds (e.g.\ \texttt{forbid\_recipient\_domain}) from training;
 \texttt{heldout\_policy\_phrasing} withholds one paraphrase of every kind the
 model did train on. v4 has 15 kinds with 2 withheld; v5 has 30 with 4.
@@ -39,7 +38,7 @@ means over training seeds on \emph{different} withheld kinds (2 vs.\ 4), so
 their near-equality is not evidence that a larger inventory fails to help:
 the dominant variance component, which kinds were withheld, is not estimated,
 and with three seeds at sd 0.03 the minimum detectable difference is about
-0.08. We therefore report the result as ``no evidence of an inventory
-effect at this size,'' not as its absence.
+0.08. We report ``no evidence of an inventory effect at this size,'' not
+its absence.
 
 \FloatBarrier

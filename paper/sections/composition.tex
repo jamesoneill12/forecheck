@@ -7,35 +7,18 @@ decision. We stack $k$ bundles over the v2 decoder's probability vector on
 evaluates each bundle alone and ORs the decisions; \texttt{expected\_cost}
 merges the bundles' rules and decides once by the argmin of expected cost
 over the joint vector under a fixed cost table
-(Table~\ref{tab:stacking-main}; Appendix~\ref{sec:appendix-stacking}). FPR
+(Figure~\ref{fig:stacking-body}; Appendix~\ref{sec:appendix-stacking}). FPR
 counts any non-\textsc{allow} decision on a covered benign example, so it
-includes \textsc{review}. An earlier draft read this table as ``threshold
+includes \textsc{review}. An earlier draft read these numbers as ``threshold
 stacking compounds to a 0.97 false positive rate by three policies.'' It
 does not.
 
-\begin{table}[t]
+\begin{figure}[t]
 \centering
-\footnotesize
-\setlength{\tabcolsep}{4pt}\begin{tabular}{@{}llccc@{}}
-\toprule
-Arm & $k$ & Strategy & FPR & FNR \\
-\midrule
-Decoder 2B & 1 & independent & 0.015 & 0.253 \\
-Decoder 2B & 1 & exp.\ cost & 0.058 & 0.170 \\
-Decoder 2B & 2 & independent & 0.140 & 0.080 \\
-Decoder 2B & 2 & exp.\ cost & 0.082 & 0.070 \\
-Decoder 2B & 3 & independent & 0.966 & 0.016 \\
-Decoder 2B & 3 & exp.\ cost & 0.082 & 0.070 \\
-\midrule
-Encoder r2 & 1 & independent & 0.346 & 0.163 \\
-Encoder r2 & 1 & exp.\ cost & 0.589 & 0.050 \\
-Encoder r2 & 2 & independent & 0.710 & 0.042 \\
-Encoder r2 & 2 & exp.\ cost & 0.921 & 0.010 \\
-\bottomrule
-\end{tabular}
-\caption{Stacking the bundles \texttt{permissive}, \texttt{balanced}, \texttt{conservative} in that order on v2 \texttt{heldout\_family}. FPR counts \textsc{review} as a false positive. The \texttt{expected\_cost} rows are identical for every $k \ge 2$ through $k{=}15$.}
-\label{tab:stacking-main}
-\end{table}
+\includegraphics[width=\columnwidth]{figures/fig_stacking_body.pdf}
+\caption{Stacking $k$ bundles (\texttt{permissive}, \texttt{balanced}, \texttt{conservative}, then eleven single-dimension policies) on v2 \texttt{heldout\_family}: FPR (\textsc{review} counts as a false positive) and FNR against $k$ for the 2B decoder and the granite-r2 encoder under each strategy. The vertical line marks where the fail-closed \texttt{conservative} bundle enters. Values in Table~\ref{tab:stacking-full}.}
+\label{fig:stacking-body}
+\end{figure}
 
 \textbf{The $k{=}3$ jump is one fail-closed bundle.} FPR goes 0.015, 0.140,
 0.966 and stays there through fifteen bundles. The third bundle,
@@ -51,13 +34,12 @@ not the alternative a practitioner would deploy.
 \textbf{Expected-cost invariance in $k$ is structural.} From $k{=}2$ the
 merged rule set covers every dimension the stack will ever cover
 (covered-benign count constant at 2,790) and duplicate rules are merged, so
-the decision is provably constant in $k$. Adding a restrictive bundle on top
-of two others then changes nothing, which a policy author may not want.
-Calibration sets the level of the constant line (decoder 0.082 vs.\ encoder
+the decision is constant in $k$; adding a restrictive bundle then changes
+nothing, which a policy author may not want. Calibration sets the level of the constant line (decoder 0.082 vs.\ encoder
 0.921), but the arms also differ in discrimination (granite-r2 scores 0.433
 on \texttt{policy\_conflict} against the decoder's 0.964), so we do not
-attribute the gap to calibration; a within-arm temperature perturbation would
-settle it and has not been run. At $k{=}1$ the two rules are different operating
+attribute the gap to calibration (a within-arm temperature perturbation
+would settle it; not run). At $k{=}1$ the two rules are different operating
 points (FPR 0.058 vs.\ 0.015, FNR 0.170 vs.\ 0.253), and by the cost the
 rule optimises the $k{=}8$ gap is 10\%. The approval-elimination curve on
 the same probabilities is in Appendix~\ref{sec:appendix-approval}.

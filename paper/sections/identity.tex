@@ -10,7 +10,7 @@ fields, so their collapse is expected; the ablation is informative about
 moves, and (iii) whether arms that keep the context use it. We compare
 against the rule baseline, a decoder \emph{trained} on identity-free
 renderings, the same ablation at 8B, and the zero-shot arms
-(Tables~\ref{tab:macro-summary} and \ref{tab:identity-ablation}; v2 and all
+(Table~\ref{tab:macro-summary}, Figure~\ref{fig:identity-body}; v2 and all
 dimensions in Appendix~\ref{sec:appendix-identity}).
 
 \begin{table}[t]
@@ -37,34 +37,20 @@ Agent self-judgment 8B ($n{=}2000$) & 0.242 & 0.281 \\
 \label{tab:macro-summary}
 \end{table}
 
-\begin{table*}[t]
+\begin{figure}[t]
 \centering
-\small
-\begin{tabular}{@{}lrcccc@{}}
-\toprule
-Dimension & $n$ (pos.\ rate) & Full & Eval-stripped & Train-stripped & Rule \\
-\midrule
-\texttt{unauthorized\_scope} & 6335 (.108) & 0.999 & 0.125 & 0.107 & 0.507 \\
-\texttt{policy\_conflict} & 1834 (.371) & 0.964 & 0.392 & 0.429 & 0.370 \\
-\texttt{insufficient\_context} & 6653 (.087) & 0.841 & 0.412 & 0.357 & 0.232 \\
-\midrule
-\texttt{privilege\_escalation} & 6653 (.071) & 1.000 & 1.000 & --- & 0.364 \\
-\texttt{prompt\_injection\_influence}$^{\dagger}$ & 6653 (.082) & 0.804 & 0.806 & --- & 0.287 \\
-\texttt{financial\_commitment} & 6653 (.095) & 1.000 & 1.000 & 1.000 & 1.000 \\
-\bottomrule
-\end{tabular}
-\caption{Decoder 2B v4, \texttt{heldout\_family}, AUPRC per dimension with evaluable $n$ and positive rate: full input, identity removed at evaluation, identity removed at training, and the rule baseline. First three rows are functions of the removed fields. $^{\dagger}$v4 text carries the injection label leak (\S\ref{sec:external}); its evidence is in the call arguments, which stripping does not touch.}
-\label{tab:identity-ablation}
-\end{table*}
+\includegraphics[width=\columnwidth]{figures/fig_identity_body.pdf}
+\caption{Decoder 2B v4, \texttt{heldout\_family}: AUPRC per dimension with full input, identity removed at evaluation, identity removed at training, and the rule baseline; black ticks mark each dimension's positive rate (chance). The top three dimensions are functions of the removed fields. v4 injection text carries the label leak of \S\ref{sec:external}; its evidence sits in the call arguments, which stripping does not touch. Evaluable $n$ and exact values in Table~\ref{tab:identity-ablation}.}
+\label{fig:identity-body}
+\end{figure}
 
 \textbf{Residual content signal is small on two of the three dimensions.}
 Stripped, \texttt{unauthorized\_scope} sits at 0.125 against a 0.108 positive
 rate and \texttt{policy\_conflict} at 0.392 against 0.371: without the
 entitlements or the clause, the call text carries almost nothing about
 either. \texttt{insufficient\_context} retains 0.412 against 0.087, well above
-chance; \S\ref{sec:labelvalidity} shows a blind reader cannot recover this
-label from the text at all, so the residual is a generator regularity, not
-evidence about the question the label is meant to ask.
+chance; a blind reader cannot recover this label from the text at all
+(\S\ref{sec:labelvalidity}), so the residual is a generator regularity.
 
 \textbf{Nothing else moves, but most of it could not.} The eight remaining
 dimensions change by at most 0.002. Five are at 1.000 for the checker, three
@@ -72,9 +58,7 @@ of those for the rule baseline too, so ``content dimensions are unaffected''
 is largely a ceiling effect. \texttt{privilege\_escalation} is unaffected
 because the v4 renderer writes the deciding authority fields into the call
 (before v4 it scored 0.46--0.53); the v4 injection score is unaffected because
-its evidence was an argument key in the call, not the observation
-(\S\ref{sec:external}). Both are labels decidable from the call only because
-the renderer put the deciding fact there.
+its evidence was a leaked argument key in the call (\S\ref{sec:external}).
 
 \textbf{Training without the fields gives the same ceiling.} A decoder
 trained on identity-free renderings reaches macro 0.784 against 0.790 for
@@ -89,10 +73,9 @@ including content dimensions the rule baseline solves exactly
 (Table~\ref{tab:zeroshot-perdim}); the exceptions are Guardian on
 \texttt{financial\_commitment} (0.38 against 0.09) and gpt-oss-safeguard on
 \texttt{policy\_conflict} (0.49 against 0.29, $n{=}103$). We validated the
-chat-template arguments for both models only against test doubles, so we
-cannot separate ``these models lack authorization reasoning'' from ``this
-prompt does not reach it,'' and stripping is uninformative for an arm already
-at chance. The supportable claim is narrow: an off-the-shelf guardrail given
+chat-template arguments only against test doubles, so we cannot separate
+``these models lack authorization reasoning'' from ``this prompt does not
+reach it.'' The supportable claim is narrow: an off-the-shelf guardrail given
 the policy as a custom criterion does not answer these questions here.
 
 \FloatBarrier

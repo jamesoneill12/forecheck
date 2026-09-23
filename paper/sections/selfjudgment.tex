@@ -32,14 +32,12 @@ Macro (11 dims) & 0.242 & 0.281 & 0.960 \\
 
 On the generator's entitlement-based scope labels the agent is at chance
 (AUROC 0.54--0.67 on the three identity dimensions); the checker beats it on
-all eleven. A single verdict scored against eleven labels is structurally
+all eleven. One verdict scored against eleven labels is structurally
 limited, so part of the gap is definitional, and the finding does not travel:
 on InjecAgent (\S\ref{sec:external}) the same prompt flags every attacker
-call as \textsc{stop} and scores 1.000 on that benchmark's scope label, above
-the trained checker. The agent recognises an action nobody asked for; it does
-not check a call against a delegated grant. The injection reversal
-(0.166 to 0.507 when the preamble is removed) is measured on v4 text in which
-every injected call carries the leaked ``attacker'' literals, so we report it
-as confounded rather than as evidence about attention.
+call as \textsc{stop} and scores 1.000 on that benchmark's scope label. The
+agent recognises an action nobody asked for; it does not check a call against
+a delegated grant. The injection reversal (0.166 to 0.507 with the preamble
+removed) is on leaked v4 text and is reported as confounded.
 
 \FloatBarrier

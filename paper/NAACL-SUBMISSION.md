@@ -9,6 +9,12 @@ Communication", otherwise the safety/ethics or NLP-applications area.
 
 - `paper/naacl.tex` is the ARR/NAACL version (`acl.sty` + `acl_natbib.bst`, unmodified copies
   of github.com/acl-org/acl-style-files). Build with `paper/build_naacl.sh`.
+- `paper/lineno.sty` is lineno v5.9 vendored from github.com/latex-lineno/lineno. TeX Live's
+  v5.7 misplaces the review-mode line numbers (right-column numbers land inside the left
+  column); v5.9 puts them in the outer margins as in official ARR PDFs. Remove it if the
+  submission build environment already ships v5.9 or later.
+- Body figures are produced by `scripts/paper_figures.py` (`uv run python scripts/paper_figures.py`),
+  which also regenerates the appendix figures.
 - `paper/main.tex` is the earlier ICLR-workshop layout of the same sections; `make` builds it.
   Do not submit both anywhere (ARR forbids dual submission).
 - Sections, appendix, and refs are shared between the two main files.

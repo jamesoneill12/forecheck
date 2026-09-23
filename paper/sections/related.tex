@@ -5,34 +5,31 @@
 Guardian \citep{padhi2024graniteguardian}, ShieldGemma
 \citep{zeng2024shieldgemma}, NVIDIA Aegis \citep{ghosh2024aegis}, and
 gpt-oss-safeguard \citep{openai2025gptosssafeguard} classify content or harm
-over a conversation turn or action; Agent Action Guard
-\citep{agentactionguard2025} is an embedding MLP over tool name and
-arguments. LlamaFirewall's AlignmentCheck
+per turn or action; Agent Action Guard \citep{agentactionguard2025} is an
+embedding MLP over tool name and arguments. LlamaFirewall's AlignmentCheck
 \citep{chennabasappa2025llamafirewall} and Task Shield
-\citep{jia2025taskshield} judge whether an action is aligned with the user's
-stated goal, the closest deployed analogues of our
-\texttt{unauthorized\_scope}; neither takes a typed entitlement or delegated
-scope as input.
+\citep{jia2025taskshield} judge alignment with the user's stated goal, the
+closest analogues of our \texttt{unauthorized\_scope}; neither takes a typed
+entitlement or delegated scope as input.
 
 \textbf{Authorization for agents.} Symbolic engines decide allow/deny from a
 fully specified request and compiled policy: OPA \citep{opa}, Cedar
 \citep{cutler2024cedar}, XACML with its combining algorithms
 \citep{oasis2013xacml}, and Zanzibar \citep{pang2019zanzibar}, whose
 ``is this delegated scope inside the principal's grant'' check is exactly our
-\texttt{unauthorized\_scope}. Recent agent-specific designs enforce authorization by
+\texttt{unauthorized\_scope}. Agent-specific designs enforce authorization by
 construction: CaMeL \citep{debenedetti2025camel} tracks capabilities through
 a quarantined LLM's dataflow, Progent \citep{shi2025progent} applies
-programmable per-call privilege policies, IsolateGPT \citep{wu2025isolategpt}
-isolates agent applications behind a permission layer, RTBAS
-\citep{zhong2025rtbas} and contextual-integrity work
-\citep{bagdasarian2024airgapagent} enforce information-flow norms that depend
-on who the principal is. OWASP's agentic guidance \citep{owasp2025agentic}
+per-call privilege policies, IsolateGPT \citep{wu2025isolategpt} puts agent
+applications behind a permission layer, and RTBAS \citep{zhong2025rtbas} and
+AirGapAgent \citep{bagdasarian2024airgapagent} enforce principal-dependent
+information-flow norms. OWASP's agentic guidance \citep{owasp2025agentic}
 holds that authorization must be deterministic and auditable. Our delta is
 narrow and compatible with all of these: where the mandate is a
 natural-language clause nobody has compiled, a learned reader generalises
-across paraphrases (\S\ref{sec:generalisation}) and emits a calibrated
-probability an engine of this kind can consume, while the deterministic
-check on typed fields remains the right tool for scope.
+across paraphrases (\S\ref{sec:generalisation}) and emits a probability such
+an engine can consume; the deterministic check on typed fields remains the
+right tool for scope.
 
 \textbf{Prompt-injection defences and benchmarks.} StruQ, SecAlign, and
 spotlighting \citep{chen2024struq,chen2025secalign,hines2024spotlighting}

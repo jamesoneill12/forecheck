@@ -7,11 +7,11 @@ low reasoning effort), given only the rendered context and the eleven
 dimension definitions, judged 600 v4 rows stratified to at least 20 positives
 and 20 negatives per dimension, once with the full rendering and once
 identity-stripped. The definitions are the generator's own docstrings, so
-this tests observability under a shared definition, not definitional
-independence. Agreement with the generator is not ground truth, but low
-agreement is informative: the label then depends on information the
-generator tracked and never rendered, and a model scoring well on it has
-learned a generator regularity. $\kappa$ is on 600 rows without intervals.
+this tests observability under a shared definition. Agreement with the
+generator is not ground truth, but low agreement is informative: the label
+then depends on information the generator never rendered, and a model scoring
+well on it has learned a generator regularity. $\kappa$ is on 600 rows
+without intervals.
 
 \begin{table*}[t]
 \centering
@@ -39,8 +39,8 @@ macro, 10 dims (injection excluded) & 0.389 & 0.284 & 0.574 & 0.411 \\
 
 \textbf{Three tiers.} \emph{Recoverable} ($\kappa > 0.7$):
 \texttt{privilege\_escalation}, \texttt{policy\_conflict} (judge recall 0.89;
-disagreements are the judge reading a clause more strictly than the
-predicate), and, on leaked text, injection. \emph{Definitional disagreement}
+disagreements are the judge reading a clause more strictly), and, on leaked
+text, injection. \emph{Definitional disagreement}
 ($0.2 \le \kappa \le 0.5$): six dimensions read two coherent ways; the judge
 flags twice as many \texttt{unauthorized\_scope} rows because it counts a
 mismatch with the agent's stated objective as out of scope, while the
@@ -58,7 +58,7 @@ left to check) and \texttt{unauthorized\_scope} from 0.391 to 0.040 (203
 positives at precision 0.16). Every other dimension is unchanged within
 noise, and the content dimensions' judge-yes counts are identical between
 passes. These are the two dimensions on which the checker's residual signal
-was nil (Table~\ref{tab:identity-ablation}).
+was nil (Figure~\ref{fig:identity-body}).
 
 \textbf{Consequence.} The ablation is interpretable on
 \texttt{policy\_conflict}, directionally on \texttt{unauthorized\_scope}, and
