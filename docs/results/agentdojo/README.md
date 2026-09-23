@@ -107,10 +107,15 @@ dimension except `prompt_injection_influence`, n=4,133.
    `heldout_policy_kind` (sample sd 0.03) only for the AUROC gap, not for the
    AUPRC gap, so the AUPRC drop is a real open question.
 
-5. **Calibration does not transfer.** Macro ECE runs 0.20 to 0.27 for the
+5. **Calibration does not transfer, but an in-domain refit fixes it.** Macro ECE runs 0.20 to 0.27 for the
    calibrated arms here, against under 0.03 on synthetic data. Calibration must
    be refit on in-domain data: the ranking transfers, the probabilities do not.
 
+   Refitting per-dimension isotonic calibrators on half of the AgentDojo calls
+   and testing on the other half brings macro ECE to 0.008 (2B) and 0.010 (8B)
+   with AUPRC unchanged, and most of the gain arrives by 250-500 labelled
+   calls (`docs/results/agentdojo/recalibration.md`,
+   `scripts/agentdojo_recalibrate.py`).
 6. **What this does and does not show.** This is one suite (banking), one
    domain, with labels partly written by us (the four policy predicates) and
    partly by AgentDojo (`prompt_injection_influence`, `unauthorized_scope`).
