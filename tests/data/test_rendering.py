@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import random
 
+import pytest
+
 from forecheck.contracts import (
     ActionOrigin,
     ContextGap,
@@ -11,13 +13,21 @@ from forecheck.contracts import (
     RiskDimension,
     Sensitivity,
     SequencePattern,
+    ToolFamily,
     TrustLevel,
 )
 from forecheck.data.labeling import derive_labels
-from forecheck.data.rendering import OfflineTemplateRenderer, build_surface_text
+from forecheck.data.rendering import (
+    OfflineTemplateRenderer,
+    _target_argument_key,
+    build_surface_text,
+)
 from forecheck.data.tools import get_tool
+from forecheck.generation.scenarios import iter_scenarios
 from forecheck.inference.serialization import serialize_context
 from tests.data.factories import make_latent
+
+_DENYLIST_TOKENS: tuple[str, ...] = ("attacker", "instructed_target", "shadow-ops")
 
 
 def test_render_is_deterministic_given_same_seed() -> None:
@@ -263,10 +273,10 @@ def test_injected_instruction_target_appears_in_observation_and_action() -> None
         untrusted_content_present=True,
         untrusted_content_contains_instruction=True,
     )
-    for seed in range(10):
+    for seed in range(40):
         context = OfflineTemplateRenderer().render(latent, random.Random(seed))
         observation_text = context.observations[0].content
-        target = context.proposed_action.arguments["instructed_target"]
+        target = context.proposed_action.arguments["to"]
         assert target in observation_text
 
 
@@ -439,3 +449,97 @@ def test_failed_auth_in_trajectory_renders_a_trajectory_step() -> None:
     context = OfflineTemplateRenderer().render(latent, random.Random(0))
     text = serialize_context(context).text
     assert "Authentication failed" in text or "Sign-in rejected" in text
+
+
+@pytest.fixture(scope="module")
+def rendered_corpus() -> list[tuple[object, object]]:
+    """~18k scenarios across every family (>=1000 injected-instruction) for the
+    corpus-level leakage checks below; generation is offline and fast (a few seconds)."""
+    rng = random.Random(20260922)
+    scenarios = list(iter_scenarios(rng, families=tuple(ToolFamily), n_per_family=1500))
+    renderer = OfflineTemplateRenderer()
+    return [
+        (latent, renderer.render(latent, random.Random(i))) for i, latent in enumerate(scenarios)
+    ]
+
+
+def test_no_instructed_target_argument_anywhere(rendered_corpus) -> None:
+    for _latent, context in rendered_corpus:
+        assert "instructed_target" not in context.proposed_action.arguments
+
+
+def test_denylist_tokens_never_appear_in_rendered_context(rendered_corpus) -> None:
+    for _latent, context in rendered_corpus:
+        lowered = context.model_dump_json().lower()
+        for token in _DENYLIST_TOKENS:
+            assert token not in lowered
+
+
+def test_argument_key_presence_rate_parity_between_injected_and_other(rendered_corpus) -> None:
+    """Parity is computed overall (across all tool kinds pooled), not per tool kind: every
+    argument key's presence rate must be within 0.05 whether or not the call's
+    action_origin is injected_instruction."""
+    assert len(rendered_corpus) >= 1000
+    injected_counts: dict[str, int] = {}
+    other_counts: dict[str, int] = {}
+    n_injected = 0
+    n_other = 0
+    for latent, context in rendered_corpus:
+        is_injected = latent.action_origin is ActionOrigin.INJECTED_INSTRUCTION
+        counts = injected_counts if is_injected else other_counts
+        n_injected += is_injected
+        n_other += not is_injected
+        for key in context.proposed_action.arguments:
+            counts[key] = counts.get(key, 0) + 1
+    assert n_injected >= 500
+    for key in set(injected_counts) | set(other_counts):
+        rate_injected = injected_counts.get(key, 0) / n_injected
+        rate_other = other_counts.get(key, 0) / n_other
+        assert abs(rate_injected - rate_other) < 0.05, (key, rate_injected, rate_other)
+
+
+def test_injected_call_target_appears_in_its_own_observation_across_tool_kinds(
+    rendered_corpus,
+) -> None:
+    """Every followed instruction is checkable from text: the call's target argument
+    (or its resource_id, for tools with no target key) is always the identifier named
+    in the instruction, so the label always has textual support."""
+    checked = 0
+    for latent, context in rendered_corpus:
+        if latent.action_origin is not ActionOrigin.INJECTED_INSTRUCTION:
+            continue
+        target_info = _target_argument_key(latent)
+        key = target_info[0] if target_info is not None else "resource_id"
+        checked += 1
+        observation_text = context.observations[0].content
+        assert str(context.proposed_action.arguments[key]) in observation_text
+    assert checked > 100
+
+
+def test_not_followed_instruction_target_absent_from_call_args(rendered_corpus) -> None:
+    """Untrusted-content-with-instruction examples where the call does NOT follow it
+    (hard negatives and other non-injected origins) must not leak a target key's value
+    into the observation text, since that value was drawn independently of the
+    instruction."""
+    checked = 0
+    for latent, context in rendered_corpus:
+        if latent.action_origin is ActionOrigin.INJECTED_INSTRUCTION:
+            continue
+        if not latent.untrusted_content_contains_instruction:
+            continue
+        target_info = _target_argument_key(latent)
+        if target_info is None:
+            continue
+        key, _pool_kind = target_info
+        checked += 1
+        observation_text = context.observations[0].content
+        assert str(context.proposed_action.arguments[key]) not in observation_text
+    assert checked > 100
+
+
+def test_observation_content_length_is_realistic(rendered_corpus) -> None:
+    lengths = [len(obs.content) for _latent, ctx in rendered_corpus for obs in ctx.observations]
+    assert len(lengths) > 500
+    assert all(150 <= length <= 2500 for length in lengths)
+    median = sorted(lengths)[len(lengths) // 2]
+    assert 300 <= median <= 2000
