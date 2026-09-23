@@ -1,0 +1,32 @@
+# Four-suite AgentDojo eval, part A (rule, 2B, 8B). Job dir must contain data/external/agentdojo/agentdojo-all.jsonl.
+trainer:
+  runtime_name: "torch-runtime"
+  project_name: "forecheck"
+  experiment_name: "eval-agentdojo-all-a"
+
+  ecr_image: "812836555640.dkr.ecr.us-east-2.amazonaws.com/ai/fin-base-training:latest"
+
+  command: >-
+    bash -c 'set -euo pipefail &&
+    cd /workspace/forecheck-job &&
+    pip install -q --no-cache-dir -e ".[train]" &&
+    test -f data/external/agentdojo/agentdojo-all.jsonl &&
+    D=/opt/ml/fsx/forecheck/data/agentdojo-all && mkdir -p $D && cp data/external/agentdojo/agentdojo-all.jsonl $D/agentdojo.jsonl &&
+    R=/opt/ml/fsx/forecheck/runs &&
+    forecheck evaluate --backend rule_baseline --run $R/2b-synthetic-v4 --data $D --split agentdojo --class external_or_human --threshold-split none --dump-scores --out $R/2b-synthetic-v4/reports/rule_baseline/agentdojo-all &&
+    forecheck evaluate --run $R/2b-synthetic-v4 --data $D --split agentdojo --class external_or_human --threshold-split none --dump-scores --out $R/2b-synthetic-v4/reports/agentdojo-all &&
+    forecheck evaluate --run $R/8b-synthetic-v4 --data $D --split agentdojo --class external_or_human --threshold-split none --dump-scores --out $R/8b-synthetic-v4/reports/agentdojo-all'
+
+  env_vars:
+    FORECHECK_TRACKING_BACKEND: "local"
+    HF_HOME: "/opt/ml/fsx/forecheck/hf_cache"
+    TOKENIZERS_PARALLELISM: "false"
+    PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+
+  nnodes: 1
+
+  resources:
+    worker:
+      instance_type: ml.p6-b200.48xlarge
+      gpus_per_pod: 1
+      cpus_per_pod: 2

@@ -467,7 +467,8 @@ def _destination_identifier(args: dict[str, Any]) -> str | None:
     for key in _DESTINATION_ARG_KEYS:
         value = args.get(key)
         if value:
-            return str(value[0]) if isinstance(value, list) else str(value)
+            text = str(value[0]) if isinstance(value, list) else str(value)
+            return text[:200]
     return None
 
 
@@ -501,7 +502,6 @@ def to_example(
     is_destructive = (
         labels.values[RiskDimension.DESTRUCTIVE_OR_IRREVERSIBLE_ACTION] is LabelValue.YES
     )
-    destination_present = labels.values[RiskDimension.UNTRUSTED_DESTINATION] is LabelValue.YES
     injected = labels.values[RiskDimension.PROMPT_INJECTION_INFLUENCE] is LabelValue.YES
     delegated = frozenset(overlay.delegated_scopes)
 
@@ -533,6 +533,7 @@ def to_example(
         f"{call.message_index}:{call.tool_call_index}"
     )
     dest_id = _destination_identifier(call.args)
+    destination_present = dest_id is not None
     destination_relationship, destination_trust = _destination_provenance(
         dest_id, trace, overlay, call
     )
@@ -590,7 +591,7 @@ def to_example(
     ]
 
     destination = None
-    if destination_present and dest_id is not None:
+    if dest_id is not None:
         destination = ContextDestination(
             identifier=dest_id, relationship=destination_relationship, trust=destination_trust
         )

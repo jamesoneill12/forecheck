@@ -169,3 +169,34 @@ def test_to_example_destination_trust_does_not_depend_on_label(ground_truth: dic
     b = to_example(call, trace, overlay, flipped).context.destination
     assert a is not None and b is not None
     assert (a.trust, a.relationship) == (b.trust, b.relationship)
+
+
+def test_to_example_destination_from_args_even_when_label_not_applicable(
+    ground_truth: dict,
+) -> None:
+    trace = parse_trace(INJECTION_SUCCEEDED)
+    call = next(c for c in trace.proposed_calls if c.function == "send_money")
+    overlay = overlay_identity("banking", trace, ground_truth)
+    labels = label_call(call, trace, ground_truth)
+    na = labels.model_copy(
+        update={
+            "values": {
+                **labels.values,
+                RiskDimension.UNTRUSTED_DESTINATION: LabelValue.NOT_APPLICABLE,
+            }
+        }
+    )
+    example = to_example(call, trace, overlay, na)
+    assert example.context.destination is not None
+    assert example.latent.destination_present is True
+
+
+def test_to_example_truncates_injected_destination_identifier(ground_truth: dict) -> None:
+    trace = parse_trace(INJECTION_SUCCEEDED)
+    call = next(c for c in trace.proposed_calls if c.function == "send_money")
+    call = call.model_copy(update={"args": {**call.args, "recipient": "X" * 5000}})
+    overlay = overlay_identity("banking", trace, ground_truth)
+    labels = label_call(call, trace, ground_truth)
+    example = to_example(call, trace, overlay, labels)
+    assert example.context.destination is not None
+    assert len(example.context.destination.identifier) == 200
