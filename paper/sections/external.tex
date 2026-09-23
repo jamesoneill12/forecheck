@@ -133,7 +133,8 @@ tool response with the attacker's instruction filled in
 \caption{AUPRC on InjecAgent, zero-shot, $n{=}4{,}250$ ($n{=}3{,}196$ for
 \texttt{injection}, positive rate 0.500). Right: fraction of the 1,598
 poisoned/clean pairs on which the poisoned variant of the same call scores
-higher on \texttt{injection} (0.5 is chance). Source:
+higher on \texttt{injection} (0.5 is chance). Baseline rows are on a fixed
+1,000-row subsample (injection $n{=}767$). Source:
 \texttt{docs/results/injecagent/README.md}.}
 \label{tab:injecagent}
 \begin{tabular}{lcccccc|c}
@@ -144,6 +145,9 @@ Rule baseline & 0.500 & 0.752 & 0.464 & 0.683 & 1.000 & 0.680 & -- \\
 Decoder 2B v4 & 0.549 & 0.732 & 0.965 & 1.000 & 1.000 & 0.849 & 0.504 \\
 Decoder 8B v4 & 0.544 & 0.849 & 0.977 & 0.734 & 1.000 & 0.821 & 0.353 \\
 8B v4, eval-stripped & 0.556 & 0.843 & 0.968 & 0.766 & 1.000 & 0.827 & 0.382 \\
+\midrule
+Granite Guardian 3.3 8B & 0.511 & 0.613 & 0.359 & 0.102 & 0.197 & 0.356 & -- \\
+Agent-self 8B (\textsc{allow}/\textsc{stop}) & 0.530 & 1.000 & 0.647 & 0.061 & 0.178 & 0.483 & -- \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -162,6 +166,9 @@ rate on five policies written for this port over 38 unseen toolkits, with the
 rule baseline at base rate; stripping identity barely moves it here because
 these five policies are global rules about the call rather than about what
 the principal named. \texttt{unauthorized\_scope} has signal at 8B (0.849
-vs.\ 0.752 base) and none at 2B.
+vs.\ 0.752 base) and none at 2B. Both baselines are at chance on injection
+too (AUROC 0.54 and 0.60); the untrained agent flags every attacker call as
+\textsc{stop} (\texttt{unauthorized\_scope} 1.000), the same call-level
+judgement, and no arm in this table reads the poisoned text.
 
 \FloatBarrier

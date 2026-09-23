@@ -34,8 +34,8 @@ AUPRC / AUROC, positive rate in the header. n=4,250 except
 | decoder 2B v4 | 0.549 / 0.596 | 0.732 / 0.493 | 0.965 / 0.971 | 1.000 / 1.000 | 1.000 / 1.000 | 0.849 |
 | decoder 8B v4 | 0.544 / 0.529 | 0.849 / 0.691 | 0.977 / 0.980 | 0.734 / 0.931 | 1.000 / 1.000 | 0.821 |
 | decoder 8B v4, eval-stripped | 0.556 / 0.545 | 0.843 / 0.642 | 0.968 / 0.973 | 0.766 / 0.967 | 1.000 / 1.000 | 0.827 |
-| Granite Guardian 3.3 8B (n=1000) | pending | | | | | |
-| agent-self 8B ALLOW/STOP (n=1000) | pending | | | | | |
+| Granite Guardian 3.3 8B zero-shot (n=1000) | 0.511 / 0.537 | 0.613 / 0.147 | 0.359 / 0.293 | 0.102 / 0.724 | 0.197 / 0.588 | 0.356 |
+| agent-self 8B ALLOW/STOP (n=1000) | 0.530 / 0.597 | 1.000 / 1.000 | 0.647 / 0.756 | 0.061 / 0.612 | 0.178 / 0.587 | 0.483 |
 
 Paired view of the injection dimension (same attacker call, poisoned vs clean tool
 output; 1,598 pairs, raw logits from `--dump-scores`):
@@ -83,7 +83,16 @@ output; 1,598 pairs, raw logits from `--dump-scores`):
    test of whether the observation channel can be learned at all. The paired
    poisoned-vs-clean fraction above is the metric to watch; 0.5 is chance.
 
+6. **Baselines.** Granite Guardian is at chance on injection (0.537 AUROC) and
+   below base rate elsewhere. The same Granite-3.3-8B base asked ALLOW/STOP as
+   the agent is also at chance on injection (0.597) but flags every attacker
+   call as STOP (`unauthorized_scope` 1.000): the untrained agent recognises
+   that the attacker tool is unrelated to the user's request, which is the same
+   call-level judgement the checkers make, and no arm reads the poisoned text.
+   Baseline rows are on a fixed 1,000-row subsample (injection n=767, positive
+   rates 0.471 / 0.767 / 0.466 / 0.048 / 0.154).
+
 Reports: `rule-baseline-report.md`, `decoder-2b-v4-report.md`,
-`decoder-8b-v4-report.md`, `decoder-8b-v4-strip-report.md` (ECE column is raw
+`decoder-8b-v4-report.md`, `decoder-8b-v4-strip-report.md`, `guardian-3.3-8b-report.md`, `agent-self-8b-report.md` (ECE column is raw
 margins, no calibration bundle applies when identity is stripped at eval time).
 Score dumps are on FSx under `runs/<run>/reports/injecagent/scores.jsonl`.
