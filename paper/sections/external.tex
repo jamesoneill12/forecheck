@@ -1,4 +1,4 @@
-\section{Transfer to AgentDojo: data we did not generate}
+\section{Transfer to AgentDojo and InjecAgent: data we did not generate}
 \label{sec:external}
 
 Every result so far is on forecheck's own synthetic generator
@@ -67,10 +67,10 @@ external data. \textbf{Injection transfer is a scale effect.} 2B fails
 outright (0.128 AUPRC, below the 0.150 base rate, AUROC 0.348); 8B reaches
 0.797 AUPRC and 0.916 AUROC zero-shot; the rule baseline sits between the two
 (0.250, AUROC 0.737) because presence of untrusted content alone is a strong
-but insufficient cue. This is the most important number in this section: the
-8B checker, trained only on synthetic data, ranks the call that executes the
-attacker's goal above the benign calls in the same poisoned trace 92 percent
-of the time. The 2B result is a plain failure, and a per-example score dump
+but insufficient cue. The 8B checker, trained only on synthetic data, ranks
+the call that executes the attacker's goal above the benign calls in the same
+poisoned trace 92 percent of the time; \S\ref{sec:injecagent} shows what it
+is and is not reading to do so. The 2B result is a plain failure, and a per-example score dump
 says why: the 2B injection head never fires on this domain. Raw logits for all
 4,133 evaluable calls lie between $-5.0$ and $-3.0$, the highest-scoring
 positive is $-3.25$, and no call scores above zero; the residual ordering is
@@ -112,5 +112,56 @@ suite (banking), one domain, with labels partly written by us (the four
 policy predicates) and partly by AgentDojo
 (\texttt{prompt\_injection\_influence}, \texttt{unauthorized\_scope}); slack,
 travel, and workspace traces were not fetched.
+
+\subsection{InjecAgent: holding the call fixed}
+\label{sec:injecagent}
+
+AgentDojo's injection positives differ from their negatives in the call
+itself: an unrequested transfer to a recipient the user never named. To test
+whether the checker reads the untrusted text at all, we port InjecAgent
+\citep{zhan2024injecagent} (1,054 cases, 38 toolkits, MIT licence). Each case
+gives the user's own call and, per attacker tool, a \emph{poisoned/clean
+pair}: the same attacker call, with identical arguments, proposed after the
+tool response with the attacker's instruction filled in
+(\texttt{prompt\_injection\_influence}=\texttt{yes}) or left empty
+(\texttt{no}). The only difference inside a pair is the observation
+(\texttt{docs/external-injecagent.md}). 4,250 examples, 1,598 pairs.
+
+\begin{table}[tbp]
+\centering
+\small
+\caption{AUPRC on InjecAgent, zero-shot, $n{=}4{,}250$ ($n{=}3{,}196$ for
+\texttt{injection}, positive rate 0.500). Right: fraction of the 1,598
+poisoned/clean pairs on which the poisoned variant of the same call scores
+higher on \texttt{injection} (0.5 is chance). Source:
+\texttt{docs/results/injecagent/README.md}.}
+\label{tab:injecagent}
+\begin{tabular}{lcccccc|c}
+\toprule
+Arm & injection & scope & policy & financial & destructive & macro & pair win \\
+\midrule
+Rule baseline & 0.500 & 0.752 & 0.464 & 0.683 & 1.000 & 0.680 & -- \\
+Decoder 2B v4 & 0.549 & 0.732 & 0.965 & 1.000 & 1.000 & 0.849 & 0.504 \\
+Decoder 8B v4 & 0.544 & 0.849 & 0.977 & 0.734 & 1.000 & 0.821 & 0.353 \\
+8B v4, eval-stripped & 0.556 & 0.843 & 0.968 & 0.766 & 1.000 & 0.827 & 0.382 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:injecagent}: \textbf{neither checker reads the injected
+text}. With the call held fixed, the 8B injection score rises on 35\% of
+pairs and is unchanged on 39\%; both heads sit at raw logit $-4$ on poisoned
+and clean alike. This reinterprets the AgentDojo result: what transferred at
+8B is call-level, whether the action is something the user asked for, not
+reading the untrusted content for the instruction that explains it. The v4
+generator's leak (\S\ref{sec:limitations}) is the likely cause, since the
+training signal was carried by an argument key and the observation never had
+to be read. \textbf{Policy checking transfers a second time}:
+\texttt{policy\_conflict} 0.965 (2B) and 0.977 (8B) against a 0.464 base
+rate on five policies written for this port over 38 unseen toolkits, with the
+rule baseline at base rate; stripping identity barely moves it here because
+these five policies are global rules about the call rather than about what
+the principal named. \texttt{unauthorized\_scope} has signal at 8B (0.849
+vs.\ 0.752 base) and none at 2B.
 
 \FloatBarrier

@@ -64,8 +64,12 @@ did not generate, zero-shot, the 8B checker reaches 0.80 AUPRC on
 prompt-injection influence against a 0.15 base rate and the 2B checker
 reaches 0.85 AUPRC on policy conflict against a 0.24 base rate, both against
 rule baselines at or near base rate, while the 2B checker fails outright on
-injection. All results are on
-synthetic data; we are explicit about what that does and does not license.
+injection. On InjecAgent, which holds the call fixed and varies only whether
+the attacker's instruction is in the tool output, neither checker separates
+poisoned from clean (AUROC 0.53--0.60), so what transfers is call-level
+judgement, not reading of untrusted text; we trace this to a label leak in
+our generator and report the fix. All other results are on synthetic data;
+we are explicit about what that does and does not license.
 \end{abstract}
 
 \input{sections/intro}

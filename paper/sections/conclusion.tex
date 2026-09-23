@@ -16,10 +16,13 @@ reasoning generalizes to genuinely novel policy kinds, not just novel
 wording of familiar ones (\S\ref{sec:generalisation}); the v5 experiment
 testing this, and a first real-data probe against hand-labelled traffic, are
 the next things this line of work needs before any claim above can be
-extended past synthetic data. The AgentDojo transfer result
-(\S\ref{sec:external}) is a first step on that last point: the
-policy-conflict and prompt-injection rankings hold zero-shot on agent traces
-and policies forecheck never saw, but the probabilities do not, so
-calibration remains a synthetic-data property until it is refit in-domain.
+extended past synthetic data. The AgentDojo and InjecAgent results
+(\S\ref{sec:external}) are a first step on that last point: the
+policy-conflict ranking holds zero-shot on agent traces and policies
+forecheck never saw, the injection ranking holds only where the call itself
+carries the evidence, and the probabilities need a few hundred in-domain
+labels to refit. The external evaluation also exposed a label leak in our
+generator that the synthetic splits could not: the case for evaluating on
+data one did not generate is the strongest result in this paper.
 
 \FloatBarrier
