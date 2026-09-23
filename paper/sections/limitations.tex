@@ -1,49 +1,70 @@
-\section{Limitations}
+\section*{Limitations}
 \label{sec:limitations}
 
-\textbf{Synthetic data.} Every number outside \S\ref{sec:external} is on data
-from forecheck's own generator and measures whether an arm learned the
-generator's label function. No human-labelled or production-traffic
-evaluation exists and no real-world safety claim is made. The blind judge
-checks whether a label is observable in the text, not whether it is right; it
-finds \texttt{insufficient\_context} unrecoverable, and every number on that
-dimension carries that caveat. The judge is one frontier model with one
-prompt.
-
-\textbf{Generator regularities.} The model may exploit template regularities
-in how the generator writes clauses and entitlement lists. The phrasing and
-kind splits only partly rule this out: phrasing generalizes, kind does not,
-which is consistent with a lookup over kinds. The \texttt{privilege\_escalation}
-fields were not rendered before v4, so every v2/v3 number on that dimension
-(0.46--0.53 AUPRC) reflects a data defect. The v1--v5 injection leak means
-every synthetic injection number before v6, and the judge's $\kappa{=}0.905$
-on it, is on text where a key-presence detector would score 1.0; the trained
-arms scored about 0.80, so the leak did not inflate the score but determined
-what was learned, and only the external pairs could reveal it. Retrained on
-v6, every other synthetic dimension is within 0.01 of v4 except
-\texttt{policy\_conflict} on \texttt{heldout\_policy\_kind} (0.692 at 2B,
-inside the seed band; 0.767 at 8B, 0.08 below the v4 mean).
-
-\textbf{Seeds.} Three 2B seeds on v4 and on v5 agree on macro AUPRC to within
-0.001, but the \texttt{heldout\_policy\_kind} \texttt{policy\_conflict} cell
-spans 0.06 (sd 0.03), so smaller differences on that cell are noise. 8B has
-two seeds on v4 (test macro 0.956 and 0.948, the gap entirely on
-\texttt{insufficient\_context}); both v6 checkers are single-seed, so
-2B-vs-8B comparisons on v6 are unqualified.
-
-\textbf{External labels are partly self-written and uneven.} AgentDojo's
-policy predicates and InjecAgent's five policies are ours; injection and scope
-labels are the benchmarks' own. Banking has four tool-specific policies, the
-other suites one generic policy each, so policy transfer rests on banking and
-InjecAgent. AgentDojo's \texttt{unauthorized\_scope} counts harmless auxiliary
-reads as out of scope. The InjecAgent port fills principal and scope with
-placeholders, which the 8B v6 head reads as authorising the attacker call.
-The v6 checkers have not been run on the four-suite export. Calibration does
-not transfer without a few hundred in-domain labels.
-
-\textbf{Other.} A single English template generator produces every synthetic
-example. The cost table in \S\ref{sec:composition} is the default severity
-tier. Generator seed nondeterminism was found and fixed mid-project; v2/v3
+\textbf{Synthetic data with enumerated defects.} Every number outside
+\S\ref{sec:external} is on data from our own generator and measures whether
+an arm learned the generator's label function. No human-labelled or
+production-traffic evaluation exists and no real-world safety claim is made.
+Beyond the two defects the generator was revised for, it marks 5\% of
+resources irreversible at random including on reads, stamps a financial
+amount on 5\% of non-financial tools, and attaches a background destination
+to 15--35\% of non-sending calls; \texttt{insufficient\_context} is not
+recoverable from the text by a blind reader, and \texttt{sensitive\_data\_exposure}
+depends on a tenancy fact the rendering does not show. Every number on those
+two dimensions, and every 11-dimension macro that includes them, carries that
+caveat. Generator seed nondeterminism was found and fixed mid-project; v2/v3
 data are not byte-reproducible from their configs.
 
-\FloatBarrier
+\textbf{The injection leak contaminates more than \S\ref{sec:external}.}
+Every synthetic injection number before v6, the judge's $\kappa{=}0.905$ on
+that dimension, and the agent-self injection reversal in
+\S\ref{sec:selfjudgment} were measured on text carrying the leaked argument.
+We mark them and report leak-excluded macros, but the judge and the
+agent-self arm have not been re-run on v6 text. The v6 fix changes
+observation length and format as well as removing the key; the two are not
+separated.
+
+\textbf{The pair test has an open confound.} The clean InjecAgent twin is
+shorter than the poisoned one in every pair, and a length-only detector
+outscores the checkers on pair win. The destination-trust confound is ruled
+out on the 972 equal-trust pairs; the length confound is not, and a
+length-matched clean control is the next experiment.
+
+\textbf{Uncertainty.} Synthetic results are single-seed point estimates
+except where stated; only the \texttt{policy\_conflict} kind-split cell has
+three 2B seeds (sd 0.03) and two 8B seeds, both v6 checkers are single-seed,
+and the 8B v4 two-seed gap (test macro 0.956 vs.\ 0.948) falls on two
+dimensions, not one. Bootstrap intervals are given only where per-example
+scores were saved (InjecAgent). The 8B v4 AgentDojo injection cell moved by
+0.1 between runs we could not reconcile. Differences smaller than these
+bands are interpreted nowhere in the paper by intent; where we have failed,
+the reader should discount them. Kind-split variance over \emph{which} kinds
+were withheld is not estimated.
+
+\textbf{Baselines.} The rule baseline is an uninformative floor on
+\texttt{policy\_conflict} and \texttt{unauthorized\_scope}; a compiled
+predicate over the typed fields would score near 1.0 on the seen kinds and
+is the correct symbolic comparator we did not build. The zero-shot
+guardrails were prompted through chat-template arguments verified only
+against test doubles; a positive control on their native risk categories has
+not been run. gpt-oss-safeguard emits a binary verdict and is scored on 400
+rows. The agent-self arm answers one question and is scored on eleven.
+Baseline rows on the external benchmarks use 1,000-row subsamples with
+different positive rates from the checker rows.
+
+\textbf{External labels are partly ours.} AgentDojo's policy predicates and
+InjecAgent's five policies are self-written; injection and scope labels are
+the benchmarks' own. InjecAgent's policy label is a call-shape judgement and
+does not bear on identity. AgentDojo's \texttt{unauthorized\_scope} counts
+harmless auxiliary reads as out of scope and has not been adjudicated. The
+InjecAgent port fills principal and scope with placeholders. The v6 checkers
+have not been run on the four-suite AgentDojo export. Calibration does not
+transfer without a few hundred in-domain labels.
+
+\textbf{Composition and approval.} \S\ref{sec:composition} is on v2 data and
+the v2 decoder; the approval-elimination curve's non-zero values exist only
+after reweighting a 58\%-incident split to an asserted 5\% deployment rate,
+and its denominator is all scored actions, not the review queue
+(Appendix~\ref{sec:appendix-approval}). No latency, cost, fail-open
+behaviour, or adaptive-attack evaluation of the checker is reported. A
+single English template generator produces every synthetic example.

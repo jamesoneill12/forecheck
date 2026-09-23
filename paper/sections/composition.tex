@@ -1,54 +1,65 @@
-\section{Multi-policy composition and the calibration hinge}
+\section{Multi-policy composition, corrected}
 \label{sec:composition}
 
-Guardrail deployments run several independently tuned policies and act on
-the most restrictive decision, OR-ing $k$ binary guards, so false positives
-compound in $k$ alone. forecheck instead emits one calibrated probability
-vector over the eleven dimensions, composed by one policy engine and decided
-either by per-dimension thresholds or by the argmin of expected cost over the
-joint vector under a fixed cost table.
+Guardrail deployments run several policies and act on the most restrictive
+decision. We stack $k$ bundles over the v2 decoder's probability vector on
+\texttt{heldout\_family} ($n{=}6640$) two ways: \texttt{independent}
+evaluates each bundle alone and ORs the decisions; \texttt{expected\_cost}
+merges the bundles' rules and decides once by the argmin of expected cost
+over the joint vector under a fixed cost table
+(Table~\ref{tab:stacking-main}; Appendix~\ref{sec:appendix-stacking}). FPR
+counts any non-\textsc{allow} decision on a covered benign example, so it
+includes \textsc{review}. An earlier draft read this table as ``threshold
+stacking compounds to a 0.97 false positive rate by three policies.'' It
+does not.
 
-\begin{table}[htbp]
+\begin{table}[t]
 \centering
-\small
-\caption{False positive rate on covered-benign examples,
-\texttt{heldout\_family} ($n{=}6640$), stacking $k$ synthetic per-dimension
-policies. \texttt{independent} ORs $k$ separately thresholded decisions;
-\texttt{expected\_cost\_joint} merges the same policies into one bundle and
-decides from the joint probability vector. FNR, review rate, the
-\texttt{joint} strategy, and curves in Appendix~\ref{sec:appendix-stacking}.}
-\label{tab:stacking-main}
-\begin{tabular}{llccc}
+\footnotesize
+\setlength{\tabcolsep}{4pt}\begin{tabular}{@{}llccc@{}}
 \toprule
-Arm (macro ECE) & Strategy & $k{=}1$ & $k{=}2$ & $k{=}3$ (same to 8) \\
+Arm & $k$ & Strategy & FPR & FNR \\
 \midrule
-Decoder 2B (0.004) & \texttt{independent} & 0.015 & 0.140 & \textbf{0.966} \\
-Decoder 2B (0.004) & \texttt{expected\_cost\_joint} & 0.015 & 0.082 & 0.082 \\
-Encoder granite-r2 (0.049) & \texttt{independent} & --- & 0.710 & 0.990 \\
-Encoder granite-r2 (0.049) & \texttt{expected\_cost\_joint} & --- & 0.921 & 0.921 \\
+Decoder 2B & 1 & independent & 0.015 & 0.253 \\
+Decoder 2B & 1 & exp.\ cost & 0.058 & 0.170 \\
+Decoder 2B & 2 & independent & 0.140 & 0.080 \\
+Decoder 2B & 2 & exp.\ cost & 0.082 & 0.070 \\
+Decoder 2B & 3 & independent & 0.966 & 0.016 \\
+Decoder 2B & 3 & exp.\ cost & 0.082 & 0.070 \\
+\midrule
+Encoder r2 & 1 & independent & 0.346 & 0.163 \\
+Encoder r2 & 1 & exp.\ cost & 0.589 & 0.050 \\
+Encoder r2 & 2 & independent & 0.710 & 0.042 \\
+Encoder r2 & 2 & exp.\ cost & 0.921 & 0.010 \\
 \bottomrule
 \end{tabular}
+\caption{Stacking the bundles \texttt{permissive}, \texttt{balanced}, \texttt{conservative} in that order on v2 \texttt{heldout\_family}. FPR counts \textsc{review} as a false positive. The \texttt{expected\_cost} rows are identical for every $k \ge 2$ through $k{=}15$.}
+\label{tab:stacking-main}
 \end{table}
 
-\textbf{Threshold stacking denies everything by $k{=}3$.} Independent
-stacking pushes the decoder's FPR from 0.015 to 0.966 by three policies and
-holds it there through eight, not because any policy got worse but because
-more were added. Deciding from the joint calibrated vector is invariant in
-$k$ from $k{=}2$ on (FPR/FNR/review rate flat at 0.082/0.070/0.28): the
-decision depends on the probability vector and the cost table, not on how many
-rules mention a dimension.
+\textbf{The $k{=}3$ jump is one fail-closed bundle.} FPR goes 0.015, 0.140,
+0.966 and stays there through fifteen bundles. The third bundle,
+\texttt{conservative}, has \texttt{default\_decision: review}: alone it
+routes essentially every covered call to a human, so the OR saturates when it
+enters and the eleven single-dimension policies added afterwards change
+nothing. Independent guards at the observed $k{=}1$ rates would compound to
+about 0.04. The lesson is that one fail-closed policy dominates an OR-stack,
+which XACML's \texttt{deny-overrides} and Cedar's forbid-trumps-permit
+semantics \citep{oasis2013xacml,cutler2024cedar} make explicit; naive OR is
+not the alternative a practitioner would deploy.
 
-\textbf{The invariance is a calibration property, not a decision-rule
-property.} The same rule on the granite-embedding-r2 encoder's probabilities,
-identical examples and policies, settles at FPR 0.921, worse than its own
-independent stacking at $k{=}2$. The decoder is calibrated (macro ECE 0.004,
-temperature-scaled \citep{guo2017calibration,platt1999probabilistic}); the
-encoder is not (0.049). Expected-cost composition keeps a stack from
-collapsing only when the probabilities feeding it are calibrated. The cost
-table is the default severity tier, so the claim is about the curve's shape
-in $k$, not the table. The product-facing form of the same probabilities is in
-Appendix~\ref{sec:appendix-approval}: at a 5\% deployment incident rate,
-89--99\% of human approvals can be auto-decided under a 1--5\% incident
-budget.
+\textbf{Expected-cost invariance in $k$ is structural.} From $k{=}2$ the
+merged rule set covers every dimension the stack will ever cover
+(covered-benign count constant at 2,790) and duplicate rules are merged, so
+the decision is provably constant in $k$. Adding a restrictive bundle on top
+of two others then changes nothing, which a policy author may not want.
+Calibration sets the level of the constant line (decoder 0.082 vs.\ encoder
+0.921), but the arms also differ in discrimination (granite-r2 scores 0.433
+on \texttt{policy\_conflict} against the decoder's 0.964), so we do not
+attribute the gap to calibration; a within-arm temperature perturbation would
+settle it and has not been run. At $k{=}1$ the two rules are different operating
+points (FPR 0.058 vs.\ 0.015, FNR 0.170 vs.\ 0.253), and by the cost the
+rule optimises the $k{=}8$ gap is 10\%. The approval-elimination curve on
+the same probabilities is in Appendix~\ref{sec:appendix-approval}.
 
 \FloatBarrier

@@ -1,44 +1,45 @@
-\section{Policy generalization: phrasing vs.\ kind}
+\section{Policy generalisation: phrasing vs.\ kind}
 \label{sec:generalisation}
 
 Robustness to unseen \emph{tools} is not robustness to unseen
-\emph{policies}, and the latter is the deployment test: customers write their
-own clauses. \texttt{heldout\_policy\_kind} withholds entire predicate kinds
-(e.g.\ \texttt{forbid\_recipient\_domain}) from training;
+\emph{policies}, and the latter is the deployment test: customers write
+their own clauses. \texttt{heldout\_policy\_kind} withholds entire predicate
+kinds (e.g.\ \texttt{forbid\_recipient\_domain}) from training;
 \texttt{heldout\_policy\_phrasing} withholds one paraphrase of every kind the
 model did train on. v4 has 15 kinds with 2 withheld; v5 has 30 with 4.
 
-\begin{table}[htbp]
+\begin{table}[t]
 \centering
 \small
-\caption{\texttt{policy\_conflict} AUPRC across splits. \texttt{heldout\_policy\_kind}
-cells are means over training seeds (2B: three seeds, sd 0.032 for v4, 0.026
-for v5; 8B: two seeds); other cells are seed 0. Rule baseline on that split is
-0.325. Macro AUPRC and per-seed values in Appendix~\ref{sec:appendix-generalisation}.}
-\label{tab:policy-generalisation}
-\begin{tabular}{lccc}
+\begin{tabular}{@{}lccc@{}}
 \toprule
-Split & 2B v4 (15 kinds) & 2B v5 (30 kinds) & 8B v4 \\
+Split & 2B v4 & 2B v5 & 8B v4 \\
 \midrule
 test & 0.994 & 0.996 & 0.990 \\
 heldout\_family & 0.964 & 0.933 & 0.965 \\
 heldout\_policy\_phrasing & 0.993 & 0.980 & 0.978 \\
 heldout\_policy\_kind & \textbf{0.717} & \textbf{0.725} & \textbf{0.838} \\
+\quad rule baseline (= pos.\ rate) & 0.405 & 0.325 & 0.405 \\
 \bottomrule
 \end{tabular}
+\caption{\texttt{policy\_conflict} AUPRC across splits. Kind-split cells are means over training seeds (2B: three seeds, sd 0.032 for v4 and 0.026 for v5; 8B: two seeds, 0.851 and 0.825); other cells are seed 0. The rule baseline's policy rule is a constant, so it scores the positive rate. Macro AUPRC and per-seed values in Appendix~\ref{sec:appendix-generalisation}.}
+\label{tab:policy-generalisation}
 \end{table}
 
-\textbf{Unseen phrasing generalizes; unseen kinds do not, even with twice as
-many kinds.} A paraphrase never seen in training leaves
-\texttt{policy\_conflict} at 0.98--0.99 AUPRC, matching the test split: the
-model reads the clause's meaning, not a template id. On withheld kinds 2B
-lands at 0.717 (v4) and 0.725 (v5) across three seeds each; doubling the kind
-inventory moves the mean by less than one seed standard deviation. The model
-is far above the 0.325 rule baseline, so it has learned something about
-unseen kinds, but not the general operation of checking a call against an
-arbitrary clause. \textbf{Capacity helps partially.} 8B reaches 0.838 (two
-seeds: 0.851, 0.825), a real gain over the 2B band and still well short of the
-0.98 phrasing ceiling. The supportable claim is ``one model, policies of a
-kind seen in training, any phrasing,'' not ``arbitrary new policy kinds.''
+\textbf{Unseen phrasing generalises; unseen kinds do not.} A paraphrase never
+seen in training leaves \texttt{policy\_conflict} at 0.98--0.99, matching the
+test split: the model reads the clause's meaning, not a template id. On
+withheld kinds 2B lands at 0.717 (v4) and 0.725 (v5), well above the
+positive-rate floor but far from the phrasing ceiling. 8B reaches 0.838 on
+two seeds. The supportable claim is ``one model, policies of a kind seen in
+training, any phrasing,'' not ``arbitrary new policy kinds.''
+
+\textbf{What the kind split can and cannot say.} The v4 and v5 kind cells are
+means over training seeds on \emph{different} withheld kinds (2 vs.\ 4), so
+their near-equality is not evidence that a larger inventory fails to help:
+the dominant variance component, which kinds were withheld, is not estimated,
+and with three seeds at sd 0.03 the minimum detectable difference is about
+0.08. We therefore report the result as ``no evidence of an inventory
+effect at this size,'' not as its absence.
 
 \FloatBarrier

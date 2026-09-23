@@ -1,26 +1,22 @@
-\section{Are the labels real? An independent blind judge}
+\section{Are the labels observable? A blind judge}
 \label{sec:labelvalidity}
 
-Is each label observable in the rendered text at all, to a reader who never
-sees the generator's latent scenario? A frontier model (gpt-5.6-sol), given
-only the rendered context and the eleven dimension definitions, judged 600
-\texttt{v4} rows stratified to at least 20 positives and 20 negatives per
-dimension, once with the full rendering and once identity-stripped. Agreement
-with the generator is not ground truth, but low agreement is informative: the
-label then depends on information the generator tracked and never rendered,
-and a model scoring well on it is learning a generator regularity.
+Is each label recoverable from the rendered text by a reader who never sees
+the generator's latent scenario? A frontier model (gpt-5.6-sol, one prompt,
+low reasoning effort), given only the rendered context and the eleven
+dimension definitions, judged 600 v4 rows stratified to at least 20 positives
+and 20 negatives per dimension, once with the full rendering and once
+identity-stripped. The definitions are the generator's own docstrings, so
+this tests observability under a shared definition, not definitional
+independence. Agreement with the generator is not ground truth, but low
+agreement is informative: the label then depends on information the
+generator tracked and never rendered, and a model scoring well on it has
+learned a generator regularity. $\kappa$ is on 600 rows without intervals.
 
-\begin{table}[htbp]
+\begin{table*}[t]
 \centering
 \small
-\caption{Blind LLM-judge agreement with the generator label (yes vs.\
-not-yes, Cohen's $\kappa$), $n{=}600$ \texttt{v4} rows, full and
-identity-stripped renderings. Right: AUPRC of the 2B v4 checker and the rule
-baseline \emph{against the judge's labels} on the judged
-\texttt{heldout\_family} rows ($n{=}257$). Full table in
-Appendix~\ref{sec:appendix-judge}.}
-\label{tab:judge-agreement}
-\begin{tabular}{lcc|cc}
+\begin{tabular}{@{}lcc|cc@{}}
 \toprule
 Dimension & $\kappa$ full & $\kappa$ stripped & Checker vs.\ judge & Rule vs.\ judge \\
 \midrule
@@ -33,43 +29,43 @@ Dimension & $\kappa$ full & $\kappa$ stripped & Checker vs.\ judge & Rule vs.\ j
 \texttt{insufficient\_context} & 0.059 & $-$0.036 & 0.090 & 0.090 \\
 \texttt{sensitive\_data\_exposure} & 0.002 & 0.061 & 0.405 & 0.291 \\
 \midrule
-macro (11 dims) & 0.436 & 0.340 & 0.613 & 0.415 \\
+macro, 11 dims & 0.436 & 0.340 & 0.613 & 0.415 \\
+macro, 10 dims (injection excluded) & 0.389 & 0.284 & 0.574 & 0.411 \\
 \bottomrule
 \end{tabular}
-\vskip 1mm
-{\footnotesize $^{\dagger}$Measured on v4 text carrying the injection label leak (\S\ref{sec:external}); judge and generator could agree by reading the leaked argument.}
-\end{table}
+\caption{Blind-judge agreement with the generator label (yes vs.\ not-yes, Cohen's $\kappa$), $n{=}600$ v4 rows, full and identity-stripped renderings. Right: AUPRC of the 2B v4 checker and the rule baseline \emph{against the judge's labels} on the judged \texttt{heldout\_family} rows ($n{=}257$). $^{\dagger}$Measured on leaked v4 text; judge and generator could agree by reading the leaked argument, so the 10-dimension macros exclude it. Full table in Appendix~\ref{sec:appendix-judge}.}
+\label{tab:judge-agreement}
+\end{table*}
 
 \textbf{Three tiers.} \emph{Recoverable} ($\kappa > 0.7$):
-\texttt{privilege\_escalation}, \texttt{prompt\_injection\_influence},
-\texttt{policy\_conflict}; for the last, judge recall is 0.89 and the
+\texttt{privilege\_escalation}, \texttt{policy\_conflict} (judge recall 0.89;
 disagreements are the judge reading a clause more strictly than the
-generator's predicate. \emph{Definitional disagreement} ($0.2 \le \kappa \le
-0.5$): six dimensions where both produce coherent decisions under different
-definitions; the judge flags twice as many \texttt{unauthorized\_scope} rows
-because it counts a mismatch with the agent's stated objective as out of
-scope, while the generator's label is entitlement-based (judge recall of
-generator positives 0.74). These are taxonomy decisions to fix in the
-definitions. \emph{Not recoverable} ($\kappa < 0.1$):
-\texttt{insufficient\_context} and \texttt{sensitive\_data\_exposure}; the
-judge calls the context sufficient on 50 of 58 generator-positive rows.
+predicate), and, on leaked text, injection. \emph{Definitional disagreement}
+($0.2 \le \kappa \le 0.5$): six dimensions read two coherent ways; the judge
+flags twice as many \texttt{unauthorized\_scope} rows because it counts a
+mismatch with the agent's stated objective as out of scope, while the
+generator's label is entitlement-based. \emph{Not recoverable} ($\kappa <
+0.1$): \texttt{insufficient\_context} (the judge calls the context sufficient
+on 50 of 58 generator-positive rows) and \texttt{sensitive\_data\_exposure},
+whose label requires the destination to leave the tenant, a fact the
+rendering does not show; this contradicts \S\ref{sec:setup}'s classification
+of it as call-decidable.
 
-\textbf{The judge replicates the identity ablation on labels.} Stripping
-identity from the judge's input drops \texttt{policy\_conflict} $\kappa$ from
-0.714 to 0.029 (28 judge-positives instead of 259: no clause left to check)
-and \texttt{unauthorized\_scope} from 0.391 to 0.040 (203 positives at
-precision 0.16: guessing from the action). Every other dimension is unchanged
-within noise, and the content dimensions' judge-yes counts are identical
-between passes. These are the same two dimensions the trained checker loses
-(Table~\ref{tab:identity-ablation}).
+\textbf{The judge's labels move the same way as the checker's scores.}
+Stripping identity from the judge's input drops \texttt{policy\_conflict}
+$\kappa$ from 0.714 to 0.029 (28 judge-positives instead of 259: no clause
+left to check) and \texttt{unauthorized\_scope} from 0.391 to 0.040 (203
+positives at precision 0.16). Every other dimension is unchanged within
+noise, and the content dimensions' judge-yes counts are identical between
+passes. These are the two dimensions on which the checker's residual signal
+was nil (Table~\ref{tab:identity-ablation}).
 
-\textbf{Consequence for \S\ref{sec:identity}.} The identity-ablation claim is
-solid on \texttt{policy\_conflict}, directionally confirmed on
-\texttt{unauthorized\_scope}, and unvalidated on \texttt{insufficient\_context}:
-the checker's 0.841 on that label is closer to a generator regularity than to
-a checkable question about the text, and we flag every number on it. Scored
-against the judge's labels instead of the generator's, the checker keeps the
-three recoverable dimensions and beats the rule baseline on each by
+\textbf{Consequence.} The ablation is interpretable on
+\texttt{policy\_conflict}, directionally on \texttt{unauthorized\_scope}, and
+not on \texttt{insufficient\_context}: the checker's 0.841 there is a
+generator regularity, and we flag every number on that dimension. Scored
+against the judge's labels rather than the generator's, the checker keeps
+the recoverable dimensions and beats the rule baseline on each by
 0.39--0.68 AUPRC.
 
 \FloatBarrier

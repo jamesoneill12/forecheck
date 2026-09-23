@@ -2,8 +2,9 @@
 
 Date: 2026-09-23. Trigger: the 2B v4 checker scored below the base rate on
 `prompt_injection_influence` on AgentDojo banking (AUPRC 0.128 at a 0.150 positive
-rate), while scoring 0.80 AUPRC on synthetic test, where a key-presence detector would
-score 1.0. The per-example score dump showed
+rate), while scoring 0.80 AUPRC on synthetic test. (An earlier version of this note said a
+key-presence detector would score 1.0 there; that was wrong, see "Ceiling" below.) The
+per-example score dump showed
 the 2B injection head never fires on AgentDojo (raw logits in [-5.0, -3.0]).
 
 ## Measurement
@@ -37,9 +38,18 @@ injection; `_INJECTION_INSTRUCTIONS` holds the five target literals.
 ## What this means for the reported numbers
 
 - Every synthetic `prompt_injection_influence` result for v1 to v5 (decoder 2B and 8B,
-  encoders, and the rule baseline where it reads argument keys) is an upper bound
-  that a key-presence detector could match (it would score 1.0; the trained arms score
-  about 0.80). Those numbers are not evidence of injection detection.
+  encoders, and the rule baseline where it reads argument keys) could have been produced
+  by a key-presence detector. Those numbers are not evidence of injection detection.
+- **Ceiling.** `_sample_action_origin` (`generation/scenarios.py:103`) draws the label from
+  two origins: `INJECTED_INSTRUCTION` (p=0.06 when untrusted content is present, instruction
+  rendered) and `COMPROMISED_TOOL_SCHEMA` (p=0.02, `untrusted_present=False`, nothing
+  rendered). `_prompt_injection_influence` (`data/labeling.py:150`) returns YES for both. So
+  about a quarter of synthetic positives carry no injected text, and a detector reading only
+  the observation is capped near 0.75-0.80 AUPRC, the same place a key-only detector lands.
+  The v4 (0.80) and v6 (0.79) synthetic scores measure that ceiling, not what the head reads.
+  A key-presence detector does NOT score 1.0 (earlier versions of this note said so; the
+  paper's 2026-09-23 reviewer pass caught it). An AUPRC split by `latent.action_origin`
+  would show what the head reads and has not been computed.
 - The LLM-judge agreement on this dimension (kappa 0.905, `docs/results/judge/`) is
   also inflated: the judge saw the same `instructed_target` argument.
 - The AgentDojo result is the first measurement of injection detection without the

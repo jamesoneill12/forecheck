@@ -4,43 +4,46 @@
 Deployed AI agents act with delegated authority: a support agent issues
 refunds for a merchant, a coding agent pushes commits for a developer, an
 operations agent grants IAM roles for an administrator. Before such an action
-executes, some system must decide whether it is safe to proceed. The dominant
-tool is a guardrail classifier that reads the proposed action and outputs a
-harm judgment
+executes, some system must decide whether it may proceed. The dominant tool
+is a guardrail classifier that reads the proposed action and returns a harm
+judgment
 \citep{inan2023llamaguard,padhi2024graniteguardian,zeng2024shieldgemma,ghosh2024aegis,openai2025gptosssafeguard}.
 
 This conflates two questions. \textbf{Content risk} asks whether an action
-looks dangerous on its face (deletes data, moves money, contacts an external
-party) and is answerable from the action text. \textbf{Authorization risk}
-asks whether \emph{this} action is something \emph{this} agent was allowed to
-do, on behalf of \emph{this} principal, under the policy in force. It needs
-the principal's entitlements, the agent's delegated scope, and the applicable
-policy clause as structured inputs, not prose the model must infer.
+looks dangerous on its face and is answerable from the action text.
+\textbf{Authorization risk} asks whether \emph{this} action is something
+\emph{this} agent was allowed to do, on behalf of \emph{this} principal,
+under the policy in force. Its inputs are the principal's entitlements, the
+agent's delegated scope, and the applicable clause. Symbolic engines
+\citep{pang2019zanzibar,cutler2024cedar,oasis2013xacml} answer it exactly
+when the policy is a compiled predicate; the open case is policy written in
+natural language by a customer, checked against a call its author never saw.
 
-We build a pre-execution risk classifier, \emph{forecheck}, whose input
-contract makes these fields explicit, then remove them from the trained
-model's input to see what breaks. Three of eleven risk dimensions collapse
-from near-perfect to near-chance; the rest do not move
-(\S\ref{sec:identity}). Prompting cannot close the gap: two zero-shot safety
-models given the same policy text are at chance on exactly these dimensions
-with or without identity, and so is the acting agent asked to judge its own
-call (\S\ref{sec:selfjudgment}). A blind LLM judge shown only the rendered
-text loses the same dimensions when identity is removed, replicating the
-ablation on labels rather than model scores (\S\ref{sec:labelvalidity}).
-Policy-conditioned reasoning generalizes to unseen policy \emph{phrasings}
-but not unseen \emph{kinds} (\S\ref{sec:generalisation}), and composing
-several classifiers' decisions, as guardrail stacks are deployed, compounds
-toward denying everything unless the decision is made from the joint
-calibrated probability vector (\S\ref{sec:composition}).
+We build a pre-execution risk classifier, \emph{forecheck}, whose typed input
+contract carries these fields, and use it as an instrument. The identity
+ablation of \S\ref{sec:identity} is not a discovery: three of the eleven
+risk labels are functions of the fields we remove, so their collapse is
+guaranteed. What it measures is how much residual signal the rendered
+content carries about those labels (almost none on two), whether the other
+eight dimensions are disturbed (no, but most sit at a ceiling), and whether
+models that are \emph{given} the context use it. Two zero-shot safety models
+and the acting agent, prompted with the same entitlements and policy text,
+do not (\S\ref{sec:identity}, \S\ref{sec:selfjudgment}), with the caveat
+that we cannot fully separate a capability gap from a prompting mismatch. A
+blind LLM judge shown only the rendered text loses the same two labels when
+identity is removed (\S\ref{sec:labelvalidity}).
 
-Finally we score the same checkers zero-shot on two published benchmarks we
-did not generate, AgentDojo and InjecAgent (\S\ref{sec:external}).
-Policy-conflict transfers on both. Prompt-injection did not transfer at 2B,
-and tracing that failure exposed a label leak in our own generator that every
-synthetic split had hidden. Fixing it and retraining turns the 2B failure into
-a 0.69 AUPRC transfer and lifts both checkers from chance to 98\% on
-InjecAgent's poisoned-versus-clean pairs, while the synthetic score on the
-same dimension does not change. Every number outside \S\ref{sec:external} is
-on synthetic data; \S\ref{sec:limitations} states what that licenses.
-
-\FloatBarrier
+The main evidence is external (\S\ref{sec:external}). On AgentDojo and
+InjecAgent, traces we did not generate, policy checking against predicates
+we wrote transfers zero-shot. Prompt-injection detection did not transfer at
+2B, and tracing that failure exposed a label leak in our own generator: an
+argument key present in every injected synthetic call and no other. The
+synthetic metric had been blind to it because a quarter of synthetic
+positives carry no injected text, capping any text-reading detector near the
+score the checker reached. Retrained leak-free, the checkers rank the
+poisoned InjecAgent observation above its clean twin on 98\% of pairs.
+Auditing that construction then surfaced two confounds of the same class,
+one we rule out from saved scores and one we cannot. We also correct our own
+earlier reading of a multi-policy composition result
+(\S\ref{sec:composition}). Every number outside \S\ref{sec:external} is on
+synthetic data.

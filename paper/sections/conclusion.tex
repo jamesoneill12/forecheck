@@ -1,20 +1,13 @@
 \section{Conclusion}
 \label{sec:conclusion}
 
-Pre-execution risk for agent tool calls is largely a delegated-authority
-problem, not a content-safety problem, and general-purpose safety models do
-not solve it: removing identity and policy context from a trained checker
-collapses exactly the dimensions that depend on it, a blind judge loses the
-same dimensions, and zero-shot safety models and the acting agent are at
-chance on them with or without the context. Two properties decide whether a
-guardrail can detect authorization violations and survive deployment
-alongside several policies: delegated-authority context at its input and
-calibrated probabilities at its output. Policy-conditioned reasoning
-generalizes to new wording but not yet to new policy kinds; that gap, and a
-hand-labelled real-traffic probe, are what this line of work needs next. On
-the two external benchmarks the policy-conflict ranking held zero-shot, the
-probabilities needed a few hundred in-domain labels, and the injection result
-was wrong for a reason no synthetic split could show. The case for evaluating
-on data one did not generate is the strongest result here.
-
-\FloatBarrier
+Delegated-authority labels are functions of fields a content classifier
+never sees; our ablation confirms the rendered content carries almost nothing
+about two of the three, which was expected. What was not guaranteed: models
+given the context do not use it under a straightforward prompt, a blind
+reader loses the same labels when the fields are removed, policy checking
+generalises to unseen wording but not unseen kinds, and an apparent
+composition collapse was one fail-closed bundle. The strongest result is
+methodological: a benchmark we did not generate exposed a label leak that
+every synthetic split had scored at its ceiling, and auditing our own
+external construction then surfaced two more confounds of the same class.

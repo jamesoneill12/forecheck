@@ -4,39 +4,41 @@
 \textbf{LLM guardrails.} Llama Guard \citep{inan2023llamaguard}, Granite
 Guardian \citep{padhi2024graniteguardian}, ShieldGemma
 \citep{zeng2024shieldgemma}, NVIDIA Aegis \citep{ghosh2024aegis}, and
-gpt-oss-safeguard \citep{openai2025gptosssafeguard} classify content/harm
+gpt-oss-safeguard \citep{openai2025gptosssafeguard} classify content or harm
 over a conversation turn or action; Agent Action Guard
-\citep{agentactionguard2025} is an embedding MLP over tool name and arguments
-with no identity or policy input. We do not claim they fail at their intended
-purpose; \S\ref{sec:identity} shows they are at chance specifically on
-delegated-authority dimensions they were not trained to answer.
+\citep{agentactionguard2025} is an embedding MLP over tool name and
+arguments. LlamaFirewall's AlignmentCheck
+\citep{chennabasappa2025llamafirewall} and Task Shield
+\citep{jia2025taskshield} judge whether an action is aligned with the user's
+stated goal, the closest deployed analogues of our
+\texttt{unauthorized\_scope}; neither takes a typed entitlement or delegated
+scope as input.
 
-\textbf{Agent safety benchmarks.} AgentHarm
-\citep{andriushchenko2024agentharm}, ToolEmu \citep{ruan2023toolemu},
-InjecAgent \citep{zhan2024injecagent}, and AgentDojo
-\citep{debenedetti2024agentdojo} measure end-to-end agent behavior or
-injection success with an outcome judge. They answer ``did the agent do
-something bad,'' not ``should this action have been allowed given who it was
-for,'' and emit no per-action calibrated probability a policy engine can
-compose. We reuse two as external test sets by deriving per-action labels
-from their own ground-truth functions.
+\textbf{Authorization for agents.} Symbolic engines decide allow/deny from a
+fully specified request and compiled policy: OPA \citep{opa}, Cedar
+\citep{cutler2024cedar}, XACML with its combining algorithms
+\citep{oasis2013xacml}, and Zanzibar \citep{pang2019zanzibar}, whose
+``is this delegated scope inside the principal's grant'' check is exactly our
+\texttt{unauthorized\_scope}. Recent agent-specific designs enforce authorization by
+construction: CaMeL \citep{debenedetti2025camel} tracks capabilities through
+a quarantined LLM's dataflow, Progent \citep{shi2025progent} applies
+programmable per-call privilege policies, IsolateGPT \citep{wu2025isolategpt}
+isolates agent applications behind a permission layer, RTBAS
+\citep{zhong2025rtbas} and contextual-integrity work
+\citep{bagdasarian2024airgapagent} enforce information-flow norms that depend
+on who the principal is. OWASP's agentic guidance \citep{owasp2025agentic}
+holds that authorization must be deterministic and auditable. Our delta is
+narrow and compatible with all of these: where the mandate is a
+natural-language clause nobody has compiled, a learned reader generalises
+across paraphrases (\S\ref{sec:generalisation}) and emits a calibrated
+probability an engine of this kind can consume, while the deterministic
+check on typed fields remains the right tool for scope.
 
-\textbf{Authorization engines and declared intent.} OPA \citep{opa}, Cedar
-\citep{cedar}, and XACML \citep{xacml} decide allow/deny symbolically from a
-fully specified request and policy. OWASP's agentic guidance
-\citep{owasp2025agentic} and positions built on it \citep{capiscio2026intent}
-hold that authorization must be deterministic and auditable: the agent
-declares a typed mandate and an enforcement point checks each call against
-it. Our results support the premise (the agent is at chance on its own scope)
-and show the limit: once the mandate is natural-language policy, the symbolic
-checker (our rule baseline) drops to 0.33--0.50 AUPRC on
-\texttt{policy\_conflict} and \texttt{unauthorized\_scope}, and only a learned
-reader recovers it across paraphrases. forecheck keeps the decision
-deterministic and puts the learned component where that guidance allows it:
-the scorer never authorises, it prices the review. Temperature scaling
-\citep{platt1999probabilistic,guo2017calibration} and the Wilson interval
-\citep{wilson1927probable} are standard; we apply them to policy
-\emph{composition}, where \S\ref{sec:composition}'s $k$-invariance is a
-function of calibration sharpness.
-
-\FloatBarrier
+\textbf{Prompt-injection defences and benchmarks.} StruQ, SecAlign, and
+spotlighting \citep{chen2024struq,chen2025secalign,hines2024spotlighting}
+harden the acting model; our injection head is a detector in front of it.
+AgentHarm, ToolEmu, InjecAgent, AgentDojo, and Agent Security Bench
+\citep{andriushchenko2024agentharm,ruan2023toolemu,zhan2024injecagent,debenedetti2024agentdojo,zhang2025asb}
+measure end-to-end agent behaviour with an outcome judge; we reuse two as
+external test sets by deriving per-action labels from their ground-truth
+functions.

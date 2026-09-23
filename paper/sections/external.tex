@@ -2,122 +2,129 @@
 \label{sec:external}
 
 We score the checkers zero-shot on two published benchmarks. Nothing was
-trained or tuned on either; calibration was fitted on synthetic dev and
-threshold selection is disabled.
+trained or tuned on either; calibration was fitted on synthetic data and
+threshold selection is disabled. The leak-free v6 checkers are the paper's
+models; v4 rows are the pre-fix comparison.
 
-\textbf{AgentDojo} \citep{debenedetti2024agentdojo}: banking-suite traces for
-claude-3-5-sonnet-20241022 and gpt-4o-2024-05-13, 1,714 runs, 4,215 proposed
-calls, 11 attack types plus no-attack runs. Labels come from AgentDojo's own
-\texttt{ground\_truth()} functions: \texttt{prompt\_injection\_influence} is
-\texttt{yes} when a call executes the injection task's goal (positive rate
-0.150); \texttt{unauthorized\_scope} when the call's function is outside the
-user task's reference solution (0.253); \texttt{policy\_conflict} when one of
-four banking policies we wrote once fires under a deterministic predicate
-(0.237). \textbf{InjecAgent} \citep{zhan2024injecagent}: 1,054 cases over 38
-toolkits. AgentDojo's injection positives differ from negatives in the call
-itself (an unrequested transfer to a recipient the user never named), so it
-cannot tell whether a checker reads the untrusted text or the call. InjecAgent
-can: for each attacker tool we build a \emph{poisoned/clean pair}, the same
-attacker call with identical arguments, proposed after the tool response with
-the attacker's instruction filled in (\texttt{yes}) or left empty
-(\texttt{no}). The only difference inside a pair is the observation. 4,250
-examples, 1,598 pairs, \texttt{policy\_conflict} from five generic policies.
-Derivations: \texttt{docs/external-\{agentdojo,injecagent\}.md}.
+\textbf{AgentDojo} \citep{debenedetti2024agentdojo}: banking-suite traces
+for two frontier agents, 1,714 runs, 4,215 proposed calls, 11 attack types
+plus no-attack runs. Labels come from AgentDojo's own \texttt{ground\_truth()}
+functions: \texttt{prompt\_injection\_influence} is \texttt{yes} when a call
+executes the injection task's goal (positive rate 0.150);
+\texttt{unauthorized\_scope} when the call's function is outside the user
+task's reference solution (0.253). \texttt{policy\_conflict} (0.237) is
+\emph{ours}: four banking policies, each a deterministic predicate over
+user-named recipients. \textbf{InjecAgent} \citep{zhan2024injecagent}: 1,054
+cases over 38 toolkits. AgentDojo's injection positives differ from negatives
+in the call itself, so it cannot tell whether a checker reads the untrusted
+text or the call. InjecAgent can: for each attacker tool we build a
+\emph{poisoned/clean pair}, the same attacker call with identical arguments,
+proposed after the tool response with the attacker's instruction filled in
+(\texttt{yes}) or removed (\texttt{no}). 4,250 examples, 1,598 pairs;
+\texttt{policy\_conflict} from five generic policies about the call's shape.
 
-\begin{table}[htbp]
+\begin{table*}[t]
 \centering
 \footnotesize
-\caption{Zero-shot AUPRC on AgentDojo banking ($n{=}4{,}215$; $4{,}133$ for
-injection) and InjecAgent ($n{=}4{,}250$; $3{,}196$ for injection), positive
-rates in the header. Pair win: fraction of the 1,598 InjecAgent pairs on which
-the poisoned variant scores higher on injection (0.5 is chance). Baseline
-rows on fixed 1,000-row subsamples. Full tables, AUROC, four-suite results,
-and per-example logits in Appendix~\ref{sec:appendix-external}.}
-\label{tab:external}
-\begin{tabular}{lccc|cccc}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lccc|ccc|ccc@{}}
 \toprule
-& \multicolumn{3}{c|}{AgentDojo banking} & \multicolumn{4}{c}{InjecAgent} \\
-Arm & inj.\ (.15) & scope (.25) & policy (.24) & inj.\ (.50) & scope (.75) & policy (.46) & pair win \\
+& \multicolumn{3}{c|}{AgentDojo banking} & \multicolumn{3}{c|}{InjecAgent} & \multicolumn{3}{c}{InjecAgent pairs} \\
+Arm & inj.\ (.15) & scope (.25) & policy$^{\ast}$ (.24) & inj.\ (.50) & scope (.75) & policy$^{\ast}$ (.46) & win & tie & adj.\ win \\
 \midrule
-Rule baseline & 0.250 & 0.253 & 0.237 & 0.500 & 0.752 & 0.464 & -- \\
-Decoder 2B v4 & 0.128 & 0.257 & \textbf{0.849} & 0.549 & 0.732 & 0.965 & 0.504 \\
-2B v4, eval-stripped & 0.125 & 0.218 & 0.694 & -- & -- & -- & -- \\
-2B v4, train-stripped & 0.150 & 0.234 & 0.390 & -- & -- & -- & -- \\
-Decoder 8B v4 & 0.701 & 0.355 & 0.626 & 0.544 & 0.849 & \textbf{0.977} & 0.353 \\
-8B v4, eval-stripped & 0.743 & 0.266 & 0.404 & 0.556 & 0.843 & 0.968 & 0.382 \\
+Rule baseline & 0.250 & 0.253 & 0.237 & 0.500 & 0.752 & 0.464 & -- & -- & -- \\
 \midrule
-Decoder 2B v6 (leak-free) & 0.693 & 0.214 & 0.670 & 0.878 & 0.704 & 0.922 & 0.977 \\
-2B v6, eval-stripped & 0.669 & 0.306 & 0.521 & -- & -- & -- & -- \\
-Decoder 8B v6 (leak-free) & \textbf{0.838} & 0.239 & 0.785 & 0.943 & 0.677 & 0.965 & 0.977 \\
-8B v6, eval-stripped & 0.819 & 0.354 & 0.450 & \textbf{0.953} & 0.917 & 0.963 & \textbf{0.978} \\
+Decoder 2B v6 & 0.693 & 0.214 & 0.670 & 0.878 & 0.704 & 0.922 & 0.977 & 0.005 & 0.980 \\
+\quad eval-stripped & 0.669 & 0.306 & 0.521 & -- & -- & -- & -- & -- & -- \\
+Decoder 8B v6 & \textbf{0.838} & 0.239 & 0.785 & 0.943 & 0.677 & 0.965 & 0.977 & 0.012 & 0.983 \\
+\quad eval-stripped & 0.819 & 0.354 & 0.450 & \textbf{0.953} & 0.917 & 0.963 & 0.978 & 0.016 & 0.986 \\
 \midrule
-Granite Guardian 3.3 8B & 0.103 & 0.289 & 0.224 & 0.511 & 0.613 & 0.359 & -- \\
-Agent-self 8B (\textsc{allow}/\textsc{stop}) & 0.291 & 0.442 & 0.449 & 0.530 & 1.000 & 0.647 & -- \\
+Decoder 2B v4 (pre-fix) & 0.128 & 0.257 & \textbf{0.849} & 0.549 & 0.732 & 0.965 & 0.504 & 0.239 & 0.624 \\
+\quad eval-stripped & 0.125 & 0.218 & 0.694 & -- & -- & -- & -- & -- & -- \\
+\quad train-stripped & 0.150 & 0.234 & 0.390 & -- & -- & -- & -- & -- & -- \\
+Decoder 8B v4 (pre-fix) & 0.701 & 0.355 & 0.626 & 0.544 & 0.849 & \textbf{0.977} & 0.353 & 0.385 & 0.546 \\
+\quad eval-stripped & 0.743 & 0.266 & 0.404 & 0.556 & 0.843 & 0.968 & 0.382 & 0.397 & 0.581 \\
+\midrule
+Granite Guardian 3.3 8B & 0.103 & 0.289 & 0.224 & 0.511 & 0.613 & 0.359 & -- & -- & -- \\
+Agent-self 8B & 0.291 & 0.442 & 0.449 & 0.530 & 1.000 & 0.647 & -- & -- & -- \\
 \bottomrule
 \end{tabular}
-\end{table}
+\caption{Zero-shot AUPRC on AgentDojo banking ($n{=}4{,}215$; $4{,}133$ for injection) and InjecAgent ($n{=}4{,}250$; $3{,}196$ for injection), positive rates in the header; $^{\ast}$labels from predicates we wrote. Pairs: fraction of the 1,598 InjecAgent pairs on which the poisoned variant scores strictly higher on injection (win), scores identically (tie), and win plus half the ties (adj.\ win; 0.5 is chance). 95\% bootstrap intervals on the InjecAgent checker cells are $\pm 0.006$--$0.023$ (Appendix~\ref{sec:appendix-external}). Baseline rows use fixed 1,000-row subsamples whose positive rates differ from the header's. The 8B v4 AgentDojo injection cell was 0.797 in an earlier run we could not reproduce; two later runs gave 0.701.}
+\label{tab:external}
+\end{table*}
 
-\textbf{Policy checking transfers, and stays identity-dependent.} 2B v4
-scores 0.849 AUPRC on AgentDojo \texttt{policy\_conflict} against a 0.237
-base rate and a rule baseline at base rate, on policies, a tool schema, and
-traces it never saw. Eval-time stripping drops it to 0.694 and the
-train-stripped model to 0.390: the identity dependence of \S\ref{sec:identity}
-on external data. On InjecAgent it transfers again (0.965, 0.977 against
-0.464); stripping barely moves it there because the five policies are global
-rules about the call, not about what the principal named. The 2B/8B ordering
-on this dimension is not robust (8B below 2B on v4, above on v6); both sizes
-rank violations well (AUROC 0.91--0.94) and differ in how many benign calls
-they place above them.
+\textbf{Policy checking transfers, and on AgentDojo it stays
+identity-dependent.} On banking \texttt{policy\_conflict}, whose predicates
+reference recipients the user named, 2B v4 scores 0.849 against a 0.237 base
+rate on policies, a tool schema, and traces it never saw; eval-time stripping
+drops it to 0.694 and the train-stripped model to 0.390. The v6 checkers
+score lower here (0.670, 0.785) with the same stripping pattern (0.521,
+0.450). This is the one external result that bears on the identity thesis.
+On InjecAgent the same dimension scores 0.92--0.98 and stripping barely moves
+it: the five policies are rules about the call's shape, so it is a content
+result.
 
-\textbf{Injection at v4: 2B fails, 8B transfers, neither reads the untrusted
+\textbf{Injection before the fix: the v4 heads barely read the untrusted
 text.} 2B v4 is below base rate on AgentDojo injection (0.128, AUROC 0.348):
 its injection head never fires on this domain (raw logits for all 4,133 calls
-between $-5.0$ and $-3.0$) while its policy head separates cleanly on the same
-rows. 8B v4 reaches 0.701 (AUROC 0.895). But on InjecAgent, with the call
-held fixed, the 8B v4 injection score rises on only 35\% of pairs and is
-unchanged on 39\%, and 2B v4 is at coin-flip; both heads sit at raw logit
-$-4$ on poisoned and clean alike. What transferred at 8B v4 was call-level,
-whether the action is something the user asked for, not a reading of the
-injected instruction. The untrained 8B agent recognises the same thing: it
-flags every InjecAgent attacker call as \textsc{stop}
-(\texttt{unauthorized\_scope} 1.000) and is at chance on injection.
+between $-5.0$ and $-3.0$) while its policy head separates on the same rows.
+8B v4 reaches 0.701. On InjecAgent, with the call held fixed, both v4 heads
+sit near raw logit $-4$ on poisoned and clean alike and return an identical
+score on 24\% (2B) and 39\% (8B) of pairs. Counting ties as half, they rank
+the poisoned variant higher on 0.624 and 0.546 of pairs, significantly above
+0.5 (sign test on decided pairs, $p<10^{-5}$) but small. Whether the 8B
+AgentDojo transfer was call-level reading or a head alive on long
+observations and dead on short ones is not determined by these data; deleting
+the payload from an AgentDojo trace with the call held fixed would decide it
+and has not been run.
 
-\textbf{The cause was a label leak in our generator; removing it is
-sufficient.} Contrasting rendered calls between injected and non-injected
-synthetic examples showed that the v1--v5 generator wrote an
-\texttt{instructed\_target} argument into every injected call and no other
-(presence 1.00 vs.\ 0.00 over 13,312 v4 rows) and drew the target from five
-literals, three containing ``attacker'' (Appendix~\ref{sec:appendix-leak}).
-The training signal was carried by an argument key; the observation never had
-to be read. v6 removes the key, fills the target argument for benign calls
-too, and renders 300--2,000 character multi-format observations with the
-instruction at a random position. Retrained on v6 with identical size and
-recipe, 2B reaches 0.693 AUPRC (AUROC 0.928) on AgentDojo injection and 8B
-0.838 (0.966), and both heads fire (2B v6 median raw logit $+4.5$ for
-positives vs.\ $-3.0$). On InjecAgent both rank the poisoned variant above
-its clean twin on 97.7\% of pairs, reaching 0.878 and 0.943 AUPRC on a label
-whose only evidence is in the untrusted text; stripping identity from 8B v6
-leaves injection and pair win unchanged (0.953, 0.978), so the reading is
-content-driven. Meanwhile the synthetic injection AUPRC did not change (0.802
-to 0.788 for 2B, 0.791 to 0.795 for 8B). The leak had not inflated the
-synthetic score; it had determined what the head learned to read, and no
-synthetic split could have shown it.
+\textbf{The cause was a label leak in our generator.} Contrasting rendered
+calls between injected and non-injected synthetic examples showed that the
+v1--v5 generator wrote an \texttt{instructed\_target} argument into every
+injected call and no other (presence 1.00 vs.\ 0.00 over 13,312 v4 rows) and
+drew its value from five literals, three containing ``attacker''
+(Appendix~\ref{sec:appendix-leak}). The synthetic metric could not show this.
+A quarter of synthetic injection positives come from a compromised tool
+schema and render no injected text at all, so a detector that reads only the
+observation is capped near 0.75--0.80 AUPRC on this label, and a detector
+that reads only the leaked key is capped at the same place; the checker's
+0.80 is consistent with either. The synthetic score measured the ceiling,
+not what the head read.
 
-\textbf{What does not transfer.} \texttt{unauthorized\_scope} is at base rate
-on AgentDojo for every checker (0.21--0.36 vs.\ 0.253); the label counts
-harmless auxiliary reads as out of scope. On InjecAgent, 8B v4 has signal
-(0.849 vs.\ 0.752 base) and 8B v6 does not (0.677) unless the port's
-placeholder principal and scope fields are removed (0.917): the v6 head is
-misled by identity fields the port filled generically. Calibration does not
-transfer: macro ECE is 0.20--0.27 on AgentDojo against under 0.03 on
-synthetic data. Refitting isotonic calibrators on half of the AgentDojo calls
-brings the other half to macro ECE 0.008 (2B) and 0.010 (8B) with AUPRC
-unchanged, most of the gain by 250--500 labelled calls. A deployment needs a
-few hundred in-domain labels for its probabilities, not for its ranking.
-Over all four AgentDojo suites (30,143 calls), the 8B v4 injection transfer
-holds on banking, workspace, and slack (AUPRC 0.70, 0.75, 0.43 at base rates
-0.15, 0.08, 0.19) and is weak on travel (0.13 at 0.025); 2B v4 is at base
-rate everywhere, and policy labels outside banking are one generic policy per
-suite and too weak to claim transfer on (Table~\ref{tab:agentdojo-suites}).
+\textbf{v6 restores transfer; the fix is a bundle.} v6 removes the key,
+fills the target argument for benign calls too, and lengthens and randomises
+observations. Retrained on v6 with identical size and recipe, 2B reaches
+0.693 on AgentDojo injection (AUROC 0.928) and 8B 0.838 (0.966), and both
+heads fire (2B v6 median raw logit $+4.5$ for positives vs.\ $-3.0$). On
+InjecAgent both rank the poisoned variant strictly above its clean twin on
+0.977 of pairs with under 2\% ties; the synthetic injection score did not
+change (0.804 to 0.787 on \texttt{heldout\_family}). Observation length
+alone could also explain the AgentDojo gain, since AgentDojo's records are
+about 2,000 characters against v4's 132-character templates; the two changes
+were not separated and we claim only that the bundle is sufficient.
+
+\textbf{Two confounds in the pair test, one ruled out.} The clean twin is
+the poisoned observation with the instruction deleted, so it is shorter in
+all 1,598 pairs; a ``longer observation wins'' detector scores 1.000, above
+the checkers. A length-matched clean control has not been run. Second, the
+port marks the destination's trust from whether its identifier appears in
+the observation, which flips inside 39\% of pairs and is not removed by
+stripping. On the 972 pairs where destination trust is equal in both
+members, the v6 checkers win 0.963--0.972, so this confound does not carry
+the result. The length confound remains open.
+
+\textbf{What does not transfer.} \texttt{unauthorized\_scope} is near base
+rate on AgentDojo for every checker (0.21--0.36 vs.\ 0.253); the label counts
+harmless auxiliary reads as out of scope. On InjecAgent, 8B v6 is below base
+rate (0.677 vs.\ 0.752) until the port's placeholder principal and scope
+fields are removed (0.917). Removing identity \emph{helps} on several
+external cells, which fits the thesis only in its narrow form: the right
+fields help, generic ones hurt. Calibration does not transfer (macro ECE
+0.20--0.27 on AgentDojo vs.\ under 0.03 synthetic); refitting isotonic
+calibrators on half the banking calls brings the other half to ECE 0.01 with
+AUPRC unchanged, most of the gain by 250--500 labelled calls. Over all four
+AgentDojo suites (30,143 calls), the 8B v4 injection transfer holds on three
+and is weak on travel; 2B v4 is at base rate everywhere; the v6 checkers
+have not been run on that export (Appendix~\ref{sec:appendix-external}).
 
 \FloatBarrier

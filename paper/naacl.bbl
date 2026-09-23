@@ -1,0 +1,251 @@
+\begin{thebibliography}{31}
+\providecommand{\natexlab}[1]{#1}
+
+\bibitem[{Andriushchenko et~al.(2024)Andriushchenko, Souly, Dziemian, Duenas,
+  Lin, Wang, Hendrycks, Zou, Kolter, Fredrikson, Winsor, Wynne, Gal, and
+  Davies}]{andriushchenko2024agentharm}
+Maksym Andriushchenko, Alexandra Souly, Mateusz Dziemian, Derek Duenas, Maxwell
+  Lin, Justin Wang, Dan Hendrycks, Andy Zou, Zico Kolter, Matt Fredrikson, Eric
+  Winsor, Eliot Wynne, Yarin Gal, and Xander Davies. 2024.
+\newblock Agentharm: A benchmark for measuring harmfulness of llm agents.
+\newblock \emph{arXiv preprint arXiv:2410.09024}.
+
+\bibitem[{Bagdasarian et~al.(2024)Bagdasarian, Yi, Ghalebikesabi, Kairouz,
+  Gruteser, Oh, Balle, and Ramage}]{bagdasarian2024airgapagent}
+Eugene Bagdasarian, Ren Yi, Sahra Ghalebikesabi, Peter Kairouz, Marco Gruteser,
+  Sewoong Oh, Borja Balle, and Daniel Ramage. 2024.
+\newblock Airgapagent: Protecting privacy-conscious conversational agents.
+\newblock \emph{arXiv preprint arXiv:2405.05175}.
+
+\bibitem[{Chen et~al.(2024{\natexlab{a}})Chen, Piet, Sitawarin, and
+  Wagner}]{chen2024struq}
+Sizhe Chen, Julien Piet, Chawin Sitawarin, and David Wagner.
+  2024{\natexlab{a}}.
+\newblock Struq: Defending against prompt injection with structured queries.
+\newblock \emph{arXiv preprint arXiv:2402.06363}.
+\newblock To appear at USENIX Security Symposium 2025.
+
+\bibitem[{Chen et~al.(2024{\natexlab{b}})Chen, Zharmagambetov, Mahloujifar,
+  Chaudhuri, Wagner, and Guo}]{chen2025secalign}
+Sizhe Chen, Arman Zharmagambetov, Saeed Mahloujifar, Kamalika Chaudhuri, David
+  Wagner, and Chuan Guo. 2024{\natexlab{b}}.
+\newblock Secalign: Defending against prompt injection with preference
+  optimization.
+\newblock \emph{arXiv preprint arXiv:2410.05451}.
+\newblock To appear at ACM CCS 2025.
+
+\bibitem[{Chennabasappa et~al.(2025)Chennabasappa, Nikolaidis, Song, Molnar,
+  Ding, Wan, Whitman, Deason, Doucette, Montilla, Gampa, de~Paola, Gabi,
+  Crnkovich, Testud, He, Chaturvedi, Zhou, and
+  Saxe}]{chennabasappa2025llamafirewall}
+Sahana Chennabasappa, Cyrus Nikolaidis, Daniel Song, David Molnar, Stephanie
+  Ding, Shengye Wan, Spencer Whitman, Lauren Deason, Nicholas Doucette, Abraham
+  Montilla, Alekhya Gampa, Beto de~Paola, Dominik Gabi, James Crnkovich,
+  Jean-Christophe Testud, Kat He, Rashnil Chaturvedi, Wu~Zhou, and Joshua Saxe.
+  2025.
+\newblock Llamafirewall: An open source guardrail system for building secure
+  {AI} agents.
+\newblock \emph{arXiv preprint arXiv:2505.03574}.
+
+\bibitem[{Cutler et~al.(2024)Cutler, Disselkoen, Eline, He, Headley, Hicks,
+  Hietala, Ioannidis, Kastner, Mamat, McAdams, McCutchen, Rungta, Torlak, and
+  Wells}]{cutler2024cedar}
+Joseph Cutler, Craig Disselkoen, Aaron Eline, Shaobo He, Kyle Headley, Mike
+  Hicks, Kesha Hietala, Elefterios Ioannidis, John Kastner, Anwar Mamat, Darin
+  McAdams, Matt McCutchen, Neha Rungta, Emina Torlak, and Andrew Wells. 2024.
+\newblock Cedar: A new language for expressive, fast, safe, and analyzable
+  authorization.
+\newblock \emph{Proceedings of the ACM on Programming Languages}, 8(OOPSLA2).
+
+\bibitem[{Debenedetti et~al.(2025)Debenedetti, Shumailov, Fan, Hayes, Carlini,
+  Fabian, Kern, Shi, Terzis, and Tram{\`e}r}]{debenedetti2025camel}
+Edoardo Debenedetti, Ilia Shumailov, Tianqi Fan, Jamie Hayes, Nicholas Carlini,
+  Daniel Fabian, Christoph Kern, Chongyang Shi, Andreas Terzis, and Florian
+  Tram{\`e}r. 2025.
+\newblock Defeating prompt injections by design.
+\newblock \emph{arXiv preprint arXiv:2503.18813}.
+
+\bibitem[{Debenedetti et~al.(2024)Debenedetti, Zhang, Balunovi{\'c},
+  Beurer-Kellner, Fischer, and Tram{\`e}r}]{debenedetti2024agentdojo}
+Edoardo Debenedetti, Jie Zhang, Mislav Balunovi{\'c}, Luca Beurer-Kellner, Marc
+  Fischer, and Florian Tram{\`e}r. 2024.
+\newblock Agentdojo: A dynamic environment to evaluate prompt injection attacks
+  and defenses for llm agents.
+\newblock \emph{arXiv preprint arXiv:2406.13352}.
+
+\bibitem[{Ghosh et~al.(2024)Ghosh, Varshney, Galinkin, and
+  Parisien}]{ghosh2024aegis}
+Shaona Ghosh, Prasoon Varshney, Erick Galinkin, and Christopher Parisien. 2024.
+\newblock Aegis: Online adaptive ai content safety moderation with ensemble of
+  llm experts.
+\newblock \emph{arXiv preprint arXiv:2404.05993}.
+
+\bibitem[{Guo et~al.(2017)Guo, Pleiss, Sun, and
+  Weinberger}]{guo2017calibration}
+Chuan Guo, Geoff Pleiss, Yu~Sun, and Kilian~Q. Weinberger. 2017.
+\newblock On calibration of modern neural networks.
+\newblock In \emph{Proceedings of the 34th International Conference on Machine
+  Learning (ICML)}.
+
+\bibitem[{Hines et~al.(2024)Hines, Lopez, Hall, Zarfati, Zunger, and
+  Kiciman}]{hines2024spotlighting}
+Keegan Hines, Gary Lopez, Matthew Hall, Federico Zarfati, Yonatan Zunger, and
+  Emre Kiciman. 2024.
+\newblock Defending against indirect prompt injection attacks with
+  spotlighting.
+\newblock \emph{arXiv preprint arXiv:2403.14720}.
+
+\bibitem[{Hu et~al.(2021)Hu, Shen, Wallis, Allen-Zhu, Li, Wang, Wang, and
+  Chen}]{hu2021lora}
+Edward~J. Hu, Yelong Shen, Phillip Wallis, Zeyuan Allen-Zhu, Yuanzhi Li, Shean
+  Wang, Lu~Wang, and Weizhu Chen. 2021.
+\newblock Lora: Low-rank adaptation of large language models.
+\newblock \emph{arXiv preprint arXiv:2106.09685}.
+
+\bibitem[{{IBM Granite Team}(2024)}]{ibm2024granite3}
+{IBM Granite Team}. 2024.
+\newblock Granite 3.0 / 3.3 language models: Model card and technical report.
+\newblock Technical report, IBM Research.
+\newblock See also Granite 3.3 (2025) release notes.
+
+\bibitem[{Inan et~al.(2023)Inan, Upasani, Chi, Rungta, Iyer, Mao, Tontchev, Hu,
+  Fuller, Testuggine, and Khabsa}]{inan2023llamaguard}
+Hakan Inan, Kartikeya Upasani, Jianfeng Chi, Rashi Rungta, Krithika Iyer,
+  Yuning Mao, Michael Tontchev, Qing Hu, Brian Fuller, Davide Testuggine, and
+  Madian Khabsa. 2023.
+\newblock Llama guard: Llm-based input-output safeguard for human-ai
+  conversations.
+\newblock \emph{arXiv preprint arXiv:2312.06674}.
+
+\bibitem[{Jia et~al.(2024)Jia, Wu, Qin, and Squicciarini}]{jia2025taskshield}
+Feiran Jia, Tong Wu, Xin Qin, and Anna Squicciarini. 2024.
+\newblock The task shield: Enforcing task alignment to defend against indirect
+  prompt injection in {LLM} agents.
+\newblock \emph{arXiv preprint arXiv:2412.16682}.
+
+\bibitem[{{OASIS}(2013)}]{oasis2013xacml}
+{OASIS}. 2013.
+\newblock extensible access control markup language (xacml) version 3.0.
+\newblock OASIS Standard,
+  \url{http://docs.oasis-open.org/xacml/3.0/xacml-3.0-core-spec-os-en.html}.
+
+\bibitem[{{Open Policy Agent}()}]{opa}
+{Open Policy Agent}.
+\newblock Open policy agent (opa) documentation.
+\newblock \url{https://www.openpolicyagent.org/docs/latest/}.
+\newblock Accessed 2026-09-22.
+
+\bibitem[{{OpenAI}(2025)}]{openai2025gptosssafeguard}
+{OpenAI}. 2025.
+\newblock gpt-oss-safeguard: Open-weight reasoning models for safety policy
+  classification.
+\newblock Technical report, OpenAI.
+\newblock Model and technical report.
+
+\bibitem[{{OWASP GenAI Security Project}(2025)}]{owasp2025agentic}
+{OWASP GenAI Security Project}. 2025.
+\newblock {OWASP} securing agentic applications guide.
+\newblock \url{https://genai.owasp.org/}.
+\newblock Accessed 2026-09-22.
+
+\bibitem[{Padhi et~al.(2024)Padhi, Nagireddy, Cornacchia, Chaudhury, Pedapati,
+  Dognin, Murugesan, Miehling, Qian, Ramamurthy, Zizzo, Eltoukhy, Hind, Ram,
+  Das, Chen, Cunningham, Agarwal, Sattigeri, Raghavan, and
+  Varshney}]{padhi2024graniteguardian}
+Inkit Padhi, Manish Nagireddy, Giandomenico Cornacchia, Subhajit Chaudhury,
+  Tejaswini Pedapati, Pierre Dognin, Keerthiram Murugesan, Erik Miehling,
+  Martin~Santillan Qian, Ramya Ramamurthy, Giulio Zizzo, Ambrish Eltoukhy,
+  Michael Hind, Prasanna Ram, Payel Das, Pin-Yu Chen, Jerret Cunningham, Ananya
+  Agarwal, Prasanna Sattigeri, and 2 others. 2024.
+\newblock Granite guardian.
+\newblock \emph{arXiv preprint arXiv:2412.07724}.
+
+\bibitem[{Pang et~al.(2019)Pang, Caceres, Burrows, Chen, Dave, Germer,
+  Golynski, Graney, Kang, Kissner, Korn, Parmar, Richards, and
+  Wang}]{pang2019zanzibar}
+Ruoming Pang, Ramon Caceres, Mike Burrows, Zhifeng Chen, Pratik Dave, Nathan
+  Germer, Alexander Golynski, Kevin Graney, Nina Kang, Lea Kissner, Jeffrey~L.
+  Korn, Abhishek Parmar, Christina~D. Richards, and Mengzhi Wang. 2019.
+\newblock Zanzibar: Google's consistent, global authorization system.
+\newblock In \emph{2019 USENIX Annual Technical Conference (USENIX ATC 19)}.
+
+\bibitem[{{Pro-GenAI}(2025)}]{agentactionguard2025}
+{Pro-GenAI}. 2025.
+\newblock Agent action guard: Classifying {AI} agent actions to ensure safety
+  and reliability.
+\newblock Preprint, \url{https://doi.org/10.20944/preprints202510.1415.v2};
+  code \url{https://github.com/Pro-GenAI/Agent-Action-Guard}.
+\newblock Accessed 2026-09-22.
+
+\bibitem[{Ruan et~al.(2023)Ruan, Dong, Wang, Pitis, Zhou, Ba, Dubois, Maddison,
+  and Hashimoto}]{ruan2023toolemu}
+Yangjun Ruan, Honghua Dong, Andrew Wang, Silviu Pitis, Yongchao Zhou, Jimmy Ba,
+  Yann Dubois, Chris~J. Maddison, and Tatsunori Hashimoto. 2023.
+\newblock Identifying the risks of lm agents with an lm-emulated sandbox.
+\newblock \emph{arXiv preprint arXiv:2309.15817}.
+
+\bibitem[{Shi et~al.(2025)Shi, He, Wang, Li, Wu, Guo, and
+  Song}]{shi2025progent}
+Tianneng Shi, Jingxuan He, Zhun Wang, Hongwei Li, Linyu Wu, Wenbo Guo, and Dawn
+  Song. 2025.
+\newblock Progent: Securing ai agents with privilege control.
+\newblock \emph{arXiv preprint arXiv:2504.11703}.
+
+\bibitem[{Warner et~al.(2024)Warner, Chaffin, Clavi{\'e}, Weller,
+  Hallstr{\"o}m, Taghadouini, Gallagher, Biswas, Ladhak, Aarsen, Cooper, Adams,
+  Howard, and Poli}]{warner2024modernbert}
+Benjamin Warner, Antoine Chaffin, Beno{\^i}t Clavi{\'e}, Orion Weller, Oskar
+  Hallstr{\"o}m, Said Taghadouini, Alexis Gallagher, Raja Biswas, Faisal
+  Ladhak, Tom Aarsen, Nathan Cooper, Griffin Adams, Jeremy Howard, and Iacopo
+  Poli. 2024.
+\newblock Smarter, better, faster, longer: A modern bidirectional encoder for
+  fast, memory efficient, and long context finetuning and inference.
+\newblock \emph{arXiv preprint arXiv:2412.13663}.
+
+\bibitem[{Wilson(1927)}]{wilson1927probable}
+Edwin~B. Wilson. 1927.
+\newblock Probable inference, the law of succession, and statistical inference.
+\newblock \emph{Journal of the American Statistical Association},
+  22(158):209--212.
+
+\bibitem[{Wu et~al.(2025)Wu, Roesner, Kohno, Zhang, and
+  Iqbal}]{wu2025isolategpt}
+Yuhao Wu, Franziska Roesner, Tadayoshi Kohno, Ning Zhang, and Umar Iqbal. 2025.
+\newblock Isolategpt: An execution isolation architecture for llm-based agentic
+  systems.
+\newblock In \emph{Network and Distributed System Security Symposium (NDSS)}.
+\newblock ArXiv preprint arXiv:2403.04960.
+
+\bibitem[{Zeng et~al.(2024)Zeng, Liu, Mullins, Peran, Fernandez, Harkous,
+  Narasimhan, Proud, Kumar, Radharapu, Sturman, and
+  Wahltinez}]{zeng2024shieldgemma}
+Wenjun Zeng, Yuchen Liu, Ryan Mullins, Ludovic Peran, Joe Fernandez, Hamza
+  Harkous, Karthik Narasimhan, Drew Proud, Piyush Kumar, Bhaktipriya Radharapu,
+  Olivia Sturman, and Oscar Wahltinez. 2024.
+\newblock Shieldgemma: Generative ai content moderation based on gemma.
+\newblock \emph{arXiv preprint arXiv:2407.21772}.
+
+\bibitem[{Zhan et~al.(2024)Zhan, Liang, Ying, and Kang}]{zhan2024injecagent}
+Qiusi Zhan, Zhixiang Liang, Zifan Ying, and Daniel Kang. 2024.
+\newblock Injecagent: Benchmarking indirect prompt injections in
+  tool-integrated large language model agents.
+\newblock \emph{arXiv preprint arXiv:2403.02691}.
+
+\bibitem[{Zhang et~al.(2025)Zhang, Huang, Mei, Yao, Wang, Zhan, Wang, and
+  Zhang}]{zhang2025asb}
+Hanrong Zhang, Jingyuan Huang, Kai Mei, Yifei Yao, Zhenting Wang, Chenlu Zhan,
+  Hongwei Wang, and Yongfeng Zhang. 2025.
+\newblock Agent security bench ({ASB}): Formalizing and benchmarking attacks
+  and defenses in {LLM}-based agents.
+\newblock \emph{arXiv preprint arXiv:2410.02644}.
+\newblock Accepted at ICLR 2025.
+
+\bibitem[{Zhong et~al.(2025)Zhong, Chen, Wang, McCall, Titzer, Miller, and
+  Gibbons}]{zhong2025rtbas}
+Peter~Yong Zhong, Siyuan Chen, Ruiqi Wang, McKenna McCall, Ben~L. Titzer,
+  Heather Miller, and Phillip~B. Gibbons. 2025.
+\newblock Rtbas: Defending {LLM} agents against prompt injection and privacy
+  leakage.
+\newblock \emph{arXiv preprint arXiv:2502.08966}.
+
+\end{thebibliography}

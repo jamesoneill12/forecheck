@@ -3,48 +3,88 @@
 
 \textbf{Contract.} forecheck scores a proposed tool call against an
 \texttt{ActionContext}: the principal's entitlements, the scope actually
-delegated to the agent (a possibly strict subset), a trust-labelled trajectory
-of prior observations, the applicable policy clause(s), and the proposed
-action (tool, arguments, destination), all as typed fields. A classifier that
-sees only the rendered action, as every guardrail model in
-\S\ref{sec:related} does, can answer content-risk questions but cannot check
-whether the agent was delegated the scope it is exercising.
+delegated to the agent (a possibly strict subset), a trust-labelled
+trajectory of prior observations, the applicable policy clause(s), and the
+proposed action (tool, arguments, destination), all as typed fields. It
+returns one probability per risk dimension. A separate policy engine turns
+the vector into \textsc{allow}/\textsc{review}/\textsc{deny} under a
+customer-authored bundle; the checker itself never authorises.
 
-\textbf{Eleven risk dimensions.} Four \emph{content} dimensions are decidable
-from action and destination alone
-(\texttt{destructive\_or\_irreversible\_action}, \texttt{financial\_commitment},
-\texttt{external\_communication}, \texttt{untrusted\_destination}); two
-\emph{trajectory} dimensions from prior observations
-(\texttt{prompt\_injection\_influence}, \texttt{suspicious\_action\_sequence});
-\texttt{sensitive\_data\_exposure} behaves as content because its deciding
-field renders into the arguments. Four are where identity and policy are
-load-bearing: \texttt{unauthorized\_scope} (inside the principal's
+\textbf{Threat model.} The adversary controls tool outputs and retrieved
+documents, which the checker renders verbatim inside tag-escaped trajectory
+blocks so untrusted text cannot impersonate a trusted field. The adversary
+does not control the entitlement records or the policy store; the thesis
+depends on that assumption. The checker is itself an injection target, and
+adaptive attacks against it are not evaluated here.
+
+\textbf{Eleven risk dimensions.} Six are decidable from the rendered call
+alone once the renderer includes the deciding field:
+\texttt{destructive\_or\_irreversible\_action}, \texttt{financial\_commitment},
+\texttt{external\_communication}, \texttt{untrusted\_destination},
+\texttt{sensitive\_data\_exposure}, and, from generator version v4,
+\texttt{privilege\_escalation}, whose authority-before/after fields are
+written into the call text. Two are trajectory dimensions
+(\texttt{prompt\_injection\_influence}, \texttt{suspicious\_action\_sequence}).
+Three are functions of the identity and policy fields:
+\texttt{unauthorized\_scope} (is the required scope inside the principal's
 entitlements \emph{and} the delegated scope?), \texttt{policy\_conflict}
-(violates a stated clause?), \texttt{insufficient\_context} (enough delegated
-information to decide?), and \texttt{privilege\_escalation} (widens authority
-beyond the grant?).
+(does the call violate a stated clause?), and \texttt{insufficient\_context}
+(was enough delegated information present to decide?). Whether a reader of
+the text can recover each label is tested in \S\ref{sec:labelvalidity}.
 
-\textbf{Data.} Synthetic data from forecheck's scenario generator (49,996
-rows per version), split into \texttt{train}/\texttt{calibration}/\texttt{dev}/\texttt{test},
-a \texttt{heldout\_family} split withholding a stratified subset of tools,
-and \texttt{heldout\_policy\_kind}/\texttt{heldout\_policy\_phrasing} splits
-(\S\ref{sec:generalisation}). Versions differ only in the defect each fixes:
-\texttt{v4} renders the \texttt{privilege\_escalation} deciding fields,
-\texttt{v5} doubles the policy-kind inventory, \texttt{v6} removes the
-injection label leak (\S\ref{sec:external}). Every synthetic number measures
-whether an arm learned the generator's label function, not real-world risk.
+\textbf{Data.} A template generator samples a latent scenario, derives the
+eleven labels deterministically from it, and renders a context.
+Table~\ref{tab:versions} lists the versions used; they differ in more than
+one way and we say so where a comparison depends on it. Known defects beyond
+the two the generator was revised for: a 5\% chance of marking any resource
+irreversible, including reads; a 5\% chance of a financial amount on a
+non-financial tool; and a background destination on 15--35\% of non-sending
+calls, which drives the \texttt{untrusted\_destination} and
+\texttt{sensitive\_data\_exposure} labels without appearing in the call.
+Splits are \texttt{train}, \texttt{calibration}, \texttt{dev}, \texttt{test},
+\texttt{heldout\_family} (a stratified subset of tools withheld), and the two
+policy splits of \S\ref{sec:generalisation}; \texttt{heldout\_family} scores
+within 0.01 of \texttt{test} for every arm. Every synthetic number measures
+whether an arm learned the generator's label function.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{@{}lp{5.4cm}@{}}
+\toprule
+Version & Change from the previous version \\
+\midrule
+v2 & Baseline; \texttt{privilege\_escalation} deciding fields not rendered \\
+v4 & Renders authority-before/after into the call; 15 policy kinds \\
+v5 & 30 policy kinds (4 withheld in the kind split) \\
+v6 & Removes the injection label leak (\S\ref{sec:external}); fills the target argument for benign calls too; 300--2,000 character multi-format observations with the injected instruction at a random position \\
+\bottomrule
+\end{tabular}
+\caption{Generator versions. v3 is v2 with the policy splits and is reported only in the appendix. Row counts are 49,996 for v2 and v6.}
+\label{tab:versions}
+\end{table}
 
 \textbf{Arms.} A LoRA-adapted decoder \citep{hu2021lora} at 2B
 (\texttt{granite-3.3-2b-instruct}) and 8B, scored by candidate-token logits
-per dimension and temperature-calibrated on the calibration split; two
-linear-head encoders (ModernBERT-large \citep{warner2024modernbert},
-granite-embedding-r2); a deterministic rule baseline over action and
-destination fields; two zero-shot safety models given the same policy text
-in-prompt, Granite Guardian 3.3 8B \citep{padhi2024graniteguardian} and
-gpt-oss-safeguard 20B \citep{openai2025gptosssafeguard}; and an \emph{agent
-self-judgment} arm where the untrained 8B instruct model
-\citep{ibm2024granite3} gets the same context in an agent system prompt and
-returns one \textsc{allow}/\textsc{stop} verdict. We report AUPRC because
-positive rates range from 0.03 to 0.58; chance is the positive rate.
+per dimension and temperature-scaled on the calibration split
+\citep{guo2017calibration}; two linear-head encoders (ModernBERT-large
+\citep{warner2024modernbert}, granite-embedding-r2); a deterministic
+\emph{rule baseline} of field lookups, whose \texttt{policy\_conflict} rule is
+a constant and whose \texttt{unauthorized\_scope} rule does not intersect
+entitlements with delegated scope, so on those two dimensions it is an
+uninformative floor at the positive rate, not a symbolic policy engine; two
+zero-shot safety models given the same policy text as a custom criterion,
+Granite Guardian 3.3 8B \citep{padhi2024graniteguardian} and
+gpt-oss-safeguard 20B \citep{openai2025gptosssafeguard}, the latter emitting a
+binary verdict; and an \emph{agent self-judgment} arm in which the untrained
+8B instruct model \citep{ibm2024granite3} receives the same context in an
+agent system prompt and returns one \textsc{allow}/\textsc{stop} verdict.
+
+\textbf{Metrics.} We report AUPRC, whose chance level is the positive rate,
+with per-dimension evaluable $n$ and positive rate (287 to 6,653 rows; 0.07
+to 0.52). Seven dimensions are above 0.99 for the trained checker and four are
+solved by the rule baseline, so we also report a \emph{non-saturated macro}
+over the seven dimensions on which the rule baseline is below 0.9. Synthetic estimates are single-seed unless stated;
+external cells with saved per-example scores carry 95\% bootstrap intervals.
 
 \FloatBarrier

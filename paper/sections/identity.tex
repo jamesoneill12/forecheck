@@ -1,87 +1,98 @@
-\section{Identity ablation}
+\section{Identity ablation as a diagnostic}
 \label{sec:identity}
 
 At evaluation time only, we remove principal entitlements, delegated scope,
 \texttt{on\_behalf\_of}, and policy text from the trained decoder's rendered
 context (\texttt{--strip-identity}), leaving action, destination, and
-trajectory untouched. We compare against the rule baseline, the two zero-shot
-safety models, a decoder \emph{trained} on identity-free renderings, and the
-same ablation at 8B (Tables~\ref{tab:macro-summary} and
-\ref{tab:identity-ablation}; all eleven dimensions in
-Appendix~\ref{sec:appendix-identity}).
+trajectory untouched. Three labels are deterministic functions of the removed
+fields, so their collapse is expected; the ablation is informative about
+(i) how much the remaining content predicts them, (ii) whether anything else
+moves, and (iii) whether arms that keep the context use it. We compare
+against the rule baseline, a decoder \emph{trained} on identity-free
+renderings, the same ablation at 8B, and the zero-shot arms
+(Tables~\ref{tab:macro-summary} and \ref{tab:identity-ablation}; v2 and all
+dimensions in Appendix~\ref{sec:appendix-identity}).
 
-\begin{table}[htbp]
+\begin{table}[t]
 \centering
-\small
-\caption{Macro AUPRC with and without identity/policy context,
-\texttt{heldout\_family} unless noted. Zero-shot rows use a 2,000-row
-(Granite Guardian) or 400-row (gpt-oss-safeguard) subsample. Source:
-\texttt{docs/results/synthetic-v2/README.md}.}
-\label{tab:macro-summary}
-\begin{tabular}{lcc}
+\footnotesize
+\begin{tabular}{@{}lcc@{}}
 \toprule
 Arm & Full & Stripped \\
 \midrule
-Decoder 2B v2 & 0.915 & 0.736 \\
 Decoder 2B v4 & 0.960 & 0.790 \\
+\quad non-saturated macro (7 dims) & 0.939 & 0.672 \\
 Decoder 8B v4 & 0.958 & 0.786 \\
 Decoder 2B v4, trained stripped & --- & 0.784 \\
-Encoder ModernBERT-large & 0.813 & 0.712 \\
+Decoder 2B v2 & 0.915 & 0.736 \\
+Encoder ModernBERT-large v2 & 0.813 & 0.712 \\
 Rule baseline & 0.614 & 0.614 \\
-Granite Guardian 3.3 8B (zero-shot) & 0.257 & 0.271 \\
-gpt-oss-safeguard 20B (zero-shot, test) & 0.269 & 0.238 \\
-Agent self-judgment 8B (\S\ref{sec:selfjudgment}) & 0.242 & 0.281 \\
+\quad non-saturated macro (7 dims) & 0.404 & 0.404 \\
+Guardian 3.3 8B, 0-shot ($n{=}2000$) & 0.257 & 0.271 \\
+gpt-oss-safeguard 20B, binary ($n{=}400$) & 0.277 & 0.270 \\
+Agent self-judgment 8B ($n{=}2000$) & 0.242 & 0.281 \\
 \bottomrule
 \end{tabular}
+\caption{Macro AUPRC over eleven dimensions on \texttt{heldout\_family}, with and without identity/policy context. gpt-oss-safeguard emits a 0/1 verdict, so its AUPRC is a single operating point and is not comparable to the continuous-score rows.}
+\label{tab:macro-summary}
 \end{table}
 
-\begin{table}[htbp]
+\begin{table*}[t]
 \centering
 \small
-\caption{Decoder 2B v4, \texttt{heldout\_family} ($n{=}6653$) AUPRC per
-dimension: full input, identity removed at evaluation, identity removed at
-training, and rule baseline. Positive rate in parentheses. First three rows
-are the delegated-authority dimensions.}
-\label{tab:identity-ablation}
-\begin{tabular}{lcccc}
+\begin{tabular}{@{}lrcccc@{}}
 \toprule
-Dimension (pos.\ rate) & Full & Eval-stripped & Train-stripped & Rule \\
+Dimension & $n$ (pos.\ rate) & Full & Eval-stripped & Train-stripped & Rule \\
 \midrule
-\texttt{unauthorized\_scope} (0.106) & 0.999 & 0.125 & 0.107 & 0.507 \\
-\texttt{policy\_conflict} (0.385) & 0.964 & 0.392 & 0.429 & 0.370 \\
-\texttt{insufficient\_context} (0.079) & 0.841 & 0.412 & 0.357 & 0.232 \\
+\texttt{unauthorized\_scope} & 6335 (.108) & 0.999 & 0.125 & 0.107 & 0.507 \\
+\texttt{policy\_conflict} & 1834 (.371) & 0.964 & 0.392 & 0.429 & 0.370 \\
+\texttt{insufficient\_context} & 6653 (.087) & 0.841 & 0.412 & 0.357 & 0.232 \\
 \midrule
-\texttt{privilege\_escalation} (0.075) & 1.000 & 1.000 & --- & 0.364 \\
-\texttt{prompt\_injection\_influence} (0.075) & 0.804 & 0.806 & --- & 0.287 \\
-\texttt{financial\_commitment} & 1.000 & 1.000 & 1.000 & 1.000 \\
+\texttt{privilege\_escalation} & 6653 (.071) & 1.000 & 1.000 & --- & 0.364 \\
+\texttt{prompt\_injection\_influence}$^{\dagger}$ & 6653 (.082) & 0.804 & 0.806 & --- & 0.287 \\
+\texttt{financial\_commitment} & 6653 (.095) & 1.000 & 1.000 & 1.000 & 1.000 \\
 \bottomrule
 \end{tabular}
-\end{table}
+\caption{Decoder 2B v4, \texttt{heldout\_family}, AUPRC per dimension with evaluable $n$ and positive rate: full input, identity removed at evaluation, identity removed at training, and the rule baseline. First three rows are functions of the removed fields. $^{\dagger}$v4 text carries the injection label leak (\S\ref{sec:external}); its evidence is in the call arguments, which stripping does not touch.}
+\label{tab:identity-ablation}
+\end{table*}
 
-\textbf{The loss is confined to three dimensions.} Macro AUPRC falls 0.17,
-and Table~\ref{tab:identity-ablation} locates all of it.
-\texttt{unauthorized\_scope} falls below the rule baseline once the
-entitlements it must be checked against are gone; \texttt{policy\_conflict}
-falls to the rule floor because no clause is left to violate;
-\texttt{insufficient\_context} halves. Content and trajectory dimensions do
-not move: \texttt{privilege\_escalation} survives because the v4 renderer
-puts the deciding authority fields into the call text, and injection is read
-from the trajectory.
+\textbf{Residual content signal is small on two of the three dimensions.}
+Stripped, \texttt{unauthorized\_scope} sits at 0.125 against a 0.108 positive
+rate and \texttt{policy\_conflict} at 0.392 against 0.371: without the
+entitlements or the clause, the call text carries almost nothing about
+either. \texttt{insufficient\_context} retains 0.412 against 0.087, well above
+chance; \S\ref{sec:labelvalidity} shows a blind reader cannot recover this
+label from the text at all, so the residual is a generator regularity, not
+evidence about the question the label is meant to ask.
 
-\textbf{Not a fragile mechanism; scale does not recover it.} Training on
-identity-free renderings from the start gives the same ceiling as stripping
-at evaluation (macro 0.784 vs.\ 0.790, per-dimension within 0.06), so
-stripping did not merely break a shortcut: the information is absent from the
-content. An 8B decoder collapses identically (0.958 to 0.786) on the same
-three dimensions.
+\textbf{Nothing else moves, but most of it could not.} The eight remaining
+dimensions change by at most 0.002. Five are at 1.000 for the checker, three
+of those for the rule baseline too, so ``content dimensions are unaffected''
+is largely a ceiling effect. \texttt{privilege\_escalation} is unaffected
+because the v4 renderer writes the deciding authority fields into the call
+(before v4 it scored 0.46--0.53); the v4 injection score is unaffected because
+its evidence was an argument key in the call, not the observation
+(\S\ref{sec:external}). Both are labels decidable from the call only because
+the renderer put the deciding fact there.
 
-\textbf{Zero-shot safety models never used the context.} Their macro AUPRC is
-0.24--0.27, at chance, and unchanged or slightly higher when identity is
-removed. If a general safety model quietly used delegated-authority context,
-stripping would hurt; it does not, for either model. Both were trained for
-harm, jailbreak, and groundedness, not for checking an action against
-entitlements or a clause. This claim rests on the three dimensions being
-labels an independent reader can recover; \S\ref{sec:labelvalidity} finds
-that holds for two of the three.
+\textbf{Training without the fields gives the same ceiling.} A decoder
+trained on identity-free renderings reaches macro 0.784 against 0.790 for
+eval-time stripping, within 0.06 per dimension, so the drop is not a broken
+shortcut or a prompt-format shift; 8B collapses identically (0.958 to 0.786).
+
+\textbf{The zero-shot arms are at chance everywhere, not selectively.} Given
+the same policy text as a custom criterion, Granite Guardian and
+gpt-oss-safeguard score 0.26--0.28 macro, below the rule baseline's 0.614,
+and within 0.09 of the positive rate on ten of eleven dimensions each,
+including content dimensions the rule baseline solves exactly
+(Table~\ref{tab:zeroshot-perdim}); the exceptions are Guardian on
+\texttt{financial\_commitment} (0.38 against 0.09) and gpt-oss-safeguard on
+\texttt{policy\_conflict} (0.49 against 0.29, $n{=}103$). We validated the
+chat-template arguments for both models only against test doubles, so we
+cannot separate ``these models lack authorization reasoning'' from ``this
+prompt does not reach it,'' and stripping is uninformative for an arm already
+at chance. The supportable claim is narrow: an off-the-shelf guardrail given
+the policy as a custom criterion does not answer these questions here.
 
 \FloatBarrier

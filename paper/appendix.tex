@@ -9,23 +9,22 @@ deciding \texttt{authority\_before}/\texttt{authority\_after} fields into the
 tool-call text; in v2 they were never rendered and every arm scored 0.46--0.53
 on it, so it is omitted below.
 
-\begin{figure}[htbp]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=5.2in]{figures/fig_identity_ablation.pdf}
+\includegraphics[width=0.9\textwidth]{figures/fig_identity_ablation.pdf}
 \caption{Decoder 2B v2, per-dimension AUPRC on \texttt{heldout\_family}
 ($n{=}6640$): full model vs.\ identity-stripped vs.\ rule baseline, with each
 dimension's positive rate (chance) as a dashed line. The drop is confined to
 \texttt{unauthorized\_scope}, \texttt{policy\_conflict}, and
 \texttt{insufficient\_context}.}
 \label{fig:identity-ablation}
-\end{figure}
+\end{figure*}
 
-\begin{table}[htbp]
+\begin{table*}[t]
 \centering
 \small
 \caption{Decoder 2B v2, \texttt{heldout\_family} ($n{=}6640$) AUPRC per
-dimension: full, identity-stripped, and rule baseline. Source:
-\texttt{docs/results/synthetic-v2/README.md}.}
+dimension: full, identity-stripped, and rule baseline.}
 \label{tab:identity-ablation-v2}
 \begin{tabular}{lccc}
 \toprule
@@ -39,12 +38,37 @@ Dimension & Decoder (full) & Decoder (stripped) & Rule baseline \\
 \texttt{financial\_commitment} & 1.000 & 1.000 & 1.000 \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
+\begin{table*}[t]
+\centering
+\small
+\caption{Zero-shot safety models per dimension on \texttt{heldout\_family}: Granite Guardian 3.3 8B (yes/no logits, $n{=}2000$ subsample) AUPRC and AUROC, and gpt-oss-safeguard 20B (binary verdict, $n{=}400$ subsample) AUPRC, full context. Positive rates are each subsample's.}
+\label{tab:zeroshot-perdim}
+\begin{tabular}{lcccc}
+\toprule
+Dimension & pos.\ rate & Guardian AUPRC & Guardian AUROC & gpt-oss AUPRC \\
+\midrule
+\texttt{prompt\_injection\_influence} & 0.085 & 0.084 & 0.477 & 0.147 \\
+\texttt{unauthorized\_scope} & 0.112 & 0.091 & 0.396 & 0.135 \\
+\texttt{sensitive\_data\_exposure} & 0.210 & 0.294 & 0.625 & 0.282 \\
+\texttt{untrusted\_destination} & 0.363 & 0.398 & 0.543 & 0.364 \\
+\texttt{privilege\_escalation} & 0.065 & 0.069 & 0.494 & 0.092 \\
+\texttt{destructive\_or\_irreversible\_action} & 0.093 & 0.125 & 0.588 & 0.149 \\
+\texttt{financial\_commitment} & 0.087 & 0.380 & 0.870 & 0.098 \\
+\texttt{external\_communication} & 0.639 & 0.599 & 0.368 & 0.775 \\
+\texttt{policy\_conflict} & 0.311 & 0.355 & 0.555 & 0.495 \\
+\texttt{suspicious\_action\_sequence} & 0.317 & 0.360 & 0.568 & 0.408 \\
+\texttt{insufficient\_context} & 0.084 & 0.072 & 0.439 & 0.099 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\FloatBarrier
 \section{Policy generalization: macro AUPRC and per-seed values}
 \label{sec:appendix-generalisation}
 
-\begin{table}[htbp]
+\begin{table*}[t]
 \centering
 \footnotesize
 \caption{Decoder 2B, macro AUPRC and \texttt{policy\_conflict} (pc) AUPRC
@@ -52,8 +76,10 @@ across splits for the v3 (15 policy kinds, 2 withheld), v4 (same data,
 \texttt{privilege\_escalation} render fix), and v5 (30 kinds, 4 withheld)
 generators, seed 0; last column an 8B LoRA on v4 data, seed 0. Three-seed
 values for the \texttt{heldout\_policy\_kind} pc cell: v4 0.752, 0.689, 0.711;
-v5 0.704, 0.755, 0.717; 8B v4 (two seeds) 0.851, 0.825. Source:
-\texttt{docs/results/synthetic-v2/README.md}.}
+v5 0.704, 0.755, 0.717; 8B v4 (two seeds) 0.851, 0.825. The kind-split
+cells below are seed 0, so they differ from the seed means in
+Table~\ref{tab:policy-generalisation}. Rule baseline \texttt{policy\_conflict}
+on the kind split: 0.405 (v3/v4), 0.325 (v5), equal to the positive rate.}
 \label{tab:policy-generalisation-full}
 \begin{tabular}{lccccccc}
 \toprule
@@ -65,11 +91,11 @@ heldout\_policy\_kind & 0.889 & 0.944 & 0.941 & 0.653 & 0.752 & 0.704 & 0.851 \\
 heldout\_policy\_phrasing & 0.921 & 0.968 & 0.970 & 0.987 & 0.993 & 0.980 & 0.978 \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
-\begin{figure}[htbp]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=5.2in]{figures/fig_policy_generalisation.pdf}
+\includegraphics[width=0.9\textwidth]{figures/fig_policy_generalisation.pdf}
 \caption{Decoder 2B, \texttt{policy\_conflict} AUPRC across splits for the
 v3, v4, and v5 generators, plus the 8B LoRA on v4 data, with the rule
 baseline's \texttt{policy\_conflict} AUPRC on each split shown as a line.
@@ -77,7 +103,7 @@ Bars for test, \texttt{heldout\_family}, and \texttt{heldout\_policy\_phrasing}
 sit near the ceiling; \texttt{heldout\_policy\_kind} drops toward, though
 still above, the rule baseline, for every generator and both sizes.}
 \label{fig:policy-generalisation}
-\end{figure}
+\end{figure*}
 
 The v4 render fix also confirms that \texttt{privilege\_escalation}'s earlier
 AUROC-high/AUPRC-low signature was a data defect, not a model limit:
@@ -89,75 +115,91 @@ rendering the deciding fields lifts it from 0.505 to 1.000 AUPRC on
 
 Table~\ref{tab:stacking-full} extends Table~\ref{tab:stacking-main} with the
 \texttt{joint} strategy (rules from all $k$ policies merged into one bundle
-and evaluated once in threshold mode), false negative rate, and review rate.
-\texttt{independent} and \texttt{joint} are identical at $k{\le}2$ because the
-synthetic stacking policies use only plain rules, so the engine's combination
-logic has nothing to do differently; they diverge at $k{=}3$ only through
-threshold interaction. The $k{=}1$ row already trades false positives for
-false negatives relative to the F1-optimal threshold (FPR/FNR 0.058/0.170
-vs.\ 0.015/0.253) because the default cost table is severity-weighted.
+and evaluated once in threshold mode), review rate, covered-benign count,
+and the mean risk-weighted cost the expected-cost rule optimises. The stack
+order is \texttt{permissive}, \texttt{balanced}, \texttt{conservative},
+\texttt{expected-cost-example}, then eleven single-dimension synthetic
+policies in enum order (k = 5..15); the synthetic policies change no FPR
+value. The covered-benign denominator changes from 3,785 at $k{=}1$ to 2,790
+at $k{\ge}2$, so the $k{=}1$ row is on a different population from the rest.
+All rows are the v2 decoder and the v2 encoder on v2 data.
 
-\begin{table}[htbp]
+\begin{table*}[t]
 \centering
 \small
-\caption{Multi-policy stacking, \texttt{heldout\_family} ($n{=}6640$).
-Source: \texttt{docs/evaluation/multi-policy-stacking.md}.}
+\caption{Multi-policy stacking, v2 \texttt{heldout\_family} ($n{=}6640$). FPR counts \textsc{review} as a false positive.}
 \label{tab:stacking-full}
-\begin{tabular}{llcccc}
+\begin{tabular}{llcccccc}
 \toprule
-Arm & $k$ & Strategy & FPR & FNR & Review rate \\
+Arm & $k$ & Strategy & FPR & FNR & Review & Benign cov. & Cost \\
 \midrule
-Decoder 2B & 1 & any & 0.015 & 0.253 & 0.31 \\
-Decoder 2B & 2 & independent & 0.140 & 0.080 & 0.30 \\
-Decoder 2B & 2 & expected\_cost\_joint & 0.082 & 0.070 & 0.28 \\
-Decoder 2B & 3 & independent & \textbf{0.966} & 0.016 & 0.66 \\
-Decoder 2B & 3 & joint & 0.905 & 0.051 & 0.63 \\
-Decoder 2B & 3 & expected\_cost\_joint & 0.082 & 0.070 & 0.28 \\
-Decoder 2B & 8 & independent & 0.966 & 0.007 & 0.58 \\
-Decoder 2B & 8 & expected\_cost\_joint & 0.082 & 0.070 & 0.28 \\
+Decoder 2B & 1 & independent / joint & 0.015 & 0.253 & 0.31 & 3785 & 1.038 \\
+Decoder 2B & 1 & expected\_cost & 0.058 & 0.170 & 0.37 & 3785 & 0.805 \\
+Decoder 2B & 2 & independent & 0.140 & 0.080 & 0.30 & 2790 & 0.194 \\
+Decoder 2B & 2 & joint & 0.131 & 0.105 & 0.28 & 2790 & 0.256 \\
+Decoder 2B & 2 & expected\_cost & 0.082 & 0.070 & 0.28 & 2790 & 0.125 \\
+Decoder 2B & 3 & independent & \textbf{0.966} & 0.016 & 0.66 & 2790 & 0.202 \\
+Decoder 2B & 3 & joint & 0.905 & 0.051 & 0.63 & 2790 & 0.290 \\
+Decoder 2B & 3 & expected\_cost & 0.082 & 0.070 & 0.28 & 2790 & 0.125 \\
+Decoder 2B & 8 & independent & 0.966 & 0.007 & 0.58 & 2790 & 0.139 \\
+Decoder 2B & 8 & expected\_cost & 0.082 & 0.070 & 0.28 & 2790 & 0.125 \\
+Decoder 2B & 15 & independent & 0.967 & 0.003 & 0.40 & 2790 & 0.114 \\
+Decoder 2B & 15 & expected\_cost & 0.082 & 0.070 & 0.28 & 2790 & 0.125 \\
 \midrule
-Encoder granite-r2 & 2 & independent & 0.710 & 0.042 & 0.26 \\
-Encoder granite-r2 & 2 & expected\_cost\_joint & 0.921 & 0.010 & 0.37 \\
-Encoder granite-r2 & 3 & independent & 0.990 & 0.008 & 0.21 \\
-Encoder granite-r2 & 3 & expected\_cost\_joint & 0.921 & 0.010 & 0.37 \\
+Encoder granite-r2 & 1 & independent / joint & 0.346 & 0.163 & 0.53 & 3785 & 0.790 \\
+Encoder granite-r2 & 1 & expected\_cost & 0.589 & 0.050 & 0.71 & 3785 & 0.449 \\
+Encoder granite-r2 & 2 & independent & 0.710 & 0.042 & 0.26 & 2790 & 0.159 \\
+Encoder granite-r2 & 2 & expected\_cost & 0.921 & 0.010 & 0.37 & 2790 & 0.107 \\
+Encoder granite-r2 & 3 & independent & 0.990 & 0.008 & 0.21 & 2790 & -- \\
+Encoder granite-r2 & 3 & expected\_cost & 0.921 & 0.010 & 0.37 & 2790 & -- \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
-\begin{figure}[htbp]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=5.2in]{figures/fig_stacking.pdf}
+\includegraphics[width=0.9\textwidth]{figures/fig_stacking.pdf}
 \caption{Decoder 2B, FPR (left) and FNR (right) vs.\ number of stacked
 policies $k$ on \texttt{heldout\_family} ($n{=}6640$), for
 \texttt{independent}, \texttt{joint}, and \texttt{expected\_cost\_joint}
 strategies; the granite-embedding-r2 encoder's \texttt{expected\_cost\_joint}
-curve is dotted. The flat decoder curve is a property of its calibration, not
-of the decision rule: the encoder's curve under the same rule sits near the top
-of the FPR panel.}
+curve is dotted. The \texttt{independent} step at $k{=}3$ is the fail-closed
+\texttt{conservative} bundle entering; the flat \texttt{expected\_cost} lines
+follow from the covered set saturating at $k{=}2$ (\S\ref{sec:composition}).}
 \label{fig:stacking}
-\end{figure}
+\end{figure*}
 
 \section{Approval elimination}
 \label{sec:appendix-approval}
 
-The product-facing metric is how many of a deployment's human-approval
-reviews can be automated at a chosen incident rate: sort examples by the
-decoder's expected cost of \textsc{allow} and ask what fraction of the review
-queue can be auto-decided while the fraction of auto-allowed actions that are
-actually risky stays under a budget. Because \texttt{heldout\_family} is
-adversarial-heavy (58\% base incident rate), Table~\ref{tab:approval} reports
-both the raw curve and a curve importance-reweighted to a 5\% deployment
-incident rate, with elimination computed conservatively via a 95\% Wilson
-upper bound \citep{wilson1927probable} on the realized incident rate in the
-auto-allowed set.
+The product-facing quantity is how many actions can be auto-allowed at a
+chosen incident rate: sort examples by the decoder's expected cost of
+\textsc{allow} and take the longest prefix whose realised incident rate
+(fraction of auto-allowed actions carrying a \texttt{yes} on a
+high-severity dimension) stays under a budget. This \emph{is} a
+probabilistic authorization decision; it is not the ``review pricing''
+posture of \S\ref{sec:setup}, and a deployment adopting it takes on that
+audit burden. The denominator below is \emph{all scored actions}, not the
+subset a bundle would otherwise route to review, so the numbers are
+``fraction of traffic auto-allowed,'' not ``fraction of the review queue
+removed''; the two differ by the baseline review rate. Because
+\texttt{heldout\_family} is adversarial-heavy (58\% base incident rate),
+Table~\ref{tab:approval} reports both the raw curve and a curve
+importance-reweighted to an \emph{assumed} 5\% deployment incident rate
+(weights 0.086 on risky and 2.26 on benign rows), which is valid only if
+deployment traffic has the same class-conditional score distributions as
+this split. Elimination is computed with a 95\% Wilson upper bound
+\citep{wilson1927probable} on the realised incident rate in the auto-allowed
+set, applied to weighted counts, which understates the interval's width.
 
-\begin{table}[htbp]
+\begin{table*}[t]
 \centering
 \small
 \caption{Decoder 2B, approval elimination on \texttt{heldout\_family} (v2
 $n{=}6640$, v4 $n{=}6653$), bundle \texttt{balanced}. ``raw'' is the split's
 own 57--58\% base incident rate; ``rw'' reweights rows so the incident rate is
-5\%. Source: \texttt{docs/evaluation/approval-elimination.md}.}
+5\%. Zeros below a 1\% budget mean the Wilson bound is unreachable at this
+sample size, not that nothing can be allowed.}
 \label{tab:approval}
 \begin{tabular}{lcccc}
 \toprule
@@ -170,38 +212,39 @@ Budget & Elim.\ (v2, raw) & Elim.\ (v2, rw) & Elim.\ (v4, rw) & Review (v4, rw) 
 5\% & 0.000 & 0.992 & 0.992 & 0.001 \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
-\begin{figure}[htbp]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=3.3in]{figures/fig_approval_curve.pdf}
+\includegraphics[width=0.55\textwidth]{figures/fig_approval_curve.pdf}
 \caption{Approvals eliminated vs.\ incident budget, reweighted to a 5\%
 deployment incident rate, decoder 2B v2 and v4 on \texttt{heldout\_family}
 and v4 on test, log-scaled budget axis. The three curves nearly overlap.}
 \label{fig:approval-curve}
-\end{figure}
+\end{figure*}
 
-At a 5\% deployment incident rate the calibrated decoder auto-allows
-88.8--99.2\% of actions that would otherwise need review while keeping the
-allowed-but-risky rate under budget. The unweighted column is near zero
-because the split's top-ranked rows already contain risky examples by
-construction; it is a ceiling of the split's design, not of the classifier.
-Below a 1\% budget the Wilson bound cannot be met at this sample size and the
-conservative curve reports zero.
+Under the 5\% assumption the calibrated decoder auto-allows 88.8\% of scored
+actions at a 1\% incident budget and 99.2\% at 5\%. The unweighted column is
+zero at every budget because the split's top-ranked rows already contain
+risky examples by construction. The result is therefore a synthetic ranking
+curve multiplied by an assumed prior; a sweep over the assumed rate, the rule
+baseline's and encoder's curves under the same procedure, and the
+\texttt{insufficient\_context}-excluded variant (\S\ref{sec:labelvalidity})
+have not been run.
 
 \section{Agent self-judgment: all dimensions}
 \label{sec:appendix-selfjudgment}
 
-\begin{figure}[htbp]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=5.2in]{figures/fig_self_judgment.pdf}
+\includegraphics[width=0.9\textwidth]{figures/fig_self_judgment.pdf}
 \caption{Per-dimension AUPRC on \texttt{heldout\_family} ($n{=}2000$ for the
 agent-self-8B rows, $n{=}6653$ for the decoder), positive rate as a dashed
 line. The agent's bars track chance everywhere except
 \texttt{policy\_conflict} and \texttt{external\_communication}; the external
 checker clears 0.84 on every dimension.}
 \label{fig:self-judgment}
-\end{figure}
+\end{figure*}
 
 The checker beats the agent's single-verdict score on all eleven dimensions
 by 0.45--0.90 AUPRC. The small identity signal that does exist in the agent
@@ -212,14 +255,15 @@ agent-self condition behaves the same way and is omitted.
 \section{Blind judge: full agreement table}
 \label{sec:appendix-judge}
 
-\begin{table}[htbp]
+\begin{table*}[t]
 \centering
 \small
-\caption{Independent LLM-judge agreement with the generator label, yes vs.\
+\caption{Blind LLM-judge agreement with the generator label, yes vs.\
 not-yes, $n{=}600$ \texttt{v4} rows (gpt-5.6-sol, blind to the generator's
-latent scenario), full and identity-stripped renderings.
-Agreement/recall/precision are for the full-context pass. Source:
-\texttt{docs/results/judge/README.md}.}
+latent scenario, one prompt, definitions copied from the generator's
+docstrings), full and identity-stripped renderings.
+Agreement/recall/precision are for the full-context pass. No intervals; the
+injection row is on leaked text.}
 \label{tab:judge-agreement-full}
 \begin{tabular}{lccccc}
 \toprule
@@ -240,17 +284,17 @@ Dimension & $\kappa$ full & $\kappa$ stripped & Agreement & Judge recall & Judge
 \texttt{sensitive\_data\_exposure} & 0.002 & 0.061 & 0.783 & 0.17 & 0.08 \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
-\begin{figure}[htbp]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=5.2in]{figures/fig_judge_agreement.pdf}
+\includegraphics[width=0.9\textwidth]{figures/fig_judge_agreement.pdf}
 \caption{Yes-vs-not-yes $\kappa$ per dimension, sorted, with the recoverable
 (0.7) and not-recoverable (0.2) tier lines.}
 \label{fig:judge-agreement}
-\end{figure}
+\end{figure*}
 
-\begin{table}[htbp]
+\begin{table*}[t]
 \centering
 \small
 \caption{AUPRC against the judge's labels on the judged \texttt{heldout\_family}
@@ -277,23 +321,26 @@ Dimension & Decoder 2B v4 & Rule baseline & Decoder vs.\ generator labels \\
 \texttt{financial\_commitment} & 0.327 & 0.280 & 1.000 \\
 \texttt{insufficient\_context} & 0.090 & 0.090 & 0.841 \\
 \midrule
-macro & 0.613 & 0.415 & 0.960 \\
+macro, 11 dims & 0.613 & 0.415 & 0.960 \\
+macro, 10 dims (injection excluded) & 0.574 & 0.411 & 0.976 \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 \section{External benchmarks: full tables}
 \label{sec:appendix-external}
 
-\begin{table}[htbp]
+\begin{table*}[t]
 \centering
 \small
 \caption{AUPRC on AgentDojo banking traces, zero-shot, $n{=}4{,}215$
 ($n{=}4{,}133$ for injection). \texttt{untrusted\_destination} has positives
 only and is excluded from macro. Guardian and agent-self rows are on a fixed
-1,000-row subsample. Macro ECE of the calibrated arms is 0.20--0.27 here
-against under 0.03 on synthetic data. Source:
-\texttt{docs/results/agentdojo/README.md}.}
+1,000-row subsample whose positive rates differ from the full set's
+(\texttt{unauthorized\_scope} 0.166 vs.\ 0.253). Macro ECE of the calibrated
+arms is 0.20--0.27 here against under 0.03 on synthetic data; the
+eval-stripped rows are raw margins without a calibrator. Macro here is over
+five dimensions.}
 \label{tab:agentdojo}
 \begin{tabular}{lcccccc}
 \toprule
@@ -315,17 +362,17 @@ Granite Guardian 3.3 8B & 0.103 & 0.289 & 0.224 & 0.257 & 0.217 & 0.218 \\
 Agent-self 8B (\textsc{allow}/\textsc{stop}) & 0.291 & 0.442 & 0.449 & 0.591 & 0.105 & 0.375 \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
-\begin{table}[htbp]
+\begin{table*}[t]
 \centering
 \small
 \caption{AUPRC on InjecAgent, zero-shot, $n{=}4{,}250$ ($n{=}3{,}196$ for
 injection, positive rate 0.500). Pair win: fraction of the 1,598
 poisoned/clean pairs on which the poisoned variant scores higher on injection;
 tie: fraction with identical raw score. Baseline rows on a fixed 1,000-row
-subsample (injection $n{=}767$). Source:
-\texttt{docs/results/injecagent/README.md}.}
+subsample (injection $n{=}767$, positive rate 0.471). Macro is over five
+dimensions.}
 \label{tab:injecagent}
 \begin{tabular}{lcccccc|cc}
 \toprule
@@ -344,16 +391,36 @@ Granite Guardian 3.3 8B & 0.511 & 0.613 & 0.359 & 0.102 & 0.197 & 0.356 & -- & -
 Agent-self 8B (\textsc{allow}/\textsc{stop}) & 0.530 & 1.000 & 0.647 & 0.061 & 0.178 & 0.483 & -- & -- \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
-\begin{table}[htbp]
+\begin{table*}[t]
+\centering
+\small
+\caption{InjecAgent pair audit over the 1,598 poisoned/clean pairs: wins, ties, and losses of the poisoned variant on the injection raw margin; two-sided sign test on decided pairs; strict win on the 972 pairs whose destination-trust field is equal in both members; and 95\% bootstrap intervals (2,000 resamples over examples) for AUPRC on the three headline dimensions. In every pair the poisoned observation is longer than the clean one.}
+\label{tab:injecagent-audit}
+\begin{tabular}{lrrrcc|ccc}
+\toprule
+Arm & W & T & L & $p$ & win, trust eq. & injection CI & scope CI & policy CI \\
+\midrule
+2B v4 & 806 & 382 & 410 & $3{\times}10^{-30}$ & 0.638 & [0.527, 0.572] & [0.714, 0.751] & [0.959, 0.971] \\
+8B v4 & 564 & 616 & 418 & $4{\times}10^{-6}$ & 0.307 & [0.520, 0.566] & [0.835, 0.863] & [0.973, 0.981] \\
+8B v4, stripped & 611 & 634 & 353 & $8{\times}10^{-17}$ & 0.360 & [0.534, 0.579] & [0.831, 0.856] & [0.963, 0.973] \\
+2B v6 & 1562 & 8 & 28 & $<10^{-300}$ & 0.963 & [0.866, 0.890] & [0.685, 0.722] & [0.913, 0.931] \\
+8B v6 & 1562 & 19 & 17 & $<10^{-300}$ & 0.970 & [0.936, 0.950] & [0.660, 0.695] & [0.960, 0.970] \\
+8B v6, stripped & 1563 & 25 & 10 & $<10^{-300}$ & 0.972 & [0.947, 0.959] & [0.910, 0.925] & [0.958, 0.968] \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table*}[t]
 \centering
 \small
 \caption{AgentDojo, all four suites (30,143 proposed calls: banking 4,215,
 slack 8,246, travel 10,701, workspace 6,981), \texttt{prompt\_injection\_influence}
 AUPRC / AUROC per suite, positive rate in the header. v4 checkers only; the
-v6 checkers have not been run on this export. Source:
-\texttt{docs/results/agentdojo/README.md}.}
+v6 checkers have not been run on this export. 2B v4's below-0.5 AUROC on
+banking and workspace is systematic, not noise: calls preceded by a tool
+result score about a quarter-logit lower on this head.}
 \label{tab:agentdojo-suites}
 \begin{tabular}{lcccc}
 \toprule
@@ -366,17 +433,17 @@ Decoder 8B v4 & 0.701 / 0.895 & 0.433 / 0.738 & 0.131 / 0.834 & 0.752 / 0.941 \\
 Agent-self 8B & 0.354 / 0.832 & 0.292 / 0.687 & 0.026 / 0.484 & 0.246 / 0.866 \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
-\begin{figure}[htbp]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=5.2in]{figures/fig_agentdojo.pdf}
+\includegraphics[width=0.9\textwidth]{figures/fig_agentdojo.pdf}
 \caption{AUPRC on AgentDojo banking traces for the three learned dimensions:
 rule baseline, decoder 2B v4, 2B v4 eval-stripped, decoder 8B v4, and the
 leak-free 2B v6 and 8B v6, zero-shot, with each dimension's positive rate as
 a dashed line.}
 \label{fig:agentdojo}
-\end{figure}
+\end{figure*}
 
 \textbf{Per-example logits.} The 2B v4 injection head never fires on
 AgentDojo: raw logits for all 4,133 evaluable calls lie between $-5.0$ and
@@ -398,8 +465,8 @@ random half of the AgentDojo banking calls and testing on the other half
 (five seeds) gives macro ECE 0.008 (2B) and 0.010 (8B) with AUPRC unchanged;
 the 8B \texttt{unauthorized\_scope} head goes from ECE 0.60 to 0.01 by
 learning to output the base rate. Most of the gain is reached with 250--500
-labelled calls (\texttt{scripts/agentdojo\_recalibrate.py},
-\texttt{docs/results/agentdojo/recalibration.md}).
+labelled calls; the sweep is 8B only, isotonic only, on two of the five
+dimensions, and Platt refits are much worse (macro ECE 0.030 / 0.048).
 
 \textbf{Other suites.} \texttt{unauthorized\_scope} outside banking is carried
 by the rule baseline (0.749 on slack, 0.733 on workspace, where nearly half of
@@ -426,10 +493,20 @@ the target argument key from the tool kind and fills it for benign calls too,
 draws targets from pools shared between injected and benign calls, and
 renders 300--2,000 character multi-format observations with the instruction
 at a random position. A leakage check on argument-key presence parity and a
-token denylist runs before training. Judge agreement on
-\texttt{prompt\_injection\_influence} ($\kappa{=}0.905$,
-Table~\ref{tab:judge-agreement-full}) was measured on v4 text and has not been
-re-run on v6. Full write-up:
-\texttt{docs/results/notes/injection-label-leak-diagnosis.md}.
+token denylist now runs before training; such a check would have caught this
+leak from the synthetic data alone, so the accurate statement is that no
+synthetic \emph{held-out split} could reveal it, not that nothing synthetic
+could. Why the synthetic metric did not move: the generator draws the
+injection label from two origins, an injected instruction in untrusted
+content (probability 0.06 when untrusted content is present) and a
+compromised tool schema (0.02, with no untrusted text rendered), so about a
+quarter of positives carry no injected text. A detector reading only the
+observation and a detector reading only the leaked key are both capped near
+0.75--0.80 AUPRC on this label; the v4 and v6 checkers score 0.80 and 0.79.
+An earlier draft stated that a key-presence detector would score 1.0; that
+was wrong. Judge agreement on \texttt{prompt\_injection\_influence}
+($\kappa{=}0.905$, Table~\ref{tab:judge-agreement-full}) was measured on v4
+text and has not been re-run on v6. An AUPRC split by label origin would
+show what the head reads and has not been computed.
 
 \FloatBarrier
