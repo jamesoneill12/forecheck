@@ -67,10 +67,12 @@ baselines at or near base rate, while the 2B checker fails outright on
 injection. On InjecAgent, which holds the call fixed and varies only whether
 the attacker's instruction is in the tool output, neither checker separates
 poisoned from clean (AUROC 0.53--0.60), so what transferred was call-level
-judgement, not reading of untrusted text. We trace the 2B failure to a label
-leak in our generator, fix it, and retrain: the leak-free checkers reach 0.69
-(2B) and 0.84 (8B) AUPRC on AgentDojo injection while their synthetic
-injection score falls from a leaked 1.00 to 0.79. All other results are on synthetic data;
+judgement, not reading of untrusted text. We trace this to a label leak in
+our generator, fix it, and retrain: the leak-free checkers reach 0.69 (2B)
+and 0.84 (8B) AUPRC on AgentDojo injection, the 2B checker ranks the poisoned
+InjecAgent variant above its clean twin on 98\% of pairs (50\% before), and
+the synthetic injection score does not move (0.80 to 0.79), so the leak had
+hidden what was learned, not inflated the score. All other results are on synthetic data;
 we are explicit about what that does and does not license.
 \end{abstract}
 

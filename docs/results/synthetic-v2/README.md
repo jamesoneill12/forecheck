@@ -73,6 +73,9 @@ thresholds selected on `dev`. Sections marked *pending* are filled in as jobs fi
 | decoder 8B v4 | heldout_policy_kind | 0.951 | 0.014 | 0.937 |
 | decoder 8B v4 | heldout_policy_phrasing | 0.964 | 0.005 | 0.955 |
 | decoder 8B v4 seed 1 | test | 0.948 | 0.008 | 0.942 |
+| decoder 8B v4 seed 1 | heldout_family | 0.949 | 0.007 | 0.940 |
+| decoder 8B v4 seed 1 | heldout_policy_kind | 0.941 | 0.019 | 0.929 |
+| decoder 8B v4 seed 1 | heldout_policy_phrasing | 0.955 | 0.007 | 0.946 |
 | decoder 8B v4, identity stripped | test | 0.784 | 0.007 | 0.810 |
 | decoder 8B v4, identity stripped | heldout_family | 0.786 | 0.011 | 0.811 |
 | decoder 2B v4 seed 2 | test | 0.960 | 0.002 | |
@@ -110,6 +113,14 @@ thresholds selected on `dev`. Sections marked *pending* are filled in as jobs fi
 | rule baseline | test | 0.609 | 0.119 | |
 | rule baseline | heldout_family | 0.614 | 0.122 | |
 | rule baseline, identity stripped | heldout_family | 0.614 | 0.122 | |
+| decoder 2B v6 | test | 0.955 | 0.003 | 0.955 |
+| decoder 2B v6 | heldout_family | 0.951 | 0.008 | 0.941 |
+| decoder 2B v6 | heldout_policy_kind | 0.938 | 0.027 | 0.922 |
+| decoder 2B v6 | heldout_policy_phrasing | 0.969 | 0.007 | 0.957 |
+| decoder 8B v6 | test | 0.955 | 0.004 | 0.950 |
+| decoder 8B v6 | heldout_family | 0.952 | 0.005 | 0.947 |
+| decoder 8B v6 | heldout_policy_kind | 0.945 | 0.013 | 0.936 |
+| decoder 8B v6 | heldout_policy_phrasing | 0.968 | 0.006 | 0.960 |
 
 Reference: decoder 2B v1 (30k rows, pre-fix generator) scored 0.820 / 0.826 macro AUPRC
 on test / heldout, see `../2b-synthetic-v1/`.
@@ -500,6 +511,17 @@ unseen-kind result outside the noise the 15-kind recipe already showed.
 `policy_conflict` on `heldout_policy_kind`: seed 0 0.752, seed 1 0.689, seed 2 0.711 --
 mean 0.717, sample sd 0.032 (n=3).
 
+8B seeds 0 vs 1 (`decoder-8b-v4/`, `decoder-8b-v4-seed1/`): macro AUPRC moves more between
+seeds than at 2B -- test 0.956 to 0.948, heldout_family 0.958 to 0.949, heldout_policy_kind
+0.951 to 0.941, heldout_policy_phrasing 0.964 to 0.955, a 0.008-0.010 shift on every split
+versus the 2B seed spread of 0.0004-0.0029 above. Two dimensions carry most of it:
+`heldout_policy_kind` `policy_conflict` is 0.851 (seed 0) vs 0.825 (seed 1) AUPRC, and
+`insufficient_context` on `test` is 0.767 (seed 0) vs 0.682 (seed 1) AUPRC. With only two
+8B seeds this is not yet a sample sd, but it means the "8B comparison (0.851, clearly
+outside it)" reasoning above should be read with more caution: at 8B, seed alone moves the
+`heldout_policy_kind` `policy_conflict` cell by 0.026, comparable in size to part of the
+15-kind-vs-30-kind gap it was being compared against.
+
 Macro AUPRC is stable to about 0.0004-0.0029 across all three seeds on every split, the
 same noise floor the two-seed estimate already showed. The third seed does not change
 the conclusion: `heldout_policy_kind` `policy_conflict` still swings by 0.06 peak-to-peak
@@ -666,6 +688,75 @@ dominated by single rows. The unweighted column is near zero because the first-r
 rows on this adversarial split already contain risky examples; it is the ceiling of the
 split, not of the model. v4 matches v2 within a point at every budget, on both
 held-out tools and in-distribution test, so the number is stable across the data fix.
+
+## v6: leak-free generator (decoder-2b-v6/, decoder-8b-v6/)
+
+v6 regenerates the data (`data/v6`, 49,996 rows) with a renderer fix that removes the
+`prompt_injection_influence` argument-key leak; see
+`docs/results/notes/injection-label-leak-diagnosis.md`, "Fix (generator v6)", for what the
+leak was and what changed. Same recipe as v4 otherwise; the 2B checker trains at
+micro-batch 16, the 8B at micro-batch 4 x grad-accum 2 (v6's longer observations OOM the
+8B at micro-batch 8).
+
+Per-dimension AUPRC/AUROC, v4 vs v6, both sizes:
+
+### test
+
+| dimension | 2B v4 | 2B v6 | 8B v4 | 8B v6 |
+|---|---|---|---|---|
+| prompt_injection_influence | 0.802/0.901 | 0.788/0.893 | 0.791/0.898 | 0.795/0.898 |
+| unauthorized_scope | 1.000/1.000 | 1.000/1.000 | 1.000/1.000 | 1.000/1.000 |
+| sensitive_data_exposure | 1.000/1.000 | 1.000/1.000 | 1.000/1.000 | 1.000/1.000 |
+| untrusted_destination | 1.000/1.000 | 1.000/1.000 | 1.000/1.000 | 1.000/1.000 |
+| privilege_escalation | 1.000/1.000 | 1.000/1.000 | 1.000/1.000 | 1.000/1.000 |
+| destructive_or_irreversible_action | 0.993/0.999 | 0.996/1.000 | 0.995/0.999 | 0.996/1.000 |
+| financial_commitment | 1.000/1.000 | 1.000/1.000 | 1.000/1.000 | 1.000/1.000 |
+| external_communication | 1.000/1.000 | 1.000/1.000 | 1.000/1.000 | 1.000/1.000 |
+| policy_conflict | 0.994/0.996 | 0.992/0.996 | 0.990/0.992 | 0.984/0.989 |
+| suspicious_action_sequence | 0.979/0.987 | 0.956/0.977 | 0.974/0.984 | 0.961/0.978 |
+| insufficient_context | 0.793/0.908 | 0.771/0.902 | 0.767/0.903 | 0.774/0.894 |
+
+### heldout_family
+
+| dimension | 2B v4 | 2B v6 | 8B v4 | 8B v6 |
+|---|---|---|---|---|
+| prompt_injection_influence | 0.804/0.899 | 0.787/0.899 | 0.786/0.886 | 0.790/0.901 |
+| unauthorized_scope | 0.999/1.000 | 1.000/1.000 | 0.999/0.999 | 0.999/1.000 |
+| sensitive_data_exposure | 1.000/1.000 | 1.000/1.000 | 1.000/1.000 | 1.000/1.000 |
+| untrusted_destination | 1.000/1.000 | 1.000/1.000 | 1.000/1.000 | 1.000/1.000 |
+| privilege_escalation | 1.000/1.000 | 1.000/1.000 | 1.000/1.000 | 1.000/1.000 |
+| destructive_or_irreversible_action | 0.992/0.999 | 0.994/0.999 | 0.991/0.999 | 0.994/0.999 |
+| financial_commitment | 1.000/1.000 | 1.000/1.000 | 1.000/1.000 | 1.000/1.000 |
+| external_communication | 1.000/1.000 | 1.000/1.000 | 1.000/1.000 | 1.000/1.000 |
+| policy_conflict | 0.964/0.969 | 0.935/0.966 | 0.965/0.978 | 0.952/0.977 |
+| suspicious_action_sequence | 0.966/0.980 | 0.951/0.973 | 0.963/0.979 | 0.946/0.969 |
+| insufficient_context | 0.841/0.931 | 0.793/0.909 | 0.834/0.926 | 0.794/0.901 |
+
+1. `prompt_injection_influence` raw AUPRC/AUROC on test barely moves -- 0.802/0.901 (2B
+   v4) to 0.788/0.893 (2B v6), 0.791/0.898 (8B v4) to 0.795/0.898 (8B v6) -- but per the
+   leak diagnosis the v4 number was reachable by a trivial key-presence detector
+   (`instructed_target` present in 100% of injected calls, 0% of benign ones); v6 removes
+   that key. So ~0.79-0.80 AUPRC is the first synthetic score on this dimension that is
+   not inflated by a known shortcut, and it is now the second-hardest dimension in the
+   table after `insufficient_context`.
+2. Every pure-lookup dimension (`unauthorized_scope`, `sensitive_data_exposure`,
+   `untrusted_destination`, `privilege_escalation`, `financial_commitment`,
+   `external_communication`, `destructive_or_irreversible_action`) is unchanged to
+   within 0.005 at both sizes, as expected -- the renderer fix only touches the
+   injection scenario.
+3. The dimensions that move more than 0.02 are `policy_conflict` and
+   `insufficient_context`, on the harder splits, not injection: `policy_conflict` on
+   `heldout_policy_kind` drops from 0.752 to 0.692 (2B) and from 0.851 to 0.767 (8B);
+   `insufficient_context` on `heldout_family` drops from 0.841 to 0.793 (2B) and from
+   0.834 to 0.794 (8B). `suspicious_action_sequence` also drops 0.015-0.023 on test and
+   heldout_family at both sizes.
+4. Macro AUPRC is lower under v6 by only 0.001-0.006 per split-size cell (8B test 0.956
+   to 0.955, 2B test 0.960 to 0.955) and that drop is not carried by injection alone: for
+   8B, injection's own contribution is slightly positive; `policy_conflict` and
+   `suspicious_action_sequence` account for the difference.
+5. AgentDojo transfer of the v6 checkers -- whether the honest injection signal
+   generalizes off-distribution -- is reported in `docs/results/agentdojo/README.md`, not
+   here.
 
 ## What is still to land
 

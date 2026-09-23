@@ -2,7 +2,8 @@
 
 Date: 2026-09-23. Trigger: the 2B v4 checker scored below the base rate on
 `prompt_injection_influence` on AgentDojo banking (AUPRC 0.128 at a 0.150 positive
-rate), while scoring 1.0 on every synthetic split. The per-example score dump showed
+rate), while scoring 0.80 AUPRC on synthetic test, where a key-presence detector would
+score 1.0. The per-example score dump showed
 the 2B injection head never fires on AgentDojo (raw logits in [-5.0, -3.0]).
 
 ## Measurement
@@ -37,8 +38,8 @@ injection; `_INJECTION_INSTRUCTIONS` holds the five target literals.
 
 - Every synthetic `prompt_injection_influence` result for v1 to v5 (decoder 2B and 8B,
   encoders, and the rule baseline where it reads argument keys) is an upper bound
-  that a key-presence detector could match. AUPRC 1.0 on that dimension is not
-  evidence of injection detection.
+  that a key-presence detector could match (it would score 1.0; the trained arms score
+  about 0.80). Those numbers are not evidence of injection detection.
 - The LLM-judge agreement on this dimension (kappa 0.905, `docs/results/judge/`) is
   also inflated: the judge saw the same `instructed_target` argument.
 - The AgentDojo result is the first measurement of injection detection without the
@@ -63,15 +64,17 @@ between injected and non-injected examples and on a token denylist.
 
 Both sizes were retrained on v6 (49,996 rows; `check_no_leakage` passed: no
 denylisted tokens, key-rate parity held). Synthetic `prompt_injection_influence`
-AUPRC / AUROC on test fell from 1.000 / 1.000 (v4, leaked) to 0.788 / 0.893 (2B) and
-0.795 / 0.898 (8B): the first honest synthetic number on this dimension
-(`docs/results/synthetic-v2/README.md`). Zero-shot on AgentDojo banking, the same
+AUPRC / AUROC on test barely moved: 0.802 / 0.901 (2B v4) to 0.788 / 0.893 (2B v6),
+0.791 / 0.898 (8B v4) to 0.795 / 0.898 (8B v6) (`docs/results/synthetic-v2/README.md`).
+The leak did not inflate the synthetic score; it changed what the head learned to
+read. Zero-shot on AgentDojo banking, the same
 dimension went from 0.128 / 0.348 (2B v4) to 0.693 / 0.928 (2B v6) and from
 0.701 / 0.895 (8B v4) to 0.838 / 0.966 (8B v6) (`docs/results/agentdojo/README.md`).
 The 2B v4 failure was the leak, not the model size: with the shortcut removed, the
 2B head learned a signal that transfers to traces it never saw. Whether the v6
 heads read the injected text itself, rather than the call, is the InjecAgent
-paired test (`docs/results/injecagent/README.md`).
+paired test (`docs/results/injecagent/README.md`): 2B v6 puts the poisoned variant
+above its clean twin on 97.7% of pairs, against 50.4% for 2B v4.
 
 Retraining: `train-2b-b200-v6-recipe.yaml` and `train-8b-b200-v6-recipe.yaml`
 regenerate the data, train, and evaluate on the synthetic splits and on AgentDojo
