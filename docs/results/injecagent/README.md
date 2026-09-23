@@ -34,6 +34,7 @@ AUPRC / AUROC, positive rate in the header. n=4,250 except
 | decoder 2B v4 | 0.549 / 0.596 | 0.732 / 0.493 | 0.965 / 0.971 | 1.000 / 1.000 | 1.000 / 1.000 | 0.849 |
 | decoder 8B v4 | 0.544 / 0.529 | 0.849 / 0.691 | 0.977 / 0.980 | 0.734 / 0.931 | 1.000 / 1.000 | 0.821 |
 | decoder 8B v4, eval-stripped | 0.556 / 0.545 | 0.843 / 0.642 | 0.968 / 0.973 | 0.766 / 0.967 | 1.000 / 1.000 | 0.827 |
+| decoder 2B v6 (leak-free generator) | 0.878 / 0.865 | 0.704 / 0.376 | 0.922 / 0.914 | 0.970 / 0.999 | 0.998 / 1.000 | 0.894 |
 | Granite Guardian 3.3 8B zero-shot (n=1000) | 0.511 / 0.537 | 0.613 / 0.147 | 0.359 / 0.293 | 0.102 / 0.724 | 0.197 / 0.588 | 0.356 |
 | agent-self 8B ALLOW/STOP (n=1000) | 0.530 / 0.597 | 1.000 / 1.000 | 0.647 / 0.756 | 0.061 / 0.612 | 0.178 / 0.587 | 0.483 |
 
@@ -45,10 +46,24 @@ output; 1,598 pairs, raw logits from `--dump-scores`):
 | 2B v4 | 0.504 | 0.239 | -3.75 | -4.25 |
 | 8B v4 | 0.353 | 0.385 | -4.00 | -4.00 |
 | 8B v4, eval-stripped | 0.382 | 0.397 | -4.00 | -4.00 |
+| 2B v6 (leak-free generator) | 0.977 | 0.005 | +3.50 | -6.25 |
+
+Reproduce with `scripts/injecagent_paired.py injecagent.jsonl NAME=scores.jsonl ...`.
 
 ## Reading
 
-1. **Neither checker reads the injected text.** With the call held fixed, the
+0. **The leak-free 2B checker reads the injected text.** Retrained on the v6
+   generator (`docs/results/notes/injection-label-leak-diagnosis.md`), 2B scores
+   0.878 / 0.865 on `prompt_injection_influence` and, with the call held fixed,
+   puts the poisoned variant above its clean twin on 97.7% of the 1,598 pairs
+   (ties 0.5%), median raw +3.50 poisoned against -6.25 clean; 58% of poisoned
+   calls score above 0 against 9% of clean. This is the same model size and
+   recipe as the v4 checker in the row above it, whose pair win was 0.504. The
+   readings below describe the v4 checkers and remain true of them; the cause
+   they point to (the generator leak) is now confirmed by its removal. 8B v6
+   was still evaluating when this was written.
+
+1. **Neither v4 checker reads the injected text.** With the call held fixed, the
    presence of the attacker's instruction in the tool output moves the 8B injection
    score in the right direction on 35% of pairs and not at all on 39%; the 2B is at
    coin-flip. Both heads sit at raw logit -4 on poisoned and clean alike. This is
@@ -78,10 +93,12 @@ output; 1,598 pairs, raw logits from `--dump-scores`):
    against 0.752 base rate for 8B; 2B at base rate. The label is clean on this
    dataset (attacker tool vs user tool), so this is a real but modest size effect.
 
-5. **What v6 must show.** The v6 checkers, trained without the leak on long
-   multi-format observations with the instruction at random positions, are the
-   test of whether the observation channel can be learned at all. The paired
-   poisoned-vs-clean fraction above is the metric to watch; 0.5 is chance.
+5. **What v6 had to show, and did.** The v6 checkers, trained without the leak
+   on long multi-format observations with the instruction at random positions,
+   are the test of whether the observation channel can be learned at all. The
+   paired poisoned-vs-clean fraction is the metric; 0.5 is chance; 2B v6 is at
+   0.977 (reading 0). `unauthorized_scope` for 2B v6 (0.704 / 0.376) is below
+   base rate, as for 2B v4.
 
 6. **Baselines.** Granite Guardian is at chance on injection (0.537 AUROC) and
    below base rate elsewhere. The same Granite-3.3-8B base asked ALLOW/STOP as
@@ -93,6 +110,6 @@ output; 1,598 pairs, raw logits from `--dump-scores`):
    rates 0.471 / 0.767 / 0.466 / 0.048 / 0.154).
 
 Reports: `rule-baseline-report.md`, `decoder-2b-v4-report.md`,
-`decoder-8b-v4-report.md`, `decoder-8b-v4-strip-report.md`, `guardian-3.3-8b-report.md`, `agent-self-8b-report.md` (ECE column is raw
+`decoder-8b-v4-report.md`, `decoder-8b-v4-strip-report.md`, `decoder-2b-v6-report.md`, `guardian-3.3-8b-report.md`, `agent-self-8b-report.md` (ECE column is raw
 margins, no calibration bundle applies when identity is stripped at eval time).
 Score dumps are on FSx under `runs/<run>/reports/injecagent/scores.jsonl`.
