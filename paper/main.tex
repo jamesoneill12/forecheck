@@ -26,7 +26,7 @@
 \newcommand{\todo}[1]{{\color{red}\footnotesize[TODO: #1]}}
 
 \title{Delegated Authority Is an Input, Not an Inference:\\
-Diagnosing and Externally Validating a Pre-Execution Risk Checker for Tool-Using Agents}
+Pre-Execution Risk Checking for Tool-Using Agents}
 
 % Non-final ICLR style prints "Anonymous authors / Paper under double-blind
 % review" automatically; \author is kept as an explicit placeholder.
@@ -41,27 +41,22 @@ Diagnosing and Externally Validating a Pre-Execution Risk Checker for Tool-Using
 \fancyfoot[C]{\scriptsize Submitted to a workshop at ICLR 2026 -- do not distribute.}
 
 \begin{abstract}
-Guardrail models for AI agents classify a proposed action from its text
-alone. We show this misses the dimensions that matter most for delegated,
-tool-using agents. Removing principal entitlements, delegated scope, and
-policy text from a trained 2B checker's input drops macro AUPRC from 0.960 to
-0.790 on held-out tools, and the loss is confined to three dimensions
-(unauthorized-scope 1.00 to 0.13, policy-conflict 0.96 to 0.39) while content
-dimensions do not move. Two zero-shot safety models and the acting agent
-asked to judge its own call are at chance on exactly these dimensions with or
-without the context, so prompting cannot close the gap; a blind LLM judge
-loses the same dimensions when identity is removed. Policy-conditioned
-reasoning generalizes to unseen policy phrasings (0.98 AUPRC) but not unseen
-kinds (0.72 at 2B, 0.84 at 8B), and stacking independently thresholded
-policies reaches a 0.97 false positive rate by three policies unless
-decisions come from calibrated joint probabilities. On AgentDojo and
-InjecAgent, traces we did not generate, policy-conflict transfers zero-shot
-(0.85 and 0.97 AUPRC against 0.24 and 0.46 base rates). Prompt-injection did
-not transfer at 2B until the external data exposed a label leak in our
-generator; the leak-free checkers reach 0.69 (2B) and 0.84 (8B) AUPRC on
-AgentDojo and rank the poisoned InjecAgent tool output above its clean twin
-on 98\% of pairs (50\% and 35\% before), while the synthetic score on the
-same dimension did not move.
+Guardrail models classify a proposed tool call from its text. For delegated
+agents, risk has a second component, authorization, whose inputs are the
+principal's entitlements, the agent's delegated scope, and the policy in
+force. We build a checker whose typed input carries them and use it as a
+diagnostic. Removing those fields from a trained 2B checker drops macro
+AUPRC from 0.96 to 0.79 on held-out tools, confined to the three labels
+that depend on them; a blind LLM judge loses the same labels, and two
+zero-shot safety models given the same policy text do not use it. Policy
+checking generalises to unseen phrasings but not unseen policy kinds, and
+an apparent multi-policy stacking collapse is one fail-closed bundle. The
+main evidence is external: on AgentDojo and InjecAgent, policy checking
+transfers zero-shot, while injection detection did not until that failure
+exposed a label leak in our generator that every synthetic split had scored
+at its ceiling. Retrained leak-free, the checkers rank the poisoned
+InjecAgent observation above its clean twin on 98\% of pairs; auditing that
+construction surfaced a length confound we report but could not rule out.
 \end{abstract}
 
 \input{sections/intro}

@@ -20,7 +20,7 @@
 \newcommand{\todo}[1]{{\color{red}\footnotesize[TODO: #1]}}
 \newcommand{\fixmemargin}{}
 
-\title{Delegated Authority Is an Input, Not an Inference: \\ Diagnosing and Externally Validating a Pre-Execution Risk Checker for Tool-Using Agents}
+\title{Delegated Authority Is an Input, Not an Inference: \\ Pre-Execution Risk Checking for Tool-Using Agents}
 
 \author{Anonymous ACL submission}
 
@@ -28,28 +28,22 @@
 \maketitle
 
 \begin{abstract}
-Guardrail models for AI agents classify a proposed tool call from its text.
-We argue that pre-execution risk for delegated agents has a second component,
-authorization, whose inputs are the principal's entitlements, the agent's
-delegated scope, and the policy in force, and we build a checker whose typed
-input contract carries them. Removing those fields from a trained 2B checker
-drops macro AUPRC from 0.96 to 0.79 on held-out tools, with the loss confined
-to the three labels that are functions of the removed fields; the residual
-content signal on two of them is nil, an 8B checker and a train-time ablation
-behave identically, and a blind LLM judge loses the same two labels when the
-fields are removed from its input. Two zero-shot safety models and the acting
-agent, given the same policy text, do not use it. Policy checking generalises
-to unseen phrasings but not unseen policy kinds. An apparent collapse of
-multi-policy threshold stacking turns out to be one fail-closed bundle, and
-we correct our own earlier reading of it. The main evidence is external: on
-AgentDojo and InjecAgent, traces we did not generate, policy checking against
-predicates we wrote transfers zero-shot, while prompt-injection detection did
-not until the external failure exposed a label leak in our generator that
-every synthetic split had scored at its ceiling. Retrained leak-free, the
-checkers rank the poisoned InjecAgent observation above its clean twin on
-98\% of pairs; auditing that construction then surfaced a length confound we
-could not rule out. We report the confounds alongside the results and argue
-for evaluating on data one did not generate, and then auditing that too.
+Guardrail models classify a proposed tool call from its text. For delegated
+agents, risk has a second component, authorization, whose inputs are the
+principal's entitlements, the agent's delegated scope, and the policy in
+force. We build a checker whose typed input carries them and use it as a
+diagnostic. Removing those fields from a trained 2B checker drops macro
+AUPRC from 0.96 to 0.79 on held-out tools, confined to the three labels
+that depend on them; a blind LLM judge loses the same labels, and two
+zero-shot safety models given the same policy text do not use it. Policy
+checking generalises to unseen phrasings but not unseen policy kinds, and
+an apparent multi-policy stacking collapse is one fail-closed bundle. The
+main evidence is external: on AgentDojo and InjecAgent, policy checking
+transfers zero-shot, while injection detection did not until that failure
+exposed a label leak in our generator that every synthetic split had scored
+at its ceiling. Retrained leak-free, the checkers rank the poisoned
+InjecAgent observation above its clean twin on 98\% of pairs; auditing that
+construction surfaced a length confound we report but could not rule out.
 \end{abstract}
 
 \input{sections/intro}

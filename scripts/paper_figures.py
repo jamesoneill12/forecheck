@@ -687,7 +687,7 @@ def fig_identity_body() -> None:
     offsets = [-1.5 * h, -0.5 * h, 0.5 * h, 1.5 * h]
 
     with plt.rc_context(BODY_RC):
-        fig, ax = plt.subplots(figsize=(3.2, 2.4))
+        fig, ax = plt.subplots(figsize=(3.2, 2.45))
         for i, d in enumerate(dims):
             pos_rate, *vals = IDENTITY_BODY_DATA[d]
             for off, val, label, color in zip(offsets, vals, series_labels, series_colors, strict=True):
@@ -714,7 +714,7 @@ def fig_identity_body() -> None:
         ax.invert_yaxis()
         ax.set_xlim(0, 1.05)
         ax.set_xlabel("AUPRC")
-        ax.legend(loc="upper right", frameon=False, fontsize=6, handlelength=1.4)
+        ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.22), ncol=3, frameon=False, fontsize=6, handlelength=1.4, columnspacing=1.0)
         savefig(fig, "fig_identity_body.pdf")
 
 
@@ -836,15 +836,15 @@ def fig_stacking_body() -> None:
         log(f"  anchor {arm}/{strategy}/k={k}/{field}: got={val} expected={expected} {match}")
 
     plot_series = [
-        ("decoder", "independent", "Decoder 2B independent", COLORS["blue"], "-"),
-        ("decoder", "joint", "Decoder 2B joint", COLORS["orange"], "-"),
-        ("decoder", "expected_cost_joint", "Decoder 2B expected_cost", COLORS["vermillion"], "-"),
-        ("encoder", "independent", "Encoder r2 independent", COLORS["blue"], "--"),
-        ("encoder", "expected_cost_joint", "Encoder r2 expected_cost", COLORS["vermillion"], "--"),
+        ("decoder", "independent", "2B indep.", COLORS["blue"], "-"),
+        ("decoder", "joint", "2B joint", COLORS["orange"], "-"),
+        ("decoder", "expected_cost_joint", "2B exp. cost", COLORS["vermillion"], "-"),
+        ("encoder", "independent", "r2 indep.", COLORS["blue"], "--"),
+        ("encoder", "expected_cost_joint", "r2 exp. cost", COLORS["vermillion"], "--"),
     ]
 
     with plt.rc_context(BODY_RC):
-        fig, (ax_fpr, ax_fnr) = plt.subplots(1, 2, figsize=(3.2, 2.1), sharex=True)
+        fig, (ax_fpr, ax_fnr) = plt.subplots(1, 2, figsize=(3.2, 2.2), sharex=True)
         for arm, strategy, label, color, ls in plot_series:
             ks, fprs = series(by_arm[arm], strategy, "fpr")
             _, fnrs = series(by_arm[arm], strategy, "fnr")
@@ -859,7 +859,7 @@ def fig_stacking_body() -> None:
         ax_fpr.set_ylim(0, 1.02)
         ax_fnr.set_ylim(0, 0.3)
         handles, labels = ax_fpr.get_legend_handles_labels()
-        fig.legend(handles, labels, loc="lower center", bbox_to_anchor=(0.5, -0.12), ncol=3, frameon=False, fontsize=5.2, handlelength=1.3, columnspacing=1.0)
+        fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, -0.04), ncol=5, frameon=False, fontsize=5.5, handlelength=1.3, columnspacing=0.8)
         savefig(fig, "fig_stacking_body.pdf")
 
 

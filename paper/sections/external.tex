@@ -100,13 +100,13 @@ synthetic score measured the ceiling, not what the head read.
 fills the target argument for benign calls too, and lengthens and randomises
 observations. Retrained on v6 with identical size and recipe, 2B reaches
 0.693 on AgentDojo injection (AUROC 0.928) and 8B 0.838 (0.966), and both
-heads fire (2B v6 median raw logit $+4.5$ for positives vs.\ $-3.0$). On
+heads fire (2B v6 median positive logit $+4.5$ vs.\ $-3.0$). On
 InjecAgent both rank the poisoned variant strictly above its clean twin on
 0.977 of pairs with under 2\% ties; the synthetic injection score did not
 change (0.804 to 0.787 on \texttt{heldout\_family}). Observation length
-alone could also explain the AgentDojo gain, since AgentDojo's records are
-about 2,000 characters against v4's 132-character templates; the two changes
-were not separated and we claim only that the bundle is sufficient.
+alone could explain the AgentDojo gain (2,000-character records against
+v4's 132-character templates); the changes were not separated and we claim
+only that the bundle is sufficient.
 
 \textbf{Two confounds in the pair test, one ruled out.} The clean twin is
 the poisoned observation with the instruction deleted, so it is shorter in
