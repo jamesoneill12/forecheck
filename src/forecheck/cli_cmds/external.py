@@ -9,6 +9,7 @@ from typing import Annotated
 
 import typer
 
+from forecheck.cli_cmds.injecagent import injecagent_command
 from forecheck.contracts import LabelValue, RiskDimension
 from forecheck.data.io import write_jsonl
 from forecheck.external.agentdojo import (
@@ -23,6 +24,7 @@ from forecheck.external.agentdojo import (
 __all__ = ["external_app"]
 
 external_app = typer.Typer(no_args_is_help=True, help="Port external agent-safety benchmarks.")
+external_app.command("injecagent")(injecagent_command)
 
 
 def _render_table(manifest: dict) -> str:
