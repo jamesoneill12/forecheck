@@ -160,7 +160,7 @@ tool response with the attacker's instruction filled in
 \begin{table}[tbp]
 \centering
 \small
-\caption{AUPRC on InjecAgent, zero-shot, $n{=}4{,}250$ ($n{=}3{,}196$ for
+\caption{AUPRC on InjecAgent, zero-shot, v4 and leak-free v6 checkers, $n{=}4{,}250$ ($n{=}3{,}196$ for
 \texttt{injection}, positive rate 0.500). Right: fraction of the 1,598
 poisoned/clean pairs on which the poisoned variant of the same call scores
 higher on \texttt{injection} (0.5 is chance). Baseline rows are on a fixed
@@ -176,29 +176,39 @@ Decoder 2B v4 & 0.549 & 0.732 & 0.965 & 1.000 & 1.000 & 0.849 & 0.504 \\
 Decoder 8B v4 & 0.544 & 0.849 & 0.977 & 0.734 & 1.000 & 0.821 & 0.353 \\
 8B v4, eval-stripped & 0.556 & 0.843 & 0.968 & 0.766 & 1.000 & 0.827 & 0.382 \\
 \midrule
+Decoder 2B v6 (leak-free) & 0.878 & 0.704 & 0.922 & 0.970 & 0.998 & 0.894 & 0.977 \\
+Decoder 8B v6 (leak-free) & 0.943 & 0.677 & 0.965 & 0.771 & 0.997 & 0.870 & 0.977 \\
+\midrule
 Granite Guardian 3.3 8B & 0.511 & 0.613 & 0.359 & 0.102 & 0.197 & 0.356 & -- \\
 Agent-self 8B (\textsc{allow}/\textsc{stop}) & 0.530 & 1.000 & 0.647 & 0.061 & 0.178 & 0.483 & -- \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Table~\ref{tab:injecagent}: \textbf{neither checker reads the injected
-text}. With the call held fixed, the 8B injection score rises on 35\% of
-pairs and is unchanged on 39\%; both heads sit at raw logit $-4$ on poisoned
-and clean alike. This reinterprets the AgentDojo result: what transferred at
-8B is call-level, whether the action is something the user asked for, not
-reading the untrusted content for the instruction that explains it. The v4
-generator's leak (\S\ref{sec:limitations}) is the likely cause, since the
-training signal was carried by an argument key and the observation never had
-to be read. \textbf{Policy checking transfers a second time}:
+Table~\ref{tab:injecagent}: \textbf{neither v4 checker reads the injected
+text; both v6 checkers do}. With the call held fixed, the 8B v4 injection
+score rises on 35\% of pairs and is unchanged on 39\%; both v4 heads sit at
+raw logit $-4$ on poisoned and clean alike. This reinterprets the v4
+AgentDojo result: what transferred at 8B v4 is call-level, whether the action
+is something the user asked for, not reading the untrusted content for the
+instruction that explains it. The v4 generator's leak
+(\S\ref{sec:limitations}) is the cause: the training signal was carried by
+an argument key and the observation never had to be read. Removing it is
+sufficient. The v6 checkers, identical in size and recipe, rank the poisoned
+variant above its clean twin on 97.7\% of the 1,598 pairs at both sizes
+(median raw logit $+3.5$ vs.\ $-6.25$ for 2B, $+2.25$ vs.\ $-3.5$ for 8B),
+reaching 0.878 (2B) and 0.943 (8B) AUPRC on a label whose only evidence is
+in the untrusted text. \textbf{Policy checking transfers a second time}:
 \texttt{policy\_conflict} 0.965 (2B) and 0.977 (8B) against a 0.464 base
 rate on five policies written for this port over 38 unseen toolkits, with the
 rule baseline at base rate; stripping identity barely moves it here because
 these five policies are global rules about the call rather than about what
-the principal named. \texttt{unauthorized\_scope} has signal at 8B (0.849
-vs.\ 0.752 base) and none at 2B. Both baselines are at chance on injection
+the principal named; the v6 checkers hold it (0.922, 0.965).
+\texttt{unauthorized\_scope} has signal at 8B v4 (0.849 vs.\ 0.752 base),
+none at 2B, and the 8B signal does not survive the v6 retrain (0.677). Both baselines are at chance on injection
 too (AUROC 0.54 and 0.60); the untrained agent flags every attacker call as
 \textsc{stop} (\texttt{unauthorized\_scope} 1.000), the same call-level
-judgement, and no arm in this table reads the poisoned text.
+judgement; the two v6 checkers are the only arms in this table that read the
+poisoned text.
 
 \FloatBarrier

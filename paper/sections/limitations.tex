@@ -57,8 +57,8 @@ and filled for benign calls too, shared target pools, 300--2,000 character
 multi-format observations) with a leakage check on argument-key presence
 parity. Retrained on v6, the synthetic injection AUPRC is unchanged (0.802 to
 0.788 for 2B, 0.791 to 0.795 for 8B) while the AgentDojo injection AUPRC
-rises to 0.693 (2B) and 0.838 (8B) and the 2B checker's InjecAgent
-poisoned-over-clean pair win rises from 0.504 to 0.977
+rises to 0.693 (2B) and 0.838 (8B) and the InjecAgent poisoned-over-clean
+pair win rises from 0.504 (2B) and 0.353 (8B) to 0.977 at both sizes
 (\S\ref{sec:external}): the leak did not inflate the synthetic score, it
 changed what the head learned to read
 (\texttt{docs/results/notes/injection-label-leak-diagnosis.md}).

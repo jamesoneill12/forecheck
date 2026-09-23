@@ -37,7 +37,8 @@ the 2B checker reaches 0.85 AUPRC on policy conflict against a 0.24 base
 rate and the 8B checker 0.70 AUPRC on prompt-injection influence against a
 0.15 base rate, both against rule baselines at or near base rate, while the
 2B checker fails outright on injection until a label leak in our generator is
-fixed, after which it reaches 0.69 and the 8B checker 0.84. On InjecAgent, where the
+fixed, after which it reaches 0.69 and the 8B checker 0.84, and both then
+separate poisoned from clean InjecAgent tool outputs on 98\% of pairs. On InjecAgent, where the
 call is held fixed and only the tool output changes, neither v4 checker reads
 the injected instruction (pair accuracy at or below chance); the policy
 result transfers a second time (0.98 AUPRC against 0.46).
@@ -60,8 +61,8 @@ load-bearing dimensions and flags the third as unvalidated
 (\S\ref{sec:labelvalidity}); (7) zero-shot transfer results on
 AgentDojo and InjecAgent, two published external benchmarks, showing that
 policy-conflict transfers to agent traces and policies forecheck never saw,
-that the injection result is call-level rather than a reading of untrusted
-text, that unauthorized-scope does not transfer, and that calibration needs
+that the v4 injection result is call-level rather than a reading of untrusted
+text and the leak-free v6 result is not, that unauthorized-scope does not transfer, and that calibration needs
 a few hundred in-domain labels (\S\ref{sec:external}); (8) a label-leak
 diagnosis of our own generator that invalidates every synthetic
 prompt-injection number before v6, and the leak-free retrain that turns the

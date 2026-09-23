@@ -24,8 +24,8 @@ carries the evidence, and the probabilities need a few hundred in-domain
 labels to refit. The external evaluation also exposed a label leak in our
 generator that the synthetic splits could not, and fixing it turned the 2B
 checker's injection failure on AgentDojo into a 0.69 AUPRC transfer and its
-chance-level InjecAgent pair discrimination into 0.98, while its synthetic
-score on the same dimension did not move. The case
+chance-level InjecAgent pair discrimination into 0.98 at both sizes, while
+the synthetic score on the same dimension did not move. The case
 for evaluating on data one did not generate is the strongest result in this
 paper.
 

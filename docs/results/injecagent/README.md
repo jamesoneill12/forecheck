@@ -20,7 +20,7 @@ from five generic policies with predicates we wrote once; `financial_commitment`
 `destructive_or_irreversible_action`, `untrusted_destination`,
 `external_communication` from per-toolkit function-name sets;
 `sensitive_data_exposure` yes on the data-stealing exfiltration call (its body is
-the user's data), otherwise `not_applicable`. All arms zero-shot, v4 checkers,
+the user's data), otherwise `not_applicable`. All arms zero-shot, v4 and v6 checkers,
 synthetic calibration, `--threshold-split none`.
 
 ## Results
@@ -35,6 +35,7 @@ AUPRC / AUROC, positive rate in the header. n=4,250 except
 | decoder 8B v4 | 0.544 / 0.529 | 0.849 / 0.691 | 0.977 / 0.980 | 0.734 / 0.931 | 1.000 / 1.000 | 0.821 |
 | decoder 8B v4, eval-stripped | 0.556 / 0.545 | 0.843 / 0.642 | 0.968 / 0.973 | 0.766 / 0.967 | 1.000 / 1.000 | 0.827 |
 | decoder 2B v6 (leak-free generator) | 0.878 / 0.865 | 0.704 / 0.376 | 0.922 / 0.914 | 0.970 / 0.999 | 0.998 / 1.000 | 0.894 |
+| decoder 8B v6 (leak-free generator) | 0.943 / 0.936 | 0.677 / 0.369 | 0.965 / 0.963 | 0.771 / 0.967 | 0.997 / 1.000 | 0.870 |
 | Granite Guardian 3.3 8B zero-shot (n=1000) | 0.511 / 0.537 | 0.613 / 0.147 | 0.359 / 0.293 | 0.102 / 0.724 | 0.197 / 0.588 | 0.356 |
 | agent-self 8B ALLOW/STOP (n=1000) | 0.530 / 0.597 | 1.000 / 1.000 | 0.647 / 0.756 | 0.061 / 0.612 | 0.178 / 0.587 | 0.483 |
 
@@ -47,21 +48,24 @@ output; 1,598 pairs, raw logits from `--dump-scores`):
 | 8B v4 | 0.353 | 0.385 | -4.00 | -4.00 |
 | 8B v4, eval-stripped | 0.382 | 0.397 | -4.00 | -4.00 |
 | 2B v6 (leak-free generator) | 0.977 | 0.005 | +3.50 | -6.25 |
+| 8B v6 (leak-free generator) | 0.977 | 0.012 | +2.25 | -3.50 |
 
 Reproduce with `scripts/injecagent_paired.py injecagent.jsonl NAME=scores.jsonl ...`.
 
 ## Reading
 
-0. **The leak-free 2B checker reads the injected text.** Retrained on the v6
+0. **The leak-free checkers read the injected text.** Retrained on the v6
    generator (`docs/results/notes/injection-label-leak-diagnosis.md`), 2B scores
-   0.878 / 0.865 on `prompt_injection_influence` and, with the call held fixed,
-   puts the poisoned variant above its clean twin on 97.7% of the 1,598 pairs
-   (ties 0.5%), median raw +3.50 poisoned against -6.25 clean; 58% of poisoned
-   calls score above 0 against 9% of clean. This is the same model size and
-   recipe as the v4 checker in the row above it, whose pair win was 0.504. The
-   readings below describe the v4 checkers and remain true of them; the cause
-   they point to (the generator leak) is now confirmed by its removal. 8B v6
-   was still evaluating when this was written.
+   0.878 / 0.865 on `prompt_injection_influence` and 8B 0.943 / 0.936. With the
+   call held fixed, both put the poisoned variant above its clean twin on 97.7%
+   of the 1,598 pairs (ties 0.5% and 1.2%): 2B median raw +3.50 poisoned against
+   -6.25 clean, 8B +2.25 against -3.50; 58% of poisoned calls score above 0 at
+   both sizes, against 9% (2B) and 0.1% (8B) of clean. Same model sizes and
+   recipes as the v4 rows, whose pair wins were 0.504 and 0.353. The readings
+   below describe the v4 checkers and remain true of them; the cause they point
+   to (the generator leak) is confirmed by its removal. `policy_conflict` also
+   improves under v6 (0.922 / 0.965 against 0.965 / 0.977 for v4: unchanged
+   within 0.04), and `unauthorized_scope` stays below base rate at both sizes.
 
 1. **Neither v4 checker reads the injected text.** With the call held fixed, the
    presence of the attacker's instruction in the tool output moves the 8B injection
@@ -96,20 +100,22 @@ Reproduce with `scripts/injecagent_paired.py injecagent.jsonl NAME=scores.jsonl 
 5. **What v6 had to show, and did.** The v6 checkers, trained without the leak
    on long multi-format observations with the instruction at random positions,
    are the test of whether the observation channel can be learned at all. The
-   paired poisoned-vs-clean fraction is the metric; 0.5 is chance; 2B v6 is at
-   0.977 (reading 0). `unauthorized_scope` for 2B v6 (0.704 / 0.376) is below
-   base rate, as for 2B v4.
+   paired poisoned-vs-clean fraction is the metric; 0.5 is chance; v6 is at
+   0.977 at both sizes (reading 0). `unauthorized_scope` for v6 (0.704 2B,
+   0.677 8B) is below the 0.752 base rate; the 8B v4 signal on it (0.849) did
+   not survive the retrain.
 
 6. **Baselines.** Granite Guardian is at chance on injection (0.537 AUROC) and
    below base rate elsewhere. The same Granite-3.3-8B base asked ALLOW/STOP as
    the agent is also at chance on injection (0.597) but flags every attacker
    call as STOP (`unauthorized_scope` 1.000): the untrained agent recognises
    that the attacker tool is unrelated to the user's request, which is the same
-   call-level judgement the checkers make, and no arm reads the poisoned text.
+   call-level judgement the v4 checkers make; only the v6 checkers read the
+   poisoned text.
    Baseline rows are on a fixed 1,000-row subsample (injection n=767, positive
    rates 0.471 / 0.767 / 0.466 / 0.048 / 0.154).
 
 Reports: `rule-baseline-report.md`, `decoder-2b-v4-report.md`,
-`decoder-8b-v4-report.md`, `decoder-8b-v4-strip-report.md`, `decoder-2b-v6-report.md`, `guardian-3.3-8b-report.md`, `agent-self-8b-report.md` (ECE column is raw
+`decoder-8b-v4-report.md`, `decoder-8b-v4-strip-report.md`, `decoder-2b-v6-report.md`, `decoder-8b-v6-report.md`, `guardian-3.3-8b-report.md`, `agent-self-8b-report.md` (ECE column is raw
 margins, no calibration bundle applies when identity is stripped at eval time).
 Score dumps are on FSx under `runs/<run>/reports/injecagent/scores.jsonl`.
