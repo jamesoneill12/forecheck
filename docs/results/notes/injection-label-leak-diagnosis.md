@@ -42,9 +42,9 @@ injection; `_INJECTION_INSTRUCTIONS` holds the five target literals.
 - The LLM-judge agreement on this dimension (kappa 0.905, `docs/results/judge/`) is
   also inflated: the judge saw the same `instructed_target` argument.
 - The AgentDojo result is the first measurement of injection detection without the
-  leak: 2B 0.128 / 0.348 AUPRC / AUROC (fails), 8B 0.797 / 0.916 (transfers). The 8B
-  result stands because the leak is absent from AgentDojo; the 8B model learned
-  something beyond the shortcut, the 2B model did not.
+  leak: 2B v4 0.128 / 0.348 AUPRC / AUROC (fails), 8B v4 0.701 / 0.895 (partly
+  transfers). The 8B result stands because the leak is absent from AgentDojo; the
+  8B model learned something beyond the shortcut, the 2B model did not.
 - The identity-ablation results are unaffected: those dimensions
   (`policy_conflict`, `unauthorized_scope`) do not use the leaked keys.
 
@@ -58,6 +58,20 @@ character records, messages, page excerpts or listings for both injected and ben
 content, with the instruction at a random position under one of many framings.
 `scripts/check_no_leakage.py` now fails on any argument-key presence gap above 0.05
 between injected and non-injected examples and on a token denylist.
+
+## Result (v6 retrain, 2026-09-23)
+
+Both sizes were retrained on v6 (49,996 rows; `check_no_leakage` passed: no
+denylisted tokens, key-rate parity held). Synthetic `prompt_injection_influence`
+AUPRC / AUROC on test fell from 1.000 / 1.000 (v4, leaked) to 0.788 / 0.893 (2B) and
+0.795 / 0.898 (8B): the first honest synthetic number on this dimension
+(`docs/results/synthetic-v2/README.md`). Zero-shot on AgentDojo banking, the same
+dimension went from 0.128 / 0.348 (2B v4) to 0.693 / 0.928 (2B v6) and from
+0.701 / 0.895 (8B v4) to 0.838 / 0.966 (8B v6) (`docs/results/agentdojo/README.md`).
+The 2B v4 failure was the leak, not the model size: with the shortcut removed, the
+2B head learned a signal that transfers to traces it never saw. Whether the v6
+heads read the injected text itself, rather than the call, is the InjecAgent
+paired test (`docs/results/injecagent/README.md`).
 
 Retraining: `train-2b-b200-v6-recipe.yaml` and `train-8b-b200-v6-recipe.yaml`
 regenerate the data, train, and evaluate on the synthetic splits and on AgentDojo

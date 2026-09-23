@@ -38,8 +38,13 @@ Rule baseline & 0.250 & 0.253 & 0.237 & 0.896 & 1.000 & 0.527 \\
 Decoder 2B v4 & 0.128 & 0.257 & 0.849 & 1.000 & 1.000 & 0.647 \\
 2B v4, eval-stripped & 0.125 & 0.218 & 0.694 & 1.000 & 1.000 & 0.608 \\
 2B v4, train-stripped & 0.150 & 0.234 & 0.390 & 1.000 & 1.000 & 0.555 \\
-Decoder 8B v4 & 0.797 & 0.386 & 0.560 & 0.924 & 1.000 & 0.733 \\
+Decoder 8B v4 & 0.701 & 0.355 & 0.626 & 0.923 & 0.999 & 0.721 \\
 8B v4, eval-stripped & 0.743 & 0.266 & 0.404 & 0.934 & 1.000 & 0.669 \\
+\midrule
+Decoder 2B v6 (leak-free) & 0.693 & 0.214 & 0.670 & 0.935 & 1.000 & 0.702 \\
+2B v6, eval-stripped & 0.669 & 0.306 & 0.521 & 0.941 & 1.000 & 0.687 \\
+Decoder 8B v6 (leak-free) & 0.838 & 0.239 & 0.785 & 0.945 & 0.831 & 0.728 \\
+8B v6, eval-stripped & 0.819 & 0.354 & 0.450 & 0.979 & 0.975 & 0.715 \\
 \midrule
 Granite Guardian 3.3 8B & 0.103 & 0.289 & 0.224 & 0.257 & 0.217 & 0.218 \\
 Agent-self 8B (\textsc{allow}/\textsc{stop}) & 0.291 & 0.442 & 0.449 & 0.591 & 0.105 & 0.375 \\
@@ -51,7 +56,8 @@ Agent-self 8B (\textsc{allow}/\textsc{stop}) & 0.291 & 0.442 & 0.449 & 0.591 & 0
 \centering
 \includegraphics[width=5.5in]{figures/fig_agentdojo.pdf}
 \caption{AUPRC on AgentDojo banking traces for the three learned dimensions,
-rule baseline vs.\ decoder 2B v4 vs.\ 2B v4 eval-stripped vs.\ decoder 8B v4,
+rule baseline vs.\ decoder 2B v4 vs.\ 2B v4 eval-stripped vs.\ decoder 8B v4
+vs.\ the leak-free 2B v6 and 8B v6,
 zero-shot, with each dimension's positive rate marked by a dashed line.
 Source: \texttt{docs/results/agentdojo/*-report.md}.}
 \label{fig:agentdojo}
@@ -63,43 +69,49 @@ Table~\ref{tab:agentdojo} and Figure~\ref{fig:agentdojo} give six readings.
 base rate, on policies, a tool schema, and agent traces it never saw.
 Eval-time stripping drops it to 0.694 and the train-time stripped model to
 0.390, the same identity dependence found in \S\ref{sec:identity}, now on
-external data. \textbf{Injection transfer is a scale effect.} 2B fails
-outright (0.128 AUPRC, below the 0.150 base rate, AUROC 0.348); 8B reaches
-0.797 AUPRC and 0.916 AUROC zero-shot; the rule baseline sits between the two
-(0.250, AUROC 0.737) because presence of untrusted content alone is a strong
-but insufficient cue. The 8B checker, trained only on synthetic data, ranks
-the call that executes the attacker's goal above the benign calls in the same
-poisoned trace 92 percent of the time; \S\ref{sec:injecagent} shows what it
-is and is not reading to do so. The 2B result is a plain failure, and a per-example score dump
-says why: the 2B injection head never fires on this domain. Raw logits for all
-4,133 evaluable calls lie between $-5.0$ and $-3.0$, the highest-scoring
-positive is $-3.25$, and no call scores above zero; the residual ordering is
-noise. On the same rows the 2B \texttt{policy\_conflict} head separates
-cleanly (median raw logit $+2.5$ for positives, $-3.5$ for negatives). The 2B
-model learned injection from surface cues of the synthetic generator that
-AgentDojo's injections do not carry. The 8B dump shows a live but shifted
-head: median raw logit $-1.75$ for positives against $-3.50$ for negatives,
-with 29\% of positives above zero against 0.7\% of negatives, so the ranking
-is right while most true positives sit below the decision boundary, which is
-the ECE of 0.272 in one number. The
-two 8B baselines separate scale from training: the same Granite-3.3-8B base
-asked \textsc{allow}/\textsc{stop} as the agent (\S\ref{sec:selfjudgment})
-scores 0.291 AUPRC on injection and Granite Guardian 3.3 8B zero-shot scores
-0.103, below base rate. The trained checker's 0.797 is the training, not the
-parameter count. Stripping identity from the 8B input keeps injection (0.743)
-and drops \texttt{policy\_conflict} from 0.560 to 0.404, the same content
-versus identity split as in \S\ref{sec:identity}.
-\textbf{\texttt{unauthorized\_scope} does not transfer} (0.257 2B, 0.386 8B,
-vs.\ a 0.253 base rate); the 8B head scores above zero on 77\% of negatives
-and 66\% of positives, so it fires on nearly every call and carries no signal
-on this label. The label itself is the weakest one here, since
-"function not in the reference solution" counts harmless auxiliary reads as
-out of scope, and we report this without claiming transfer on it. \textbf{8B
-\texttt{policy\_conflict} (0.560 AUPRC) is below 2B (0.849 AUPRC) while its
-AUROC (0.885) stays high}, which is unexplained; single-seed 8B vs.\ 2B
-comparisons on this cell fall within the seed noise \S\ref{sec:generalisation}
-measured on synthetic \texttt{heldout\_policy\_kind} (sample sd 0.03) only for
-the AUROC gap, not for the AUPRC gap, so this remains a real open question.
+external data. \textbf{Injection transfer on v4 was a data effect, not a
+scale effect.} 2B v4 fails outright (0.128 AUPRC, below the 0.150 base rate,
+AUROC 0.348); 8B v4 reaches 0.701 AUPRC and 0.895 AUROC zero-shot; the rule
+baseline sits between the two (0.250, AUROC 0.737) because presence of
+untrusted content alone is a strong but insufficient cue. A per-example score
+dump says why 2B v4 fails: its injection head never fires on this domain. Raw
+logits for all 4,133 evaluable calls lie between $-5.0$ and $-3.0$, the
+highest-scoring positive is $-3.25$, and no call scores above zero; on the
+same rows the 2B \texttt{policy\_conflict} head separates cleanly (median raw
+logit $+2.5$ for positives, $-3.5$ for negatives). The 8B v4 head is live but
+shifted: median raw logit $-1.75$ for positives against $-3.50$ for
+negatives, 29\% of positives above zero against 0.7\% of negatives. The v6
+checkers, trained on the generator with the label leak removed
+(\S\ref{sec:limitations}), settle the question: 2B v6 reaches 0.693 AUPRC and
+0.928 AUROC, 8B v6 0.838 and 0.966, and both heads now fire (2B v6 median raw
+$+4.5$ for positives vs.\ $-3.0$ for negatives, 92\% vs.\ 23\% above zero; 8B
+v6 $+6.25$ vs.\ $-3.25$, 94\% vs.\ 8\%). The 2B v4 model had learned
+injection from a surface cue of the synthetic generator that AgentDojo's
+injections do not carry; with the cue gone it learned something that
+transfers. The two 8B baselines separate training from parameter count: the
+same Granite-3.3-8B base asked \textsc{allow}/\textsc{stop} as the agent
+(\S\ref{sec:selfjudgment}) scores 0.291 AUPRC on injection and Granite
+Guardian 3.3 8B zero-shot scores 0.103, below base rate. Stripping identity
+from the input keeps injection (0.743 for 8B v4, 0.819 for 8B v6, 0.669 for
+2B v6) and drops \texttt{policy\_conflict} (8B v4 0.626 to 0.404, 8B v6 0.785
+to 0.450), the same content versus identity split as in \S\ref{sec:identity};
+\S\ref{sec:injecagent} tests whether the injection heads read the untrusted
+text or the call.
+\textbf{\texttt{unauthorized\_scope} does not transfer} (0.257 2B v4, 0.355
+8B v4, 0.214 2B v6, 0.239 8B v6, vs.\ a 0.253 base rate); the 8B v4 head
+scores above zero on 77\% of negatives and 66\% of positives, so it fires on
+nearly every call and carries no signal on this label. The label itself is
+the weakest one here, since "function not in the reference solution" counts
+harmless auxiliary reads as out of scope, and we report this without claiming
+transfer on it. \textbf{The 8B-below-2B \texttt{policy\_conflict} gap is not
+robust.} On v4, 8B scores 0.626 AUPRC against 2B's 0.849 while its AUROC
+(0.912) stays high; on v6 the order reverses (8B 0.785, 2B 0.670). A second
+8B v4 seed on synthetic \texttt{heldout\_policy\_kind} moves
+\texttt{policy\_conflict} by 0.03 (0.851 to 0.825), so the v4 gap of 0.22 is
+larger than seed noise there, but with one seed per (size, data version) cell
+we can only say the direction depends on the training data; both sizes rank
+the violations well (AUROC 0.91--0.94) and differ in how many benign calls
+they place above them.
 \textbf{Calibration does not transfer, an in-domain refit fixes it}: macro
 ECE runs 0.20--0.27 for the calibrated arms here, against under 0.03 on
 synthetic data. Refitting per-dimension isotonic calibrators on a random half
@@ -115,14 +127,17 @@ AgentDojo (\texttt{prompt\_injection\_influence},
 \textbf{Four suites.} Re-running the export over all four AgentDojo suites
 gives 30,143 proposed calls (banking 4,215, slack 8,246, travel 10,701,
 workspace 6,981), with injection positive rate 0.099 overall and 0.025 on
-travel. The 8B eval-stripped checker's injection transfer holds on three of
-the four: AUPRC/AUROC 0.743/0.915 on banking, 0.727/0.943 on workspace,
-0.421/0.726 on slack, each several times the base rate, and 0.146/0.844 on
-travel where positives are 2.5\% of calls. 2B is at base rate on every suite.
+travel. The 8B v4 checker's injection transfer holds on three of the four:
+AUPRC/AUROC 0.701/0.895 on banking, 0.752/0.941 on workspace, 0.433/0.738 on
+slack, each several times the base rate, and 0.131/0.834 on travel where
+positives are 2.5\% of calls; the eval-stripped arm is within 0.04 of it on
+every suite. 2B v4 is at base rate on every suite; the v6 checkers were not
+run on the four-suite export.
 The agent-self baseline reaches 0.251/0.809 over all suites and Guardian
 0.116/0.553. \texttt{unauthorized\_scope} outside banking is carried by the
 rule baseline (0.749 on slack, 0.733 on workspace, where nearly half of all
-calls are labelled out of scope); 2B adds under 0.09 and 8B is below the rule.
+calls are labelled out of scope); 2B adds under 0.09 and both 8B arms are
+below the rule.
 \texttt{policy\_conflict} on slack, travel, and workspace uses one generic
 policy per suite at 0.7--8\% base rates and is a weak label there: 2B AUROC is
 0.78--0.89 but AUPRC 0.005--0.49, so we claim policy transfer on banking only.

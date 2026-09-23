@@ -33,11 +33,12 @@ guardrail stacks are deployed in practice -- fails in a specific, fixable
 way: per-policy thresholding compounds toward denying everything as more
 policies are added, while deciding from the joint calibrated probability
 vector does not. On AgentDojo banking traces we did not generate, zero-shot,
-the 8B checker reaches 0.80 AUPRC on prompt-injection influence against a
-0.15 base rate and the 2B checker reaches 0.85 AUPRC on policy conflict
-against a 0.24 base rate, both against rule baselines at or near base rate,
-while the 2B checker fails outright on injection. On InjecAgent, where the
-call is held fixed and only the tool output changes, neither checker reads
+the 2B checker reaches 0.85 AUPRC on policy conflict against a 0.24 base
+rate and the 8B checker 0.70 AUPRC on prompt-injection influence against a
+0.15 base rate, both against rule baselines at or near base rate, while the
+2B checker fails outright on injection until a label leak in our generator is
+fixed, after which it reaches 0.69 and the 8B checker 0.84. On InjecAgent, where the
+call is held fixed and only the tool output changes, neither v4 checker reads
 the injected instruction (pair accuracy at or below chance); the policy
 result transfers a second time (0.98 AUPRC against 0.46).
 
@@ -63,7 +64,9 @@ that the injection result is call-level rather than a reading of untrusted
 text, that unauthorized-scope does not transfer, and that calibration needs
 a few hundred in-domain labels (\S\ref{sec:external}); (8) a label-leak
 diagnosis of our own generator that invalidates every synthetic
-prompt-injection number before v6 (\S\ref{sec:limitations}). Every number here except \S\ref{sec:external} is on
+prompt-injection number before v6, and the leak-free retrain that turns the
+2B injection failure on AgentDojo into a transfer (\S\ref{sec:limitations},
+\S\ref{sec:external}). Every number here except \S\ref{sec:external} is on
 synthetic data from forecheck's own scenario generator; \S\ref{sec:limitations}
 states plainly what that does and does not license.
 

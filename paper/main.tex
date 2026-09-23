@@ -60,15 +60,17 @@ judge, shown only the rendered text, confirms two of the three dimensions
 the identity-ablation result rests on (policy-conflict, unauthorized-scope)
 and finds the third (insufficient-context) unrecoverable from the text at
 all, which we report as an open validity gap. On AgentDojo banking traces we
-did not generate, zero-shot, the 8B checker reaches 0.80 AUPRC on
-prompt-injection influence against a 0.15 base rate and the 2B checker
-reaches 0.85 AUPRC on policy conflict against a 0.24 base rate, both against
-rule baselines at or near base rate, while the 2B checker fails outright on
+did not generate, zero-shot, the 2B checker reaches 0.85 AUPRC on policy
+conflict against a 0.24 base rate and the 8B checker 0.70 AUPRC on
+prompt-injection influence against a 0.15 base rate, both against rule
+baselines at or near base rate, while the 2B checker fails outright on
 injection. On InjecAgent, which holds the call fixed and varies only whether
 the attacker's instruction is in the tool output, neither checker separates
-poisoned from clean (AUROC 0.53--0.60), so what transfers is call-level
-judgement, not reading of untrusted text; we trace this to a label leak in
-our generator and report the fix. All other results are on synthetic data;
+poisoned from clean (AUROC 0.53--0.60), so what transferred was call-level
+judgement, not reading of untrusted text. We trace the 2B failure to a label
+leak in our generator, fix it, and retrain: the leak-free checkers reach 0.69
+(2B) and 0.84 (8B) AUPRC on AgentDojo injection while their synthetic
+injection score falls from a leaked 1.00 to 0.79. All other results are on synthetic data;
 we are explicit about what that does and does not license.
 \end{abstract}
 

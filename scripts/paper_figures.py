@@ -585,6 +585,8 @@ def fig_agentdojo() -> None:
         ("decoder-2b-v4-report.md", "Decoder 2B v4", COLORS["blue"]),
         ("decoder-2b-v4-strip-report.md", "2B v4, eval-stripped", COLORS["vermillion"]),
         ("decoder-8b-v4-report.md", "Decoder 8B v4", COLORS["reddish_purple"]),
+        ("decoder-2b-v6-report.md", "Decoder 2B v6", COLORS["sky_blue"]),
+        ("decoder-8b-v6-report.md", "Decoder 8B v6", COLORS["orange"]),
     ]
     tables = {name: parse_dimension_table(AGENTDOJO_DIR / name) for name, _, _ in arms}
     pos_rate = [tables["rule-baseline-report.md"][d]["positive_rate"] for d in dims]

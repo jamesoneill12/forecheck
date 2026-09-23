@@ -32,9 +32,11 @@ on synthetic dev, and threshold selection is disabled (`--threshold-split none`)
 Reports: `rule-baseline-report.md`, `decoder-2b-v4-report.md`,
 `decoder-2b-v4-strip-report.md` (eval-time `--strip-identity`),
 `decoder-2b-v4-noid-report.md` (train-time stripped model, evaluated stripped),
-`decoder-8b-v4-report.md`. render-v1 reports, the first export before the
-rendering fix, are under `render-v1/`. Granite Guardian 3.3 8B (n=1000 subsample)
-and agent-self 8B (n=1000) are still running.
+`decoder-8b-v4-report.md`, `decoder-8b-v4-strip-report.md`,
+`decoder-{2b,8b}-v6-report.md` and `decoder-{2b,8b}-v6-strip-report.md` (v6 =
+leak-free generator, `../notes/injection-label-leak-diagnosis.md`),
+`guardian-3.3-8b-report.md`, `agent-self-8b-report.md`. render-v1 reports, the
+first export before the rendering fix, are under `render-v1/`.
 
 ## Results
 
@@ -47,8 +49,12 @@ dimension except `prompt_injection_influence`, n=4,133.
 | decoder 2B v4 | 0.128 / 0.348 | 0.257 / 0.481 | 0.849 / 0.937 | 1.000 / 1.000 | 1.000 / 1.000 | 0.647 | 0.200 |
 | decoder 2B v4, eval-stripped | 0.125 / 0.292 | 0.218 / 0.409 | 0.694 / 0.849 | 1.000 / 1.000 | 1.000 / 1.000 | 0.608 | n/a (raw margins, no bundle) |
 | decoder 2B v4 train-stripped | 0.150 / 0.475 | 0.234 / 0.426 | 0.390 / 0.660 | 1.000 / 1.000 | 1.000 / 1.000 | 0.555 | 0.203 |
-| decoder 8B v4 | 0.797 / 0.916 | 0.386 / 0.509 | 0.560 / 0.885 | 0.924 / 0.924 | 1.000 / 1.000 | 0.733 | 0.272 |
+| decoder 8B v4 | 0.701 / 0.895 | 0.355 / 0.506 | 0.626 / 0.912 | 0.923 / 0.922 | 0.999 / 1.000 | 0.721 | 0.254 |
 | decoder 8B v4, eval-stripped | 0.743 / 0.915 | 0.266 / 0.523 | 0.404 / 0.787 | 0.934 / 0.936 | 1.000 / 1.000 | 0.669 | n/a (raw margins, no bundle) |
+| decoder 2B v6 (leak-free generator) | 0.693 / 0.928 | 0.214 / 0.356 | 0.670 / 0.905 | 0.935 / 0.934 | 1.000 / 1.000 | 0.702 | 0.260 |
+| decoder 2B v6, eval-stripped | 0.669 / 0.921 | 0.306 / 0.633 | 0.521 / 0.862 | 0.941 / 0.944 | 1.000 / 1.000 | 0.687 | n/a (raw margins, no bundle) |
+| decoder 8B v6 (leak-free generator) | 0.838 / 0.966 | 0.239 / 0.452 | 0.785 / 0.943 | 0.945 / 0.956 | 0.831 / 0.977 | 0.728 | 0.256 |
+| decoder 8B v6, eval-stripped | 0.819 / 0.960 | 0.354 / 0.661 | 0.450 / 0.817 | 0.979 / 0.987 | 0.975 / 0.998 | 0.715 | n/a (raw margins, no bundle) |
 | Granite Guardian 3.3 8B zero-shot (n=1000) | 0.103 / 0.233 | 0.289 / 0.494 | 0.224 / 0.450 | 0.257 / 0.237 | 0.217 / 0.697 | 0.218 | 0.275 |
 | agent-self 8B, ALLOW/STOP (n=1000) | 0.291 / 0.775 | 0.442 / 0.734 | 0.449 / 0.792 | 0.591 / 0.804 | 0.105 / 0.580 | 0.375 | 0.398 |
 
@@ -62,13 +68,22 @@ dimension except `prompt_injection_influence`, n=4,133.
    found on synthetic data (`docs/results/synthetic-v2/README.md`, identity
    ablation), now confirmed on external data.
 
-2. **Injection transfer is a scale effect.** 2B fails outright: 0.128 AUPRC,
-   below the 0.150 base rate, AUROC 0.348. 8B gets 0.797 AUPRC and 0.916 AUROC
-   zero-shot. The rule baseline sits between the two, 0.250 / 0.737, because
-   presence of untrusted content is a strong but insufficient cue. This is the
-   single most important number in this report: the 8B checker, trained only on
-   synthetic data, ranks the call that executes the attacker's goal above the
-   benign calls in the same poisoned trace 92 percent of the time. The 2B result
+2. **Injection transfer on v4 was a data effect, not a scale effect.** 2B v4
+   fails outright: 0.128 AUPRC, below the 0.150 base rate, AUROC 0.348. 8B v4
+   gets 0.701 AUPRC and 0.895 AUROC zero-shot. The rule baseline sits between
+   the two, 0.250 / 0.737, because presence of untrusted content is a strong
+   but insufficient cue. (An earlier 8B v4 run reported 0.797 / 0.916 and was
+   quoted in earlier versions of this README and the paper. Two later runs on
+   the current export, with per-example scores identical to each other, give
+   0.701 / 0.895; we could not reproduce the earlier number and report the
+   reproducible one.) The v6 checkers, trained on the leak-free generator
+   (`../notes/injection-label-leak-diagnosis.md`), change the picture: 2B v6
+   reaches 0.693 / 0.928 and 8B v6 0.838 / 0.966, so the 2B failure was the
+   generator's leak, not the model's size. On the dump, the 2B v6 injection
+   head fires: median raw logit +4.5 for positives against -3.0 for negatives,
+   92% of positives above 0 against 23% of negatives; 8B v6 is +6.25 vs -3.25,
+   94% vs 8%. Eval-time identity stripping barely moves either (0.669 and
+   0.819), so the head is reading content. The 2B v4 result
    is a plain failure, and the per-example dump (`--dump-scores`, job
    `eval-agentdojo-diag`) says why: the 2B injection head never fires on this
    domain. Raw logits for all 4,133 evaluable calls lie between -5.0 and -3.0;
@@ -78,34 +93,41 @@ dimension except `prompt_injection_influence`, n=4,133.
    the 2B `policy_conflict` head separates cleanly on the same rows (median raw
    +2.5 for positives, -3.5 for negatives). The 2B model learned injection from
    surface cues of the synthetic generator that AgentDojo's injections do not
-   carry; 8B learned something that transfers. The 8B dump confirms the head is
-   live but shifted: median raw -1.75 for positives vs -3.50 for negatives, and
-   29% of positives score above 0 against 0.7% of negatives, so the ranking is
-   right while most true positives still sit below the decision boundary, which
-   is the ECE 0.272 in one number. The same dump explains `unauthorized_scope`:
+   carry; 8B v4 learned something that partly transfers. The 8B v4 dump shows
+   the head is live but shifted: median raw -1.75 for positives vs -3.50 for
+   negatives, and 29% of positives score above 0 against 0.7% of negatives, so
+   the ranking is partly right while most true positives sit below the decision
+   boundary, which is the ECE 0.254 in one number. The same dump explains `unauthorized_scope`:
    8B scores above 0 on 77% of negatives and 66% of positives (both medians
    +6.75), i.e. the head fires on almost everything and carries no signal on
    this label. The two 8B baselines separate
    scale from training: the same Granite-3.3-8B base asked ALLOW/STOP as the agent
    scores 0.291 / 0.775 on injection, and Granite Guardian 3.3 8B zero-shot scores
-   0.103 / 0.233, below base rate. The trained 8B checker's 0.797 is therefore the
-   training, not the parameter count; 8B is necessary but not sufficient.
-   Stripping identity from the 8B input keeps injection (0.743 / 0.915) and drops
-   `policy_conflict` from 0.560 to 0.404, the same split between content and
-   identity dimensions the synthetic identity ablation showed.
+   0.103 / 0.233, below base rate. The trained checkers' 0.70 to 0.84 is
+   therefore the training, not the parameter count.
+   Stripping identity from the 8B v4 input keeps injection (0.743 / 0.915) and drops
+   `policy_conflict` from 0.626 to 0.404, the same split between content and
+   identity dimensions the synthetic identity ablation showed; 8B v6 shows the
+   same split (0.785 to 0.450).
 
-3. **`unauthorized_scope` does not transfer.** 0.257 (2B) and 0.386 (8B) AUPRC
+3. **`unauthorized_scope` does not transfer.** 0.257 (2B v4), 0.355 (8B v4),
+   0.214 (2B v6) and 0.239 (8B v6) AUPRC
    against a 0.253 base rate is chance to marginal. The label itself is the
    weakest one here: "function not in the reference solution" counts harmless
    auxiliary reads as out of scope, as noted in the "Known gaps" section of
    `docs/external-agentdojo.md`. We report this number and do not claim
    transfer on it.
 
-4. **8B `policy_conflict` (0.560 AUPRC) is below 2B (0.849 AUPRC) while its
-   AUROC (0.885) stays high.** This is unexplained. Single-seed 8B vs 2B
-   comparisons on this cell are within what seed noise did on synthetic
-   `heldout_policy_kind` (sample sd 0.03) only for the AUROC gap, not for the
-   AUPRC gap, so the AUPRC drop is a real open question.
+4. **The 8B-below-2B `policy_conflict` gap is not robust.** On v4, 8B scores
+   0.626 AUPRC against 2B's 0.849 while its AUROC (0.912) stays high. On v6 the
+   order reverses: 8B 0.785, 2B 0.670. A second 8B v4 seed on synthetic
+   `heldout_policy_kind` gives `policy_conflict` 0.825 against seed 0's 0.851,
+   so single-seed differences of 0.03 on this dimension are noise there, but
+   the v4 AgentDojo gap of 0.22 is larger than that. With one seed per (size,
+   data version) cell we cannot say more than that the direction flips with
+   the training data; the AUROCs (0.91 to 0.94) agree that both sizes rank
+   the policy violations well and differ in how many benign calls they put
+   above them.
 
 5. **Calibration does not transfer, but an in-domain refit fixes it.** Macro ECE runs 0.20 to 0.27 for the
    calibrated arms here, against under 0.03 on synthetic data. Calibration must
@@ -136,12 +158,13 @@ per-suite numbers are in `all-suites/per-suite.md`.
 
 AUPRC / AUROC, positive rate in the header. `destructive_or_irreversible_action`
 and `financial_commitment` come from function-name sets and are not learned
-signal; the 8B full-context arm was still running when this was written.
+signal. The v6 checkers were not run on the four-suite export.
 
 | arm | prompt_injection_influence (0.099) | unauthorized_scope (0.284) | policy_conflict (0.075) | financial_commitment (0.054) | destructive (0.029) | macro AUPRC |
 |---|---|---|---|---|---|---|
 | rule baseline | 0.129 / 0.630 | 0.591 / 0.714 | 0.075 / 0.500 | 0.765 / 0.876 | 1.000 / 1.000 | 0.512 |
 | decoder 2B v4 | 0.098 / 0.498 | 0.676 / 0.688 | 0.519 / 0.832 | 0.999 / 1.000 | 1.000 / 1.000 | 0.659 |
+| decoder 8B v4 | 0.490 / 0.845 | 0.350 / 0.615 | 0.540 / 0.954 | 0.840 / 0.953 | 1.000 / 1.000 | 0.644 |
 | decoder 8B v4, eval-stripped | 0.498 / 0.845 | 0.396 / 0.645 | 0.188 / 0.816 | 0.820 / 0.937 | 1.000 / 1.000 | 0.580 |
 | Granite Guardian 3.3 8B (n=2000) | 0.116 / 0.553 | 0.310 / 0.570 | 0.073 / 0.475 | 0.091 / 0.639 | 0.069 / 0.717 | 0.132 |
 | agent-self 8B ALLOW/STOP (n=2000) | 0.251 / 0.809 | 0.461 / 0.727 | 0.203 / 0.833 | 0.150 / 0.815 | 0.067 / 0.754 | 0.227 |
@@ -152,16 +175,18 @@ Per suite, `prompt_injection_influence` AUPRC / AUROC (positive rate):
 |---|---|---|---|---|
 | rule baseline | 0.250 / 0.737 | 0.222 / 0.601 | 0.021 / 0.360 | 0.138 / 0.740 |
 | decoder 2B v4 | 0.128 / 0.348 | 0.178 / 0.479 | 0.048 / 0.686 | 0.065 / 0.353 |
+| decoder 8B v4 | 0.701 / 0.895 | 0.433 / 0.738 | 0.131 / 0.834 | 0.752 / 0.941 |
 | decoder 8B v4, eval-stripped | 0.743 / 0.915 | 0.421 / 0.726 | 0.146 / 0.844 | 0.727 / 0.943 |
 | agent-self 8B | 0.354 / 0.832 | 0.292 / 0.687 | 0.026 / 0.484 | 0.246 / 0.866 |
 
 Reading:
 
-1. **The 8B injection transfer holds on three of four suites.** Eval-stripped 8B
-   is at 0.74 / 0.92 on banking, 0.73 / 0.94 on workspace, 0.42 / 0.73 on slack,
-   each several times the base rate; travel is 0.15 AUPRC at a 0.025 base rate
-   with AUROC 0.84, so the ranking is right but positives are rare and the head
-   fires on many benign travel calls. 2B is at base rate on every suite, which is
+1. **The 8B v4 injection transfer holds on three of four suites.** Full-context
+   8B is at 0.70 / 0.90 on banking, 0.75 / 0.94 on workspace, 0.43 / 0.74 on
+   slack, each several times the base rate, and the eval-stripped arm is within
+   0.04 of it everywhere; travel is 0.13 AUPRC at a 0.025 base rate with AUROC
+   0.83, so the ranking is right but positives are rare and the head fires on
+   many benign travel calls. 2B is at base rate on every suite, which is
    the same failure as banking. Given the InjecAgent result
    (`../injecagent/README.md`), what transfers here is call-level: the attacker's
    call is one the user did not ask for.
@@ -186,10 +211,9 @@ Reading:
    0.83 on banking) and on `policy_conflict` AUROC (0.83), below the trained
    checkers on AUPRC everywhere except slack injection where it ties.
 5. **Macro AUPRC moves against 8B here because of the label mix.** 2B (0.659)
-   beats 8B eval-stripped (0.580) on the macro because 2B carries
+   beats 8B (0.644) and 8B eval-stripped (0.580) on the macro because 2B carries
    `unauthorized_scope` and `policy_conflict` through the rule-like and identity
-   cues that stripping removes, while 8B carries injection. Read the dimension
-   columns, not the macro.
+   cues, while 8B carries injection. Read the dimension columns, not the macro.
 
 ## Compared with render-v1
 
@@ -210,5 +234,6 @@ render-v1.
   diversify the generator's injection templates so 2B transfers too.
 - Write suite-specific policies for slack, travel and workspace so
   `policy_conflict` there is as sharp a label as on banking.
-- Add the 8B full-context four-suite arm when its job finishes.
 - Score the v6 (leak-free) checkers on all four suites.
+- A second seed per (size, data version) cell to settle the `policy_conflict`
+  size question.

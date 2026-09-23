@@ -50,12 +50,19 @@ number in this paper, so the 1.0 AUPRC on this dimension (Tables
 $\kappa{=}0.905$ on it are not evidence of injection detection; the judge saw
 the same argument. The identity dimensions do not use the leaked keys and are
 unaffected. The AgentDojo and InjecAgent results are the first leak-free
-measurements: 2B fails (0.128 AUPRC), 8B transfers (0.797). The generator is
-fixed in v6 (renderer 2.0.0: no \texttt{instructed\_target}, target argument
-key chosen from the tool kind and filled for benign calls too, shared target
-pools, 300--2,000 character multi-format observations) with a leakage check
-on argument-key presence parity; v6 retraining is reported where it landed
-before submission (\texttt{docs/results/notes/injection-label-leak-diagnosis.md}).
+measurements of the v4 checkers: 2B fails (0.128 AUPRC), 8B partly transfers
+(0.701). The generator is fixed in v6 (renderer 2.0.0: no
+\texttt{instructed\_target}, target argument key chosen from the tool kind
+and filled for benign calls too, shared target pools, 300--2,000 character
+multi-format observations) with a leakage check on argument-key presence
+parity. Retrained on v6, the synthetic injection AUPRC falls from 1.000 to
+0.788 (2B) and 0.795 (8B), the first honest number on this dimension, and the
+AgentDojo injection AUPRC rises to 0.693 (2B) and 0.838 (8B)
+(\S\ref{sec:external}, \texttt{docs/results/notes/injection-label-leak-diagnosis.md}).
+Every other synthetic dimension is within 0.01 of v4 except
+\texttt{policy\_conflict} on \texttt{heldout\_policy\_kind}, which drops to
+0.692 (2B) and 0.767 (8B), inside the seed band below for 2B and 0.08 below
+the single v4 seed for 8B.
 
 \textbf{Seed variance (three seeds each for v4 and v5).} Three training
 seeds for decoder v4 agree on macro AUPRC to within 0.001 on every split

@@ -57,7 +57,7 @@ output; 1,598 pairs, raw logits from `--dump-scores`):
 
 2. **This reinterprets the AgentDojo injection result.** On AgentDojo the 8B
    checker separated the attacker's call from the benign calls in the same
-   poisoned trace (AUROC 0.916). Those positives differ from their negatives in
+   poisoned trace (AUROC 0.895). Those positives differ from their negatives in
    the call itself (an unrequested transfer to a recipient the user never named),
    not only in the observation. InjecAgent removes the call-level difference and
    the signal disappears. So the transferable part of "injection detection" in
