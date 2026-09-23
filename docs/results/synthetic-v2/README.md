@@ -72,6 +72,7 @@ thresholds selected on `dev`. Sections marked *pending* are filled in as jobs fi
 | decoder 8B v4 | heldout_family | 0.958 | 0.005 | 0.948 |
 | decoder 8B v4 | heldout_policy_kind | 0.951 | 0.014 | 0.937 |
 | decoder 8B v4 | heldout_policy_phrasing | 0.964 | 0.005 | 0.955 |
+| decoder 8B v4 seed 1 | test | 0.948 | 0.008 | 0.942 |
 | decoder 8B v4, identity stripped | test | 0.784 | 0.007 | 0.810 |
 | decoder 8B v4, identity stripped | heldout_family | 0.786 | 0.011 | 0.811 |
 | decoder 2B v4 seed 2 | test | 0.960 | 0.002 | |

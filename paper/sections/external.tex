@@ -107,11 +107,26 @@ of the AgentDojo calls and testing on the other half (five seeds) gives macro
 ECE 0.008 (2B) and 0.010 (8B) with AUPRC unchanged; the 8B
 \texttt{unauthorized\_scope} head goes from ECE 0.60 to 0.01 because it
 learns to output the base rate. Most of the gain is reached with 250--500
-labelled calls (\texttt{scripts/agentdojo\_recalibrate.py}). Last, this is one
-suite (banking), one domain, with labels partly written by us (the four
-policy predicates) and partly by AgentDojo
-(\texttt{prompt\_injection\_influence}, \texttt{unauthorized\_scope}); slack,
-travel, and workspace traces were not fetched.
+labelled calls (\texttt{scripts/agentdojo\_recalibrate.py}). Last, the labels
+here are partly written by us (the four policy predicates) and partly by
+AgentDojo (\texttt{prompt\_injection\_influence},
+\texttt{unauthorized\_scope}).
+
+\textbf{Four suites.} Re-running the export over all four AgentDojo suites
+gives 30,143 proposed calls (banking 4,215, slack 8,246, travel 10,701,
+workspace 6,981), with injection positive rate 0.099 overall and 0.025 on
+travel. The 8B eval-stripped checker's injection transfer holds on three of
+the four: AUPRC/AUROC 0.743/0.915 on banking, 0.727/0.943 on workspace,
+0.421/0.726 on slack, each several times the base rate, and 0.146/0.844 on
+travel where positives are 2.5\% of calls. 2B is at base rate on every suite.
+The agent-self baseline reaches 0.251/0.809 over all suites and Guardian
+0.116/0.553. \texttt{unauthorized\_scope} outside banking is carried by the
+rule baseline (0.749 on slack, 0.733 on workspace, where nearly half of all
+calls are labelled out of scope); 2B adds under 0.09 and 8B is below the rule.
+\texttt{policy\_conflict} on slack, travel, and workspace uses one generic
+policy per suite at 0.7--8\% base rates and is a weak label there: 2B AUROC is
+0.78--0.89 but AUPRC 0.005--0.49, so we claim policy transfer on banking only.
+Per-suite tables are in \texttt{docs/results/agentdojo/README.md}.
 
 \subsection{InjecAgent: holding the call fixed}
 \label{sec:injecagent}

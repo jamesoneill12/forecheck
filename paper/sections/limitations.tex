@@ -66,7 +66,12 @@ more than the macro noise floor -- so differences smaller than that on this
 specific cell are not distinguishable from seed noise. Three seeds of the
 v5 (30-kind) recipe show the same range (0.704, 0.755, 0.717; mean 0.725,
 sample sd 0.026), which is what lets \S\ref{sec:generalisation} compare the
-two bands directly instead of a single point each.
+two bands directly instead of a single point each. The 8B numbers are from
+one seed except where noted; a second 8B seed reaches macro AUPRC 0.948 on
+test against 0.956 for the first, with the whole gap on
+\texttt{insufficient\_context} (0.682 vs.\ 0.767) and the other ten
+dimensions within 0.003, so 8B-vs-2B gaps on that dimension are inside seed
+noise; its held-out splits were still evaluating at submission.
 
 \textbf{Held-out-policy-kind failure (now tested at 30 kinds and 8B).}
 \texttt{policy\_conflict} AUPRC drops from $\sim$0.98--0.99
@@ -79,12 +84,14 @@ not solve it. The supportable claim today is "one model, policies of a kind
 seen in training (or with enough capacity to partially generalize), any
 phrasing" -- not "arbitrary new policy kinds."
 
-\textbf{External result is one suite, partly self-written labels.} The
-AgentDojo transfer result (\S\ref{sec:external}) covers a single suite
-(banking), a single domain, and labels that are partly written by us (the
-four policy predicates) and partly by AgentDojo
-(\texttt{prompt\_injection\_influence}, \texttt{unauthorized\_scope}); slack,
-travel, and workspace traces exist in AgentDojo but were not fetched.
+\textbf{External labels are partly self-written and uneven across suites.}
+The AgentDojo labels (\S\ref{sec:external}) are partly written by us (the
+policy predicates) and partly by AgentDojo
+(\texttt{prompt\_injection\_influence}, \texttt{unauthorized\_scope}). The
+banking suite has four tool-specific policies; slack, travel, and workspace
+have one generic policy each, so the policy-transfer claim rests on banking
+alone, and the four-suite injection result is a single checker
+(eval-stripped 8B) on a label whose positive rate is 2.5\% on travel.
 Calibration did not transfer: macro ECE runs 0.20--0.27 on AgentDojo against
 under 0.03 on synthetic data, so only the ranking generalizes to this external
 distribution. Refitting isotonic calibrators on half of the AgentDojo calls

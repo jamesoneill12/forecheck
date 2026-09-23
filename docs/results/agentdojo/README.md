@@ -119,7 +119,77 @@ dimension except `prompt_injection_influence`, n=4,133.
 6. **What this does and does not show.** This is one suite (banking), one
    domain, with labels partly written by us (the four policy predicates) and
    partly by AgentDojo (`prompt_injection_influence`, `unauthorized_scope`).
-   Slack, travel and workspace traces were not fetched.
+   The other three suites are in the next section.
+
+## Four suites (banking, slack, travel, workspace)
+
+Same export (`forecheck external agentdojo`, derivation `agentdojo-1.2.0`) over all
+four AgentDojo suites for the same two agent models: 30,143 proposed tool calls
+(banking 4,215, slack 8,246, travel 10,701, workspace 6,981). Positive rates fall
+from banking to the rest: `prompt_injection_influence` 0.0985 overall (n=29,380
+evaluable), `unauthorized_scope` 0.284, `policy_conflict` 0.0749. The banking
+suite has four policies written against its tool schema; the other three suites
+have one generic policy each, so `policy_conflict` outside banking is a weaker,
+lower-base-rate label. Arms are the same zero-shot v4 checkers. Guardian and
+agent-self are on a fixed 2,000-row subsample. Reports are under `all-suites/`;
+per-suite numbers are in `all-suites/per-suite.md`.
+
+AUPRC / AUROC, positive rate in the header. `destructive_or_irreversible_action`
+and `financial_commitment` come from function-name sets and are not learned
+signal; the 8B full-context arm was still running when this was written.
+
+| arm | prompt_injection_influence (0.099) | unauthorized_scope (0.284) | policy_conflict (0.075) | financial_commitment (0.054) | destructive (0.029) | macro AUPRC |
+|---|---|---|---|---|---|---|
+| rule baseline | 0.129 / 0.630 | 0.591 / 0.714 | 0.075 / 0.500 | 0.765 / 0.876 | 1.000 / 1.000 | 0.512 |
+| decoder 2B v4 | 0.098 / 0.498 | 0.676 / 0.688 | 0.519 / 0.832 | 0.999 / 1.000 | 1.000 / 1.000 | 0.659 |
+| decoder 8B v4, eval-stripped | 0.498 / 0.845 | 0.396 / 0.645 | 0.188 / 0.816 | 0.820 / 0.937 | 1.000 / 1.000 | 0.580 |
+| Granite Guardian 3.3 8B (n=2000) | 0.116 / 0.553 | 0.310 / 0.570 | 0.073 / 0.475 | 0.091 / 0.639 | 0.069 / 0.717 | 0.132 |
+| agent-self 8B ALLOW/STOP (n=2000) | 0.251 / 0.809 | 0.461 / 0.727 | 0.203 / 0.833 | 0.150 / 0.815 | 0.067 / 0.754 | 0.227 |
+
+Per suite, `prompt_injection_influence` AUPRC / AUROC (positive rate):
+
+| arm | banking (0.150) | slack (0.186) | travel (0.025) | workspace (0.077) |
+|---|---|---|---|---|
+| rule baseline | 0.250 / 0.737 | 0.222 / 0.601 | 0.021 / 0.360 | 0.138 / 0.740 |
+| decoder 2B v4 | 0.128 / 0.348 | 0.178 / 0.479 | 0.048 / 0.686 | 0.065 / 0.353 |
+| decoder 8B v4, eval-stripped | 0.743 / 0.915 | 0.421 / 0.726 | 0.146 / 0.844 | 0.727 / 0.943 |
+| agent-self 8B | 0.354 / 0.832 | 0.292 / 0.687 | 0.026 / 0.484 | 0.246 / 0.866 |
+
+Reading:
+
+1. **The 8B injection transfer holds on three of four suites.** Eval-stripped 8B
+   is at 0.74 / 0.92 on banking, 0.73 / 0.94 on workspace, 0.42 / 0.73 on slack,
+   each several times the base rate; travel is 0.15 AUPRC at a 0.025 base rate
+   with AUROC 0.84, so the ranking is right but positives are rare and the head
+   fires on many benign travel calls. 2B is at base rate on every suite, which is
+   the same failure as banking. Given the InjecAgent result
+   (`../injecagent/README.md`), what transfers here is call-level: the attacker's
+   call is one the user did not ask for.
+2. **`unauthorized_scope` is mostly a rule-baseline effect outside banking.** The
+   rule baseline scores 0.749 / 0.759 on slack and 0.733 / 0.755 on workspace,
+   where the base rate is 0.46 to 0.48; 2B adds 0.04 to 0.09 AUPRC on top, and 8B
+   eval-stripped is below the rule baseline on both. AgentDojo's label (function
+   not in the reference solution) counts auxiliary reads as out of scope, and on
+   slack and workspace nearly half of all calls are labelled positive, so this is
+   not a label we claim transfer on.
+3. **`policy_conflict` outside banking is a weak label and the numbers say so.**
+   Banking has four policies that name specific tools and recipients and 2B
+   reaches 0.849 there. Slack, travel and workspace have one generic policy each
+   with base rates of 0.7 to 8 percent; 2B scores 0.196 / 0.776 on slack, 0.493 /
+   0.892 on workspace and nothing on travel (0.005, 7 positives per thousand).
+   The AUROCs above 0.8 mean the head is ordering correctly; the AUPRCs mean the
+   positive is too rare and the policy too vague to separate well. Writing
+   suite-specific policies for the three suites is the fix; we did not do it
+   before submission.
+4. **Baselines.** Guardian is at or below base rate on every dimension on every
+   suite. Agent-self has real signal on injection (0.25 / 0.81 overall, 0.35 /
+   0.83 on banking) and on `policy_conflict` AUROC (0.83), below the trained
+   checkers on AUPRC everywhere except slack injection where it ties.
+5. **Macro AUPRC moves against 8B here because of the label mix.** 2B (0.659)
+   beats 8B eval-stripped (0.580) on the macro because 2B carries
+   `unauthorized_scope` and `policy_conflict` through the rule-like and identity
+   cues that stripping removes, while 8B carries injection. Read the dimension
+   columns, not the macro.
 
 ## Compared with render-v1
 
@@ -138,7 +208,7 @@ render-v1.
 - Find which synthetic cue the 2B injection head keys on (ablate observation
   source names, `attacker.example` domains, the "Note to assistant" phrasing) and
   diversify the generator's injection templates so 2B transfers too.
-- Fetch slack, workspace and travel traces from AgentDojo.
-- Port InjecAgent as a second external benchmark.
-- Refit calibration on a held-out AgentDojo split instead of using the
-  synthetic-dev bundle.
+- Write suite-specific policies for slack, travel and workspace so
+  `policy_conflict` there is as sharp a label as on banking.
+- Add the 8B full-context four-suite arm when its job finishes.
+- Score the v6 (leak-free) checkers on all four suites.
