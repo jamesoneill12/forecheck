@@ -11,7 +11,7 @@ trainer:
     cd /workspace/forecheck-job &&
     pip install -q --no-cache-dir -e ".[train]" &&
     if [ ! -f /opt/ml/fsx/forecheck/data/v6/train.jsonl ]; then forecheck data generate --offline --config configs/data/train_medium.yaml --out /opt/ml/fsx/forecheck/data/v6 && forecheck data split /opt/ml/fsx/forecheck/data/v6 && python scripts/check_no_leakage.py /opt/ml/fsx/forecheck/data/v6; fi &&
-    forecheck train --config configs/training/8b.yaml data.dir=/opt/ml/fsx/forecheck/data/v6 output.dir=/opt/ml/fsx/forecheck/runs/8b-synthetic-v6 tracking.backend=local &&
+    forecheck train --config configs/training/8b.yaml data.dir=/opt/ml/fsx/forecheck/data/v6 output.dir=/opt/ml/fsx/forecheck/runs/8b-synthetic-v6 tracking.backend=local optim.micro_batch_size=4 optim.grad_accum=2 &&
     forecheck calibrate --run /opt/ml/fsx/forecheck/runs/8b-synthetic-v6 --split calibration &&
     forecheck evaluate --run /opt/ml/fsx/forecheck/runs/8b-synthetic-v6 --split test --class synthetic_in_distribution --approval-curve balanced &&
     forecheck evaluate --run /opt/ml/fsx/forecheck/runs/8b-synthetic-v6 --split heldout_family --class synthetic_heldout_adversarial --approval-curve balanced &&
