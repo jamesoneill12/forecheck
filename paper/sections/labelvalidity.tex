@@ -141,7 +141,12 @@ Table~\ref{tab:identity-ablation}), and keeps the same content dimensions
 (\texttt{prompt\_injection\_influence}, \texttt{privilege\_escalation}) the
 checker keeps. The content dimensions' judge-yes and generator-yes counts
 are identical between the two passes, which also confirms that stripping
-identity left the tool-call and trajectory text itself unchanged.
+identity left the tool-call and trajectory text itself unchanged. One
+content dimension needs a caveat: the \texttt{prompt\_injection\_influence}
+agreement ($\kappa{=}0.905$) was measured on v4 text in which every injected
+call carried an \texttt{instructed\_target} argument
+(\S\ref{sec:limitations}), so the judge and the generator could agree by
+reading that key rather than the injected text.
 
 \textbf{Scoring the checker against the judge's labels.} Re-scoring the
 trained 2B v4 decoder and the rule baseline against the judge's labels on the

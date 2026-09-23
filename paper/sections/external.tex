@@ -100,9 +100,14 @@ AUROC (0.885) stays high}, which is unexplained; single-seed 8B vs.\ 2B
 comparisons on this cell fall within the seed noise \S\ref{sec:generalisation}
 measured on synthetic \texttt{heldout\_policy\_kind} (sample sd 0.03) only for
 the AUROC gap, not for the AUPRC gap, so this remains a real open question.
-\textbf{Calibration does not transfer}: macro ECE runs 0.20--0.27 for the
-calibrated arms here, against under 0.03 on synthetic data, so the ranking
-transfers but the probabilities must be refit in-domain. Last, this is one
+\textbf{Calibration does not transfer, an in-domain refit fixes it}: macro
+ECE runs 0.20--0.27 for the calibrated arms here, against under 0.03 on
+synthetic data. Refitting per-dimension isotonic calibrators on a random half
+of the AgentDojo calls and testing on the other half (five seeds) gives macro
+ECE 0.008 (2B) and 0.010 (8B) with AUPRC unchanged; the 8B
+\texttt{unauthorized\_scope} head goes from ECE 0.60 to 0.01 because it
+learns to output the base rate. Most of the gain is reached with 250--500
+labelled calls (\texttt{scripts/agentdojo\_recalibrate.py}). Last, this is one
 suite (banking), one domain, with labels partly written by us (the four
 policy predicates) and partly by AgentDojo
 (\texttt{prompt\_injection\_influence}, \texttt{unauthorized\_scope}); slack,

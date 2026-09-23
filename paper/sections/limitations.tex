@@ -37,6 +37,26 @@ textually indistinguishable from an in-scope re-grant. Fixed in v4
 (\S\ref{sec:generalisation}); numbers sourced from v2/v3 elsewhere should be
 read with this in mind.
 
+\textbf{\texttt{prompt\_injection\_influence} label leak (v1--v5).} After the
+2B checker failed on AgentDojo injection (\S\ref{sec:external}) we contrasted
+the rendered call between injected and non-injected synthetic examples. The
+generator wrote an \texttt{instructed\_target} argument into every injected
+call and into no other call (presence 1.00 vs.\ 0.00 over 13,312 v4 rows), put
+a \texttt{to} argument into 100\% of injected calls vs.\ 3\% of others, and
+drew the injected target from five literals, three containing the word
+``attacker''. A key-presence detector matches every synthetic injection
+number in this paper, so the 1.0 AUPRC on this dimension (Tables
+\ref{tab:identity-ablation}, \ref{tab:model-vs-judge}) and the judge's
+$\kappa{=}0.905$ on it are not evidence of injection detection; the judge saw
+the same argument. The identity dimensions do not use the leaked keys and are
+unaffected. The AgentDojo and InjecAgent results are the first leak-free
+measurements: 2B fails (0.128 AUPRC), 8B transfers (0.797). The generator is
+fixed in v6 (renderer 2.0.0: no \texttt{instructed\_target}, target argument
+key chosen from the tool kind and filled for benign calls too, shared target
+pools, 300--2,000 character multi-format observations) with a leakage check
+on argument-key presence parity; v6 retraining is reported where it landed
+before submission (\texttt{docs/results/notes/injection-label-leak-diagnosis.md}).
+
 \textbf{Seed variance (three seeds each for v4 and v5).} Three training
 seeds for decoder v4 agree on macro AUPRC to within 0.001 on every split
 (e.g.\ 0.960, 0.959, 0.960 on test). But the \texttt{heldout\_policy\_kind}
@@ -65,9 +85,13 @@ AgentDojo transfer result (\S\ref{sec:external}) covers a single suite
 four policy predicates) and partly by AgentDojo
 (\texttt{prompt\_injection\_influence}, \texttt{unauthorized\_scope}); slack,
 travel, and workspace traces exist in AgentDojo but were not fetched.
-Calibration did not transfer at all: macro ECE runs 0.20--0.27 on AgentDojo
-against under 0.03 on synthetic data, so only the ranking, not the
-probabilities, generalizes to this external distribution.
+Calibration did not transfer: macro ECE runs 0.20--0.27 on AgentDojo against
+under 0.03 on synthetic data, so only the ranking generalizes to this external
+distribution. Refitting isotonic calibrators on half of the AgentDojo calls
+brings macro ECE on the other half to 0.008 (2B) and 0.010 (8B) with AUPRC
+unchanged, and most of the gain arrives by 250--500 labelled calls
+(\texttt{docs/results/agentdojo/recalibration.md}), so a deployment needs a
+few hundred in-domain labels for its probabilities, not for its ranking.
 
 \textbf{Other caveats.} A single generator family (English, template
 renderer) produces every example. The \S\ref{sec:composition} cost table is
