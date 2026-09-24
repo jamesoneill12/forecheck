@@ -40,7 +40,10 @@ def evaluate_command(
     split: Annotated[str, typer.Option()],
     evaluation_class: Annotated[EvaluationClass, typer.Option("--class")],
     backend: Annotated[
-        str, typer.Option(help="mock | hf | rule_baseline | encoder | guardian | agent_self")
+        str,
+        typer.Option(
+            help="mock | hf | rule_baseline | symbolic_baseline | encoder | guardian | agent_self"
+        ),
     ] = "hf",
     backend_config: Annotated[
         Path | None,

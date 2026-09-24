@@ -93,6 +93,10 @@ def resolve_backend(
         from forecheck.evaluation.baselines import RuleBaselineBackend
 
         return RuleBaselineBackend()
+    if name == "symbolic_baseline":
+        from forecheck.evaluation.symbolic_baseline import SymbolicBaselineBackend
+
+        return SymbolicBaselineBackend()
     if name == "hf":
         train_config = load_resolved_train_config(run)
         if train_config is None:
@@ -145,7 +149,8 @@ def resolve_backend(
             agent_self_config = replace(agent_self_config, strip_identity=True)
         return AgentSelfBackend(agent_self_config)
     raise typer.BadParameter(
-        f"unknown backend {name!r}, expected mock|hf|rule_baseline|encoder|guardian|agent_self"
+        f"unknown backend {name!r}, expected "
+        "mock|hf|rule_baseline|symbolic_baseline|encoder|guardian|agent_self"
     )
 
 
