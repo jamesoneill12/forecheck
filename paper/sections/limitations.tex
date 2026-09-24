@@ -24,11 +24,12 @@ agent-self arm have not been re-run on v6 text. The v6 fix changes
 observation length and format as well as removing the key; the two are not
 separated.
 
-\textbf{The pair test has an open confound.} The clean InjecAgent twin is
-shorter than the poisoned one in every pair, and a length-only detector
-outscores the checkers on pair win. The destination-trust confound is ruled
-out on the 972 equal-trust pairs; the length confound is not, and a
-length-matched clean control is the next experiment.
+\textbf{The InjecAgent pair test's confounds are controlled, not eliminated
+in general.} The clean twin is shorter than the poisoned one in every pair,
+and length- and destination-trust-matched controls confirm the v6 win is not
+either (\S\ref{sec:external}); both controls are themselves synthetic filler
+text, not real benign tool output, so a checker specialised to distinguish
+our filler from genuine content would not be caught by them.
 
 \textbf{Uncertainty.} Synthetic results are single-seed point estimates
 except where stated; only the \texttt{policy\_conflict} kind-split cell has

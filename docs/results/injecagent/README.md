@@ -130,3 +130,49 @@ Reports: `rule-baseline-report.md`, `decoder-2b-v4-report.md`,
 `decoder-8b-v4-report.md`, `decoder-8b-v4-strip-report.md`, `decoder-2b-v6-report.md`, `decoder-8b-v6-report.md`, `decoder-8b-v6-strip-report.md`, `guardian-3.3-8b-report.md`, `agent-self-8b-report.md` (ECE column is raw
 margins, no calibration bundle applies when identity is stripped at eval time).
 Score dumps are on FSx under `runs/<run>/reports/injecagent/scores.jsonl`.
+
+## Length-matched controls
+
+The paired view above compares poisoned against clean, whose observation is
+always shorter, so a pure length detector would also win. `injecagent.py`
+now builds two more variants per attacker call, `clean_padded` (benign
+filler byte-matched to the poisoned observation's length) and
+`clean_instruction` (a benign imperative instruction, also byte-matched),
+giving a 4-way group of poisoned/clean/clean_padded/clean_instruction per
+attacker tool (1,598 groups). Construction facts, from
+`scripts/injecagent_pair_audit.py`: poisoned is longer than clean in 100% of
+groups, but longer than clean_padded or clean_instruction in only 4.3%;
+destination trust (derived from text membership, see
+`docs/external-injecagent.md`) differs between poisoned and clean in 39.2% of
+groups.
+
+Strict win / tie-adjusted win on `prompt_injection_influence` raw margin,
+poisoned vs. each control (full table with sign-test p and destination-trust
+subset in `controls/pair_audit.md`):
+
+| checker | vs clean | vs clean_padded | vs clean_instruction |
+|---|---|---|---|
+| 2B v6 | 0.977 / 0.980 | 0.984 / 0.986 | 0.988 / 0.989 |
+| 8B v6 | 0.977 / 0.983 | 0.976 / 0.981 | 0.988 / 0.993 |
+| 8B v6, eval-stripped | 0.978 / 0.986 | 0.980 / 0.986 | 0.989 / 0.993 |
+| 2B v4 (pre leak fix) | 0.504 / 0.624 | 0.311 / 0.514 | 0.291 / 0.515 |
+
+For 2B v4, the padded and instruction sign tests give p=0.16 and p=0.12: not
+distinguishable from chance. Restricting to the 972 groups where destination
+trust is equal changes the v6 wins by at most 0.015.
+
+AUPRC on the 4-way set (n=6,392 for injection, positive rate 0.25; bootstrap
+95% CIs in `controls/pair_audit.md`): injection 0.742 (2B v6), 0.899 (8B v6),
+0.908 (8B v6, eval-stripped), 0.260 (2B v4).
+
+**Reading.** The v6 checkers respond to the injected instruction itself, not
+to observation length or to the presence of any instruction in the slot: wins
+against the length- and content-matched controls are as high as against the
+plain clean control. The v4 checker's residual 0.504 pair win was length,
+not injection reading, and vanishes (0.51, chance) once the control is
+length-matched. This closes the length confound raised against the paired
+poisoned/clean result above.
+
+Per-checker reports: `controls/decoder-2b-v6-report.md`,
+`controls/decoder-8b-v6-report.md`, `controls/decoder-8b-v6-strip-report.md`,
+`controls/decoder-2b-v4-report.md`.

@@ -50,12 +50,18 @@ Reviewer-6 file: /tmp/fc-review/reviewer-6.md. Landed: §2 dimension fix, agent-
 sentence, 11-row Appendix A table, experimental-details appendix, system comparison
 table, self-judgment demoted, composition compressed, symbolic baseline row, Guardian
 numbers withdrawn (verdict-position bug, commit 1a3cd4e), `eval-guardian-fixed` (corrected
-verdict-position read, all Guardian numbers replaced). Pending GPU (recipes ready):
-`eval-injecagent-controls`, `train-2b-b200-v6a`, `train-2b-b200-v6b`.
+verdict-position read, all Guardian numbers replaced), `eval-injecagent-controls` (done:
+length-matched padded/instruction controls close the InjecAgent pair-test length
+confound, Table~\ref{tab:external} and Table~\ref{tab:injecagent-controls}). Pending GPU
+(recipes ready): `train-2b-b200-v6a`, `train-2b-b200-v6b`.
 
-## Open experiments the reviewers asked for (all cheap, none run yet)
+## Open experiments the reviewers asked for (all cheap)
 
-1. Length-matched InjecAgent clean control (one inference pass, ~3.2k rows).
+1. **Done.** Length-matched InjecAgent clean control (`eval-injecagent-controls`):
+   padded and instruction controls, byte-matched to the poisoned observation length;
+   v6 wins 0.98--0.99 tie-adjusted against both, v4's 0.62 falls to 0.51 (chance)
+   against padded. See `docs/results/injecagent/README.md` and
+   Table~\ref{tab:injecagent-controls}.
 2. Single-factor v6 arms: key removed with short observations; key kept with long observations
    (two 2B LoRA runs).
 3. AgentDojo payload-deletion counterfactual with the call held fixed (inference only).
