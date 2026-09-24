@@ -1,4 +1,4 @@
-# v6b = v6 leak fix OFF (configs/data/v6b-key-kept-long-obs.yaml), isolating the observation-length half of v4->v6; expected to FAIL check_no_leakage.py.
+# v6b = v6 leak fix OFF (configs/data/v6b-key-kept-long-obs.yaml), isolating the observation-length half of v4->v6; the leak check runs with --expect-leak.
 trainer:
   runtime_name: "torch-runtime"
   project_name: "forecheck"
@@ -10,7 +10,7 @@ trainer:
     bash -c 'set -euo pipefail &&
     cd /workspace/forecheck-job &&
     pip install -q --no-cache-dir -e ".[train]" &&
-    if [ ! -f /opt/ml/fsx/forecheck/data/v6b/train.jsonl ]; then forecheck data generate --offline --config configs/data/v6b-key-kept-long-obs.yaml --out /opt/ml/fsx/forecheck/data/v6b && forecheck data split /opt/ml/fsx/forecheck/data/v6b && python scripts/check_no_leakage.py /opt/ml/fsx/forecheck/data/v6b; fi &&
+    if [ ! -f /opt/ml/fsx/forecheck/data/v6b/train.jsonl ]; then forecheck data generate --offline --config configs/data/v6b-key-kept-long-obs.yaml --out /opt/ml/fsx/forecheck/data/v6b && forecheck data split /opt/ml/fsx/forecheck/data/v6b && python scripts/check_no_leakage.py --expect-leak /opt/ml/fsx/forecheck/data/v6b; fi &&
     forecheck train --config configs/training/2b.yaml data.dir=/opt/ml/fsx/forecheck/data/v6b output.dir=/opt/ml/fsx/forecheck/runs/2b-synthetic-v6b tracking.backend=local &&
     forecheck calibrate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v6b --split calibration &&
     forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v6b --split test --class synthetic_in_distribution --approval-curve balanced &&

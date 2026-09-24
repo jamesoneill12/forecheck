@@ -71,8 +71,10 @@ def _check_argument_key_rate_parity(examples: list[Example]) -> list[str]:
 
 
 def main(argv: list[str]) -> int:
+    expect_leak = "--expect-leak" in argv
+    argv = [a for a in argv if a != "--expect-leak"]
     if len(argv) != 1:
-        print("usage: check_no_leakage.py <data-dir>", file=sys.stderr)
+        print("usage: check_no_leakage.py [--expect-leak] <data-dir>", file=sys.stderr)
         return 2
     directory = Path(argv[0])
     examples = _load_examples(directory)
@@ -80,7 +82,12 @@ def main(argv: list[str]) -> int:
         print(f"FAIL: no examples found under {directory}", file=sys.stderr)
         return 1
 
-    failures = _check_denylist(examples) + _check_argument_key_rate_parity(examples)
+    leak_failures = _check_denylist(examples) + _check_argument_key_rate_parity(examples)
+    if expect_leak:
+        # Control arms that deliberately keep the v1-v5 leak must still contain it.
+        failures = [] if leak_failures else ["--expect-leak set but no leak detected"]
+    else:
+        failures = leak_failures
     for failure in failures:
         print(f"FAIL: {failure}", file=sys.stderr)
 
@@ -98,9 +105,12 @@ def main(argv: list[str]) -> int:
     if failures:
         return 1
     n_note = "" if manifests_present else " (pre-split raw dataset; split-leakage check skipped)"
-    print(
-        f"OK: {len(examples)} examples checked; no denylisted tokens; key-rate parity held{n_note}"
+    leak_note = (
+        f"leak present as expected ({len(leak_failures)} findings)"
+        if expect_leak
+        else "no denylisted tokens; key-rate parity held"
     )
+    print(f"OK: {len(examples)} examples checked; {leak_note}{n_note}")
     return 0
 
 
