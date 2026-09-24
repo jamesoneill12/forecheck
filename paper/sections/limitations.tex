@@ -42,12 +42,15 @@ the reader should discount them. Kind-split variance over \emph{which} kinds
 were withheld is not estimated.
 
 \textbf{Baselines.} The rule baseline is an uninformative floor on
-\texttt{policy\_conflict} and \texttt{unauthorized\_scope}; a compiled
-predicate over the typed fields would score near 1.0 on the seen kinds and
-is the correct symbolic comparator we did not build. The zero-shot
+\texttt{policy\_conflict} and \texttt{unauthorized\_scope}. The symbolic
+baseline was run on splits regenerated with the current generator, not the
+exact v4 files the decoders were scored on, so its cells and the decoders'
+are on different draws with the same seed and config. The zero-shot
 guardrails were prompted through chat-template arguments verified only
-against test doubles; a positive control on their native risk categories has
-not been run. gpt-oss-safeguard emits a binary verdict and is scored on 400
+against test doubles, and that is how the Granite Guardian verdict-position
+error survived until this revision; its numbers are withdrawn and a re-run
+with the corrected read is pending. No positive control on a native risk
+category has been run for either model. gpt-oss-safeguard emits a binary verdict and is scored on 400
 rows. The agent-self arm answers one question and is scored on eleven.
 Baseline rows on the external benchmarks use 1,000-row subsamples with
 different positive rates from the checker rows.

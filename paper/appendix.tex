@@ -71,7 +71,7 @@ Non-saturated macro, 7 dims & & 0.939 & 0.672 & 0.662 & 0.404 \\
 \begin{table*}[t]
 \centering
 \small
-\caption{Zero-shot safety models per dimension on \texttt{heldout\_family}: Granite Guardian 3.3 8B (yes/no logits, $n{=}2000$ subsample) AUPRC and AUROC, and gpt-oss-safeguard 20B (binary verdict, $n{=}400$ subsample) AUPRC, full context. Positive rates are each subsample's.}
+\caption{Zero-shot safety models per dimension on \texttt{heldout\_family}: Granite Guardian 3.3 8B (yes/no logits, $n{=}2000$ subsample) AUPRC and AUROC, and gpt-oss-safeguard 20B (binary verdict, $n{=}400$ subsample) AUPRC, full context. Positive rates are each subsample's. \textbf{The Guardian columns are withdrawn}: they were produced by reading the yes/no logits one position before the \texttt{<score>} tag the model emits, and are kept only to document the error; the below-0.5 AUROCs are its signature.}
 \label{tab:zeroshot-perdim}
 \begin{tabular}{lcccc}
 \toprule

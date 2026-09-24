@@ -47,8 +47,8 @@ principal's entitlements, the agent's delegated scope, and the policy in
 force. We build a checker whose typed input carries them and use it as a
 diagnostic. Removing those fields from a trained 2B checker drops macro
 AUPRC from 0.96 to 0.79 on held-out tools, confined to the three labels
-that depend on them; a blind LLM judge loses the same labels, and two
-zero-shot safety models given the same policy text do not use it. Policy
+that depend on them; a blind LLM judge loses the same labels, and a
+zero-shot safety model given the same policy text does not use it. Policy
 checking generalises to unseen phrasings but not unseen policy kinds, and
 an apparent multi-policy stacking collapse is one fail-closed bundle. The
 main evidence is external: on AgentDojo and InjecAgent, policy checking

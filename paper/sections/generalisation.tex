@@ -19,9 +19,11 @@ heldout\_family & 0.964 & 0.933 & 0.965 \\
 heldout\_policy\_phrasing & 0.993 & 0.980 & 0.978 \\
 heldout\_policy\_kind & \textbf{0.717} & \textbf{0.725} & \textbf{0.838} \\
 \quad rule baseline (= pos.\ rate) & 0.405 & 0.325 & 0.405 \\
+\midrule
+symbolic baseline$^{\ast}$: test / family / phrasing / kind & \multicolumn{3}{c}{0.947 / 0.900 / 0.956 / 0.600} \\
 \bottomrule
 \end{tabular}
-\caption{\texttt{policy\_conflict} AUPRC across splits. Kind-split cells are means over training seeds (2B: three seeds, sd 0.032 for v4 and 0.026 for v5; 8B: two seeds, 0.851 and 0.825); other cells are seed 0. The rule baseline's policy rule is a constant, so it scores the positive rate. Macro AUPRC and per-seed values in Appendix~\ref{sec:appendix-generalisation}.}
+\caption{\texttt{policy\_conflict} AUPRC across splits. Kind-split cells are means over training seeds (2B: three seeds, sd 0.032 for v4 and 0.026 for v5; 8B: two seeds, 0.851 and 0.825); other cells are seed 0. The rule baseline's policy rule is a constant, so it scores the positive rate. $^{\ast}$Compiled predicates over typed fields, run on splits regenerated with the current 30-kind inventory (v5/v6 kinds, 4 withheld); it abstains on 67\% of kind-split clauses and on 10--23\% elsewhere (kinds whose deciding fact is only in trajectory text). Macro AUPRC and per-seed values in Appendix~\ref{sec:appendix-generalisation}.}
 \label{tab:policy-generalisation}
 \end{table}
 
@@ -30,8 +32,12 @@ seen in training leaves \texttt{policy\_conflict} at 0.98--0.99, matching the
 test split: the model reads the clause's meaning, not a template id. On
 withheld kinds 2B lands at 0.717 (v4) and 0.725 (v5), well above the
 positive-rate floor but far from the phrasing ceiling. 8B reaches 0.838 on
-two seeds. The supportable claim is ``one model, policies of a kind seen in
-training, any phrasing,'' not ``arbitrary new policy kinds.''
+two seeds. The compiled-predicate baseline sits at 0.90--0.96 wherever the
+phrasing inventory is known and falls to 0.600 on withheld kinds, so on this
+generator the learned checker matches a symbolic compiler on seen kinds and
+beats it by 0.1--0.2 on unseen ones; neither reads a new kind reliably. The
+supportable claim is ``one model, policies of a kind seen in training, any
+phrasing,'' not ``arbitrary new policy kinds.''
 
 \textbf{What the kind split can and cannot say.} The v4 and v5 kind cells are
 means over training seeds on \emph{different} withheld kinds (2 vs.\ 4), so

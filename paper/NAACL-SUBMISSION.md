@@ -44,6 +44,14 @@ Communication", otherwise the safety/ethics or NLP-applications area.
 - [ ] Data/code release statement in the submission form: code and generator released on
       acceptance; external benchmark derivations released as scripts, not redistributed data.
 
+## Sixth review (2026-09-24) and status
+
+Reviewer-6 file: /tmp/fc-review/reviewer-6.md. Landed: §2 dimension fix, agent-self
+sentence, 11-row Appendix A table, experimental-details appendix, system comparison
+table, self-judgment demoted, composition compressed, symbolic baseline row, Guardian
+numbers withdrawn (verdict-position bug, commit 1a3cd4e). Pending GPU (recipes ready):
+`eval-guardian-fixed`, `eval-injecagent-controls`, `train-2b-b200-v6a`, `train-2b-b200-v6b`.
+
 ## Open experiments the reviewers asked for (all cheap, none run yet)
 
 1. Length-matched InjecAgent clean control (one inference pass, ~3.2k rows).

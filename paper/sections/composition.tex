@@ -10,8 +10,7 @@ over the joint vector under a fixed cost table
 (Figure~\ref{fig:stacking-body}; Appendix~\ref{sec:appendix-stacking}). FPR
 counts any non-\textsc{allow} decision on a covered benign example, so it
 includes \textsc{review}. An earlier draft read these numbers as ``threshold
-stacking compounds to a 0.97 false positive rate by three policies.'' It
-does not.
+stacking compounds to a 0.97 false positive rate.'' It does not.
 
 \begin{figure}[t]
 \centering
@@ -24,24 +23,15 @@ does not.
 0.966 and stays there through fifteen bundles. The third bundle,
 \texttt{conservative}, has \texttt{default\_decision: review}: alone it
 routes essentially every covered call to a human, so the OR saturates when it
-enters and the eleven single-dimension policies added afterwards change
-nothing. Independent guards at the observed $k{=}1$ rates would compound to
-about 0.04. The lesson is that one fail-closed policy dominates an OR-stack,
-which XACML's \texttt{deny-overrides} and Cedar's forbid-trumps-permit
-semantics \citep{oasis2013xacml,cutler2024cedar} make explicit; naive OR is
-not the alternative a practitioner would deploy.
-
-\textbf{Expected-cost invariance in $k$ is structural.} From $k{=}2$ the
-merged rule set covers every dimension the stack will ever cover
-(covered-benign count constant at 2,790) and duplicate rules are merged, so
-the decision is constant in $k$; adding a restrictive bundle then changes
-nothing, which a policy author may not want. Calibration sets the level of the constant line (decoder 0.082 vs.\ encoder
-0.921), but the arms also differ in discrimination (granite-r2 scores 0.433
-on \texttt{policy\_conflict} against the decoder's 0.964), so we do not
-attribute the gap to calibration (a within-arm temperature perturbation
-would settle it; not run). At $k{=}1$ the two rules are different operating
-points (FPR 0.058 vs.\ 0.015, FNR 0.170 vs.\ 0.253), and by the cost the
-rule optimises the $k{=}8$ gap is 10\%. The approval-elimination curve on
-the same probabilities is in Appendix~\ref{sec:appendix-approval}.
+enters and nothing added afterwards changes it; independent guards at the
+observed $k{=}1$ rates would compound to about 0.04. One fail-closed policy
+dominates an OR-stack, which XACML's \texttt{deny-overrides} and Cedar's
+forbid-trumps-permit semantics \citep{oasis2013xacml,cutler2024cedar} make
+explicit. \texttt{expected\_cost} is constant from $k{=}2$ because the merged
+rule set already covers every dimension the stack will ever cover. Its level
+differs by arm (decoder 0.082 vs.\ encoder 0.921), but the arms also differ
+in discrimination (granite-r2 0.433 on \texttt{policy\_conflict} vs.\ 0.964),
+so we do not attribute that gap to calibration. The approval-elimination
+curve on the same probabilities is in Appendix~\ref{sec:appendix-approval}.
 
 \FloatBarrier

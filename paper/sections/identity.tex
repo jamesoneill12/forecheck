@@ -28,7 +28,6 @@ Decoder 2B v2 & 0.915 & 0.736 \\
 Encoder ModernBERT-large v2 & 0.813 & 0.712 \\
 Rule baseline & 0.614 & 0.614 \\
 \quad non-saturated macro (7 dims) & 0.404 & 0.404 \\
-Guardian 3.3 8B, 0-shot ($n{=}2000$) & 0.257 & 0.271 \\
 gpt-oss-safeguard 20B, binary ($n{=}400$) & 0.277 & 0.270 \\
 Agent self-judgment 8B ($n{=}2000$) & 0.242 & 0.281 \\
 \bottomrule
@@ -51,6 +50,10 @@ entitlements or the clause, the call text carries almost nothing about
 either. \texttt{insufficient\_context} retains 0.412 against 0.087, well above
 chance; a blind reader cannot recover this label from the text at all
 (\S\ref{sec:labelvalidity}), so the residual is a generator regularity.
+The symbolic baseline scores 1.000 on \texttt{unauthorized\_scope} and 0.98
+on \texttt{privilege\_escalation} from the same typed fields, so on these
+two the checker adds nothing over a compiled predicate; its case rests on
+\texttt{policy\_conflict} and on inputs a compiler cannot parse.
 
 \textbf{Nothing else moves, but most of it could not.} The eight remaining
 dimensions change by at most 0.002. Five are at 1.000 for the checker, three
@@ -65,18 +68,19 @@ trained on identity-free renderings reaches macro 0.784 against 0.790 for
 eval-time stripping, within 0.06 per dimension, so the drop is not a broken
 shortcut or a prompt-format shift; 8B collapses identically (0.958 to 0.786).
 
-\textbf{The zero-shot arms are at chance everywhere, not selectively.} Given
-the same policy text as a custom criterion, Granite Guardian and
-gpt-oss-safeguard score 0.26--0.28 macro, below the rule baseline's 0.614,
-and within 0.09 of the positive rate on ten of eleven dimensions each,
-including content dimensions the rule baseline solves exactly
-(Table~\ref{tab:zeroshot-perdim}); the exceptions are Guardian on
-\texttt{financial\_commitment} (0.38 against 0.09) and gpt-oss-safeguard on
-\texttt{policy\_conflict} (0.49 against 0.29, $n{=}103$). We validated the
-chat-template arguments only against test doubles, so we cannot separate
-``these models lack authorization reasoning'' from ``this prompt does not
-reach it.'' The supportable claim is narrow: an off-the-shelf guardrail given
-the policy as a custom criterion does not answer these questions here.
+\textbf{The zero-shot arm is at chance everywhere, not selectively.} Given
+the same policy text as a custom criterion, gpt-oss-safeguard scores 0.277
+macro, below the rule baseline's 0.614, and within 0.09 of the positive rate
+on ten of eleven dimensions, including content dimensions the rule baseline
+solves exactly (Table~\ref{tab:zeroshot-perdim}); the exception is
+\texttt{policy\_conflict} (0.49 against 0.29, $n{=}103$). Our Granite
+Guardian 3.3 run read the verdict logits at the wrong position (the model
+emits \texttt{<score>} before \texttt{yes}/\texttt{no}), which we found
+while auditing its below-chance AUROCs; its numbers are withdrawn pending a
+re-run. The supportable claim is narrow: one off-the-shelf guardrail given
+the policy as a custom criterion does not answer these questions here, and
+we cannot separate ``lacks authorization reasoning'' from ``this prompt does
+not reach it.
 
 \textbf{Neither does the acting agent.} Asked inside its own system prompt,
 with the same entitlements and policy text, whether to proceed, the untrained
