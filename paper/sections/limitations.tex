@@ -48,9 +48,11 @@ exact v4 files the decoders were scored on, so its cells and the decoders'
 are on different draws with the same seed and config. The zero-shot
 guardrails were prompted through chat-template arguments verified only
 against test doubles, and that is how the Granite Guardian verdict-position
-error survived until this revision; its numbers are withdrawn and a re-run
-with the corrected read is pending. No positive control on a native risk
-category has been run for either model. gpt-oss-safeguard emits a binary verdict and is scored on 400
+error survived until this revision; an audit found it, and every Guardian
+number in this paper is from the corrected read. No positive control on a
+native risk category has been run for either model, though the corrected
+Guardian reaches AUROC 0.98 on \texttt{financial\_commitment} and 0.999
+AUPRC on AgentDojo's financial label, so the read is live. gpt-oss-safeguard emits a binary verdict and is scored on 400
 rows. The agent-self arm answers one question and is scored on eleven.
 Baseline rows on the external benchmarks use 1,000-row subsamples with
 different positive rates from the checker rows.

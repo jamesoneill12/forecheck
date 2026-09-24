@@ -76,10 +76,10 @@ entitlements with delegated scope, so on those two dimensions it is an
 uninformative floor at the positive rate; a \emph{symbolic baseline} that
 compiles the seen policy phrasings into predicates over the typed fields,
 intersects entitlements with delegated scope, and abstains (0.5) on clauses it
-cannot parse; a zero-shot safety model given the same policy text as a custom criterion,
+cannot parse; two zero-shot safety models given the same policy text as a custom criterion,
 gpt-oss-safeguard 20B \citep{openai2025gptosssafeguard}, which emits a binary
-verdict (a Granite Guardian 3.3 arm \citep{padhi2024graniteguardian} is
-withdrawn, \S\ref{sec:identity}); and an \emph{agent self-judgment} arm in which the untrained
+verdict, and Granite Guardian 3.3 8B \citep{padhi2024graniteguardian}, scored
+from its yes/no verdict logits (\S\ref{sec:identity}); and an \emph{agent self-judgment} arm in which the untrained
 8B instruct model \citep{ibm2024granite3} receives the same context in an
 agent system prompt and returns one \textsc{allow}/\textsc{stop} verdict.
 

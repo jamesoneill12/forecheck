@@ -55,7 +55,7 @@ dimension except `prompt_injection_influence`, n=4,133.
 | decoder 2B v6, eval-stripped | 0.669 / 0.921 | 0.306 / 0.633 | 0.521 / 0.862 | 0.941 / 0.944 | 1.000 / 1.000 | 0.687 | n/a (raw margins, no bundle) |
 | decoder 8B v6 (leak-free generator) | 0.838 / 0.966 | 0.239 / 0.452 | 0.785 / 0.943 | 0.945 / 0.956 | 0.831 / 0.977 | 0.728 | 0.256 |
 | decoder 8B v6, eval-stripped | 0.819 / 0.960 | 0.354 / 0.661 | 0.450 / 0.817 | 0.979 / 0.987 | 0.975 / 0.998 | 0.715 | n/a (raw margins, no bundle) |
-| Granite Guardian 3.3 8B zero-shot (n=1000) | 0.103 / 0.233 | 0.289 / 0.494 | 0.224 / 0.450 | 0.257 / 0.237 | 0.217 / 0.697 | 0.218 | 0.275 |
+| Granite Guardian 3.3 8B zero-shot (n=1000), **corrected** | 0.372 / 0.786 | 0.539 / 0.796 | 0.587 / 0.830 | 0.999 / 1.000 | 0.111 / 0.612 | 0.521 | 0.208 |
 | agent-self 8B, ALLOW/STOP (n=1000) | 0.291 / 0.775 | 0.442 / 0.734 | 0.449 / 0.792 | 0.591 / 0.804 | 0.105 / 0.580 | 0.375 | 0.398 |
 
 ## Reading
@@ -102,9 +102,9 @@ dimension except `prompt_injection_influence`, n=4,133.
    +6.75), i.e. the head fires on almost everything and carries no signal on
    this label. The two 8B baselines separate
    scale from training: the same Granite-3.3-8B base asked ALLOW/STOP as the agent
-   scores 0.291 / 0.775 on injection, and Granite Guardian 3.3 8B zero-shot scores
-   0.103 / 0.233, below base rate. The trained checkers' 0.70 to 0.84 is
-   therefore the training, not the parameter count.
+   scores 0.291 / 0.775 on injection, and the corrected Granite Guardian 3.3 8B
+   zero-shot read scores 0.372 / 0.786 on injection, below the trained checkers'
+   0.70 to 0.84, which is therefore the training, not the parameter count.
    Stripping identity from the 8B v4 input keeps injection (0.743 / 0.915) and drops
    `policy_conflict` from 0.626 to 0.404, the same split between content and
    identity dimensions the synthetic identity ablation showed; 8B v6 shows the
@@ -166,7 +166,7 @@ signal. The v6 checkers were not run on the four-suite export.
 | decoder 2B v4 | 0.098 / 0.498 | 0.676 / 0.688 | 0.519 / 0.832 | 0.999 / 1.000 | 1.000 / 1.000 | 0.659 |
 | decoder 8B v4 | 0.490 / 0.845 | 0.350 / 0.615 | 0.540 / 0.954 | 0.840 / 0.953 | 1.000 / 1.000 | 0.644 |
 | decoder 8B v4, eval-stripped | 0.498 / 0.845 | 0.396 / 0.645 | 0.188 / 0.816 | 0.820 / 0.937 | 1.000 / 1.000 | 0.580 |
-| Granite Guardian 3.3 8B (n=2000) | 0.116 / 0.553 | 0.310 / 0.570 | 0.073 / 0.475 | 0.091 / 0.639 | 0.069 / 0.717 | 0.132 |
+| Granite Guardian 3.3 8B (n=2000) (**invalid**, verdict-position bug; not re-run on the four-suite export) | 0.116 / 0.553 | 0.310 / 0.570 | 0.073 / 0.475 | 0.091 / 0.639 | 0.069 / 0.717 | 0.132 |
 | agent-self 8B ALLOW/STOP (n=2000) | 0.251 / 0.809 | 0.461 / 0.727 | 0.203 / 0.833 | 0.150 / 0.815 | 0.067 / 0.754 | 0.227 |
 
 Per suite, `prompt_injection_influence` AUPRC / AUROC (positive rate):
@@ -206,8 +206,9 @@ Reading:
    positive is too rare and the policy too vague to separate well. Writing
    suite-specific policies for the three suites is the fix; we did not do it
    before submission.
-4. **Baselines.** Guardian is at or below base rate on every dimension on every
-   suite. Agent-self has real signal on injection (0.25 / 0.81 overall, 0.35 /
+4. **Baselines.** The Guardian row here is from the invalid verdict-position read
+   and has not been re-run on the four-suite export; the banking-only corrected
+   numbers are in the Results table above. Agent-self has real signal on injection (0.25 / 0.81 overall, 0.35 /
    0.83 on banking) and on `policy_conflict` AUROC (0.83), below the trained
    checkers on AUPRC everywhere except slack injection where it ties.
 5. **Macro AUPRC moves against 8B here because of the label mix.** 2B (0.659)

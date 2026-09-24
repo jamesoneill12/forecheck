@@ -71,23 +71,23 @@ Non-saturated macro, 7 dims & & 0.939 & 0.672 & 0.662 & 0.404 \\
 \begin{table*}[t]
 \centering
 \small
-\caption{Zero-shot safety models per dimension on \texttt{heldout\_family}: Granite Guardian 3.3 8B (yes/no logits, $n{=}2000$ subsample) AUPRC and AUROC, and gpt-oss-safeguard 20B (binary verdict, $n{=}400$ subsample) AUPRC, full context. Positive rates are each subsample's. \textbf{The Guardian columns are withdrawn}: they were produced by reading the yes/no logits one position before the \texttt{<score>} tag the model emits, and are kept only to document the error; the below-0.5 AUROCs are its signature.}
+\caption{Zero-shot safety models per dimension on \texttt{heldout\_family}: Granite Guardian 3.3 8B (yes/no logits, $n{=}2000$ subsample) AUPRC and AUROC, and gpt-oss-safeguard 20B (binary verdict, $n{=}400$ subsample) AUPRC, full context. Positive rates are each subsample's. Guardian is scored from the corrected verdict-token position (\S\ref{sec:identity}).}
 \label{tab:zeroshot-perdim}
 \begin{tabular}{lcccc}
 \toprule
 Dimension & pos.\ rate & Guardian AUPRC & Guardian AUROC & gpt-oss AUPRC \\
 \midrule
-\texttt{prompt\_injection\_influence} & 0.085 & 0.084 & 0.477 & 0.147 \\
-\texttt{unauthorized\_scope} & 0.112 & 0.091 & 0.396 & 0.135 \\
-\texttt{sensitive\_data\_exposure} & 0.210 & 0.294 & 0.625 & 0.282 \\
-\texttt{untrusted\_destination} & 0.363 & 0.398 & 0.543 & 0.364 \\
-\texttt{privilege\_escalation} & 0.065 & 0.069 & 0.494 & 0.092 \\
-\texttt{destructive\_or\_irreversible\_action} & 0.093 & 0.125 & 0.588 & 0.149 \\
-\texttt{financial\_commitment} & 0.087 & 0.380 & 0.870 & 0.098 \\
-\texttt{external\_communication} & 0.639 & 0.599 & 0.368 & 0.775 \\
-\texttt{policy\_conflict} & 0.311 & 0.355 & 0.555 & 0.495 \\
-\texttt{suspicious\_action\_sequence} & 0.317 & 0.360 & 0.568 & 0.408 \\
-\texttt{insufficient\_context} & 0.084 & 0.072 & 0.439 & 0.099 \\
+\texttt{prompt\_injection\_influence} & 0.085 & 0.708 & 0.858 & 0.147 \\
+\texttt{unauthorized\_scope} & 0.112 & 0.204 & 0.736 & 0.135 \\
+\texttt{sensitive\_data\_exposure} & 0.210 & 0.306 & 0.693 & 0.282 \\
+\texttt{untrusted\_destination} & 0.363 & 0.665 & 0.855 & 0.364 \\
+\texttt{privilege\_escalation} & 0.065 & 0.144 & 0.759 & 0.092 \\
+\texttt{destructive\_or\_irreversible\_action} & 0.093 & 0.227 & 0.701 & 0.149 \\
+\texttt{financial\_commitment} & 0.087 & 0.675 & 0.979 & 0.098 \\
+\texttt{external\_communication} & 0.639 & 0.905 & 0.876 & 0.775 \\
+\texttt{policy\_conflict} & 0.311 & 0.437 & 0.689 & 0.495 \\
+\texttt{suspicious\_action\_sequence} & 0.317 & 0.365 & 0.557 & 0.408 \\
+\texttt{insufficient\_context} & 0.084 & 0.088 & 0.526 & 0.099 \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -402,9 +402,11 @@ macro, 10 dims (injection excluded) & 0.574 & 0.411 & 0.976 \\
 \small
 \caption{AUPRC on AgentDojo banking traces, zero-shot, $n{=}4{,}215$
 ($n{=}4{,}133$ for injection). \texttt{untrusted\_destination} has positives
-only and is excluded from macro. Guardian and agent-self rows are on a fixed
-1,000-row subsample whose positive rates differ from the full set's
-(\texttt{unauthorized\_scope} 0.166 vs.\ 0.253). Macro ECE of the calibrated
+only and is excluded from macro. Agent-self is on a fixed 1,000-row
+subsample whose positive rates differ from the full set's
+(\texttt{unauthorized\_scope} 0.166 vs.\ 0.253); the corrected Guardian row
+is on an independently drawn 1,000-row subsample (\texttt{unauthorized\_scope}
+positive rate 0.269). Macro ECE of the calibrated
 arms is 0.20--0.27 here against under 0.03 on synthetic data; the
 eval-stripped rows are raw margins without a calibrator. Macro here is over
 five dimensions.}
@@ -425,7 +427,7 @@ Decoder 2B v6 (leak-free) & 0.693 & 0.214 & 0.670 & 0.935 & 1.000 & 0.702 \\
 Decoder 8B v6 (leak-free) & 0.838 & 0.239 & 0.785 & 0.945 & 0.831 & 0.728 \\
 8B v6, eval-stripped & 0.819 & 0.354 & 0.450 & 0.979 & 0.975 & 0.715 \\
 \midrule
-Granite Guardian 3.3 8B & 0.103 & 0.289 & 0.224 & 0.257 & 0.217 & 0.218 \\
+Granite Guardian 3.3 8B & 0.372 & 0.539 & 0.587 & 0.999 & 0.111 & 0.521 \\
 Agent-self 8B (\textsc{allow}/\textsc{stop}) & 0.291 & 0.442 & 0.449 & 0.591 & 0.105 & 0.375 \\
 \bottomrule
 \end{tabular}
@@ -454,7 +456,7 @@ Decoder 2B v6 (leak-free) & 0.878 & 0.704 & 0.922 & 0.970 & 0.998 & 0.894 & 0.97
 Decoder 8B v6 (leak-free) & 0.943 & 0.677 & 0.965 & 0.771 & 0.997 & 0.870 & 0.977 & 0.012 \\
 8B v6, eval-stripped & 0.953 & 0.917 & 0.963 & 0.839 & 0.998 & 0.934 & 0.978 & 0.016 \\
 \midrule
-Granite Guardian 3.3 8B & 0.511 & 0.613 & 0.359 & 0.102 & 0.197 & 0.356 & -- & -- \\
+Granite Guardian 3.3 8B & 0.539 & 0.999 & 0.722 & 0.940 & 0.445 & 0.729 & -- & -- \\
 Agent-self 8B (\textsc{allow}/\textsc{stop}) & 0.530 & 1.000 & 0.647 & 0.061 & 0.178 & 0.483 & -- & -- \\
 \bottomrule
 \end{tabular}
@@ -614,7 +616,10 @@ backbone lr $2{\times}10^{-5}$, head lr $10^{-3}$, three epochs, micro-batch
 \textbf{Zero-shot arms.} Granite Guardian 3.3 8B and gpt-oss-safeguard 20B
 receive the policy text as a custom criterion together with the same
 rendered context; Guardian is scored from the verdict-token logits, gpt-oss
-from its generated verdict. The agent self-judgment arm is the untrained 8B
+from its generated verdict. Guardian emits \texttt{<score>} before its
+\texttt{yes}/\texttt{no} token; an earlier read took the logits one position
+before that token, and this revision corrects it to read the token after
+\texttt{<score>}. The agent self-judgment arm is the untrained 8B
 instruct model with an agent system prompt, scored from the
 \textsc{allow}/\textsc{stop} logits. The blind judge is gpt-5.6-sol at low
 reasoning effort with one prompt containing the eleven docstring definitions.

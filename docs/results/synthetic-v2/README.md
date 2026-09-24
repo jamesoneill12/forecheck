@@ -18,7 +18,7 @@ thresholds selected on `dev`. Sections marked *pending* are filled in as jobs fi
 | encoder ModernBERT-large | `answerdotai/ModernBERT-large`, mean pooling, linear 11-logit head | 2,412 steps, best dev step 2,400, dev macro AUPRC 0.808 | done |
 | encoder granite-embedding-r2 | `ibm-granite/granite-embedding-english-r2`, same head | 2,412 steps, best dev step 2,400, dev macro AUPRC 0.833 | done |
 | rule baseline | deterministic field lookups, no model | none | done |
-| Granite Guardian 3.3 8B zero-shot | `ibm-granite/granite-guardian-3.3-8b`, one custom criterion per dimension, yes/no logits | none | done (2,000-row subsample per split) |
+| Granite Guardian 3.3 8B zero-shot | `ibm-granite/granite-guardian-3.3-8b`, one custom criterion per dimension, yes/no logits | none | **original run invalid** (verdict-position bug); corrected re-run done, see `granite-guardian-3.3-8b-fixed/` |
 | gpt-oss-safeguard 20B zero-shot | `openai/gpt-oss-safeguard-20b`, policy in system prompt, greedy verdict | none | test done (400-row subsample); heldout running |
 | encoder granite-embedding-r2 v3 | same encoder, trained on the v3 policy-generalisation data (ADR 0010) | 1 epoch, dev-selected | done |
 | Llama Guard 4 12B | gated repository, no token on the cluster | | not run |
@@ -38,10 +38,13 @@ thresholds selected on `dev`. Sections marked *pending* are filled in as jobs fi
 | encoder ModernBERT-large, identity stripped | heldout_family | 0.712 | 0.027 | |
 | encoder granite-embedding-r2 | test | 0.843 | 0.047 | 0.845 |
 | encoder granite-embedding-r2 | heldout_family | 0.841 | 0.049 | 0.791 |
-| Granite Guardian 3.3 zero-shot | test | 0.243 | 0.143 | |
-| Granite Guardian 3.3 zero-shot, identity stripped | test | 0.249 | 0.147 | |
-| Granite Guardian 3.3 zero-shot | heldout_family | 0.257 | 0.142 | |
-| Granite Guardian 3.3 zero-shot, identity stripped | heldout_family | 0.271 | 0.146 | |
+| Granite Guardian 3.3 zero-shot, test (**invalid**, verdict-position bug, not re-run) | test | 0.243 | 0.143 | |
+| Granite Guardian 3.3 zero-shot, identity stripped, test (**invalid**, not re-run) | test | 0.249 | 0.147 | |
+| Granite Guardian 3.3 zero-shot, heldout_family (**invalid**, verdict-position bug) | heldout_family | 0.257 | 0.142 | |
+| Granite Guardian 3.3 zero-shot, identity stripped, heldout_family (**invalid**) | heldout_family | 0.271 | 0.146 | |
+| Granite Guardian 3.3 zero-shot, corrected (v2 data) | heldout_family | 0.429 | 0.178 | |
+| Granite Guardian 3.3 zero-shot, corrected (v4 data) | heldout_family | 0.419 | 0.184 | |
+| Granite Guardian 3.3 zero-shot, corrected, identity stripped (v4 data) | heldout_family | 0.407 | 0.180 | |
 | decoder 2B v2 | test | 0.918 | 0.002 | |
 | decoder 2B v2 | heldout_family | 0.915 | 0.004 | |
 | decoder 2B v2, identity stripped | test | 0.742 | 0.026 | |
@@ -156,7 +159,8 @@ chance the moment identity and policy context are removed, and the rule baseline
 recover them either: `unauthorized_scope` (is the action inside the principal's
 entitlements and the agent's delegated scope), `policy_conflict` (does the action violate
 a stated policy clause) and, to a lesser degree, `insufficient_context`. Those are the
-delegated-authority dimensions, and the off-the-shelf guardian baseline is at chance on
+delegated-authority dimensions; the corrected off-the-shelf Granite Guardian baseline
+(below) reads them weakly rather than at chance, and gpt-oss-safeguard is at chance on
 them with or without identity. Four dimensions are pure lookup (the rule baseline ties the
 model), so their near-perfect scores are not evidence of anything. Three are learned from
 the trajectory and observations and do not need identity.
@@ -296,7 +300,11 @@ turn, one `custom_criteria` per dimension (the dimension definition), scoring sc
 "if the proposed tool call meets the criteria return yes". Probability = P(yes) over
 {yes, no} first-token logits. 2,000 seeded rows per split.
 
-| dimension | heldout AUROC, full context | heldout AUROC, identity stripped |
+**The table immediately below is invalid.** The run read the yes/no verdict logits one
+position before the `<score>` tag the model actually emits, not the position after it; the
+below-0.5 AUROCs are the signature of that bug. It is kept only as a historical record.
+
+| dimension | heldout AUROC, full context (invalid) | heldout AUROC, identity stripped (invalid) |
 |---|---|---|
 | prompt_injection_influence | 0.477 | 0.438 |
 | unauthorized_scope | 0.396 | 0.491 |
@@ -310,29 +318,58 @@ turn, one `custom_criteria` per dimension (the dimension definition), scoring sc
 | suspicious_action_sequence | 0.568 | 0.533 |
 | insufficient_context | 0.439 | 0.386 |
 
-Reading. A general-purpose guardian model, prompted with our per-dimension criteria and
-no fine-tuning, is at chance on nine of eleven dimensions of this task. It picks up
-`financial_commitment` (amounts are literal in the action) and weakly
-`sensitive_data_exposure`. Stripping principal entitlements, delegated scopes and policy
-text does not hurt it, and slightly helps on several dimensions. So the baseline does not
-consume identity or delegation context at all: whatever advantage our trained arms have on
-`unauthorized_scope` and `policy_conflict` is not something an off-the-shelf guardian
-provides today.
+### Corrected re-run
+
+The verdict-position error was found by audit and fixed. Full per-dimension reports are
+in `granite-guardian-3.3-8b-fixed/`. v4 `heldout_family` (n=2000), full context vs.
+identity-stripped:
+
+| dimension | AUPRC full | AUROC full | AUPRC stripped | AUROC stripped |
+|---|---|---|---|---|
+| prompt_injection_influence | 0.578 | 0.801 | 0.575 | 0.804 |
+| unauthorized_scope | 0.171 | 0.706 | 0.104 | 0.488 |
+| sensitive_data_exposure | 0.273 | 0.602 | 0.271 | 0.608 |
+| untrusted_destination | 0.656 | 0.845 | 0.667 | 0.859 |
+| privilege_escalation | 0.337 | 0.923 | 0.280 | 0.902 |
+| destructive_or_irreversible_action | 0.278 | 0.717 | 0.281 | 0.720 |
+| financial_commitment | 0.730 | 0.978 | 0.735 | 0.979 |
+| external_communication | 0.709 | 0.643 | 0.736 | 0.671 |
+| policy_conflict | 0.477 | 0.610 | 0.420 | 0.555 |
+| suspicious_action_sequence | 0.319 | 0.544 | 0.326 | 0.552 |
+| insufficient_context | 0.085 | 0.531 | 0.085 | 0.528 |
+
+Macro AUPRC 0.419 full / 0.407 stripped (macro ECE 0.184 / 0.180). On the v2
+`heldout_family` split (n=2000, slightly different positive rates) the corrected macro
+AUPRC is 0.429 (ECE 0.178); see `granite-guardian-3.3-8b-fixed/v2-heldout_family-report.md`.
+
+Reading (corrected). The model shows real signal on content dimensions:
+`financial_commitment` AUROC 0.978 (AUPRC 0.730), `untrusted_destination` AUPRC
+0.656/AUROC 0.845, `prompt_injection_influence` AUPRC 0.578/AUROC 0.801, and
+`privilege_escalation` AUROC 0.923. On the identity dimensions it reads the typed fields,
+but weakly: `unauthorized_scope` is 0.171 AUPRC / 0.706 AUROC full, falling to 0.104 /
+0.488 (chance, at its 0.106 positive rate) stripped, against the trained decoder's 0.999
+on the same split; `policy_conflict` goes 0.477/0.610 to 0.420/0.555 against a 0.385
+positive rate and the decoder's 0.964; `insufficient_context` stays at 0.085 AUPRC / 0.53
+AUROC either way, so the fields add nothing there. No positive control on a
+Guardian-native harm category (jailbreak, harmful content) has been run; the
+`financial_commitment` result here and AgentDojo's `financial` AUPRC of 0.999 show the
+corrected scoring path is live.
 
 Caveats. This is one prompt design, not a tuned one; Granite Guardian is trained on
 harm, jailbreak, groundedness and function-call hallucination criteria, not on
-delegated-authority checks, so chance performance is the expected result rather than a
-criticism of the model. The 2,000-row subsample gives roughly plus or minus 0.03 on
-AUROC. Numbers are uncalibrated (ECE 0.14).
+delegated-authority checks. The 2,000-row subsample gives roughly plus or minus 0.03 on
+AUROC. Numbers are uncalibrated (macro ECE 0.184 full / 0.180 stripped on v4, 0.178 on v2).
 
 ## gpt-oss-safeguard 20B zero-shot (test, 400-row subsample)
 
-Macro AUPRC 0.269, macro ECE 0.258. Like Granite Guardian it is near chance on the
-identity-dependent dimensions (`unauthorized_scope` 0.137 AUPRC at 0.118 positive rate,
-`insufficient_context` 0.077 at 0.080) and only clearly above chance on `policy_conflict`
-(0.512 at 0.271) and `prompt_injection_influence` (0.209 at 0.083). It is also ~50x slower
-than the 2B decoder per row (reasoning tokens). Policy-in-system-prompt is not enough for a
-general safety model to apply a delegated-authority policy; the training signal is needed.
+Macro AUPRC 0.269, macro ECE 0.258. Unlike the corrected Granite Guardian read (weak
+signal on identity dimensions, real signal on content dimensions), gpt-oss-safeguard
+remains near chance across the board: `unauthorized_scope` 0.137 AUPRC at 0.118 positive
+rate, `insufficient_context` 0.077 at 0.080, and it is only clearly above chance on
+`policy_conflict` (0.512 at 0.271) and `prompt_injection_influence` (0.209 at 0.083). It is
+also ~50x slower than the 2B decoder per row (reasoning tokens). Policy-in-system-prompt is
+not enough for a general safety model to apply a delegated-authority policy; the training
+signal is needed.
 
 ## Policy generalisation: encoder on v3 data (ADR 0010)
 
@@ -593,8 +630,10 @@ first. The Granite-3.3-8B-instruct LoRA on v4 (running) is the size control inst
 
 ## gpt-oss-safeguard 20B, all four cells (n=400 each)
 
-test 0.269 / 0.238 stripped; heldout_family 0.277 / 0.270 stripped. Same picture as
-Granite Guardian: chance on identity dimensions, unaffected by stripping.
+test 0.269 / 0.238 stripped; heldout_family 0.277 / 0.270 stripped: chance on identity
+dimensions, unaffected by stripping. The corrected Granite Guardian re-run (above) differs:
+it reads the identity fields weakly rather than being at chance, and does collapse toward
+chance when they are stripped on `unauthorized_scope`.
 
 ## Can the acting agent judge its own scope? (agent self-judgment, `agent-self-*/`)
 

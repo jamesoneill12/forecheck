@@ -37,7 +37,7 @@ AUPRC / AUROC, positive rate in the header. n=4,250 except
 | decoder 2B v6 (leak-free generator) | 0.878 / 0.865 | 0.704 / 0.376 | 0.922 / 0.914 | 0.970 / 0.999 | 0.998 / 1.000 | 0.894 |
 | decoder 8B v6 (leak-free generator) | 0.943 / 0.936 | 0.677 / 0.369 | 0.965 / 0.963 | 0.771 / 0.967 | 0.997 / 1.000 | 0.870 |
 | decoder 8B v6, eval-stripped | 0.953 / 0.949 | 0.917 / 0.786 | 0.963 / 0.965 | 0.839 / 0.984 | 0.998 / 1.000 | 0.934 |
-| Granite Guardian 3.3 8B zero-shot (n=1000) | 0.511 / 0.537 | 0.613 / 0.147 | 0.359 / 0.293 | 0.102 / 0.724 | 0.197 / 0.588 | 0.356 |
+| Granite Guardian 3.3 8B zero-shot (n=1000), **corrected** | 0.539 / 0.590 | 0.999 / 0.998 | 0.722 / 0.810 | 0.940 / 0.998 | 0.445 / 0.800 | 0.729 |
 | agent-self 8B ALLOW/STOP (n=1000) | 0.530 / 0.597 | 1.000 / 1.000 | 0.647 / 0.756 | 0.061 / 0.612 | 0.178 / 0.587 | 0.483 |
 
 Paired view of the injection dimension (same attacker call, poisoned vs clean tool
@@ -112,8 +112,12 @@ Reproduce with `scripts/injecagent_paired.py injecagent.jsonl NAME=scores.jsonl 
    +3.25 vs -4.00) and policy (0.963) unchanged, so the v6 injection signal is
    carried by the observation text, not by identity fields.
 
-6. **Baselines.** Granite Guardian is at chance on injection (0.537 AUROC) and
-   below base rate elsewhere. The same Granite-3.3-8B base asked ALLOW/STOP as
+6. **Baselines.** The corrected Granite Guardian read is at chance on injection
+   (0.590 AUROC), like the v4 checkers, but above base rate elsewhere:
+   `unauthorized_scope` 0.999 mirrors the agent-self arm's 1.000 on this
+   benchmark, because InjecAgent's scope label means "nobody asked for this",
+   which is visible in the call text; `financial_commitment` reaches 0.940. The
+   same Granite-3.3-8B base asked ALLOW/STOP as
    the agent is also at chance on injection (0.597) but flags every attacker
    call as STOP (`unauthorized_scope` 1.000): the untrained agent recognises
    that the attacker tool is unrelated to the user's request, which is the same
