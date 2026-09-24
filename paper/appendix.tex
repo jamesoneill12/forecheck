@@ -51,12 +51,20 @@ Dimension & $n$ (pos.\ rate) & Full & Eval-stripped & Train-stripped & Rule \\
 \texttt{policy\_conflict} & 1834 (.371) & 0.964 & 0.392 & 0.429 & 0.370 \\
 \texttt{insufficient\_context} & 6653 (.087) & 0.841 & 0.412 & 0.357 & 0.232 \\
 \midrule
-\texttt{privilege\_escalation} & 6653 (.071) & 1.000 & 1.000 & --- & 0.364 \\
-\texttt{prompt\_injection\_influence}$^{\dagger}$ & 6653 (.082) & 0.804 & 0.806 & --- & 0.287 \\
+\texttt{prompt\_injection\_influence}$^{\dagger}$ & 6653 (.082) & 0.804 & 0.806 & 0.797 & 0.287 \\
+\texttt{suspicious\_action\_sequence} & 1392 (.317) & 0.966 & 0.968 & 0.947 & 0.318 \\
+\texttt{privilege\_escalation} & 6653 (.071) & 1.000 & 1.000 & 1.000 & 0.364 \\
+\texttt{destructive\_or\_irreversible\_action} & 6653 (.088) & 0.992 & 0.991 & 0.991 & 0.961 \\
+\texttt{sensitive\_data\_exposure} & 1558 (.208) & 1.000 & 1.000 & 1.000 & 0.752 \\
+\texttt{untrusted\_destination} & 2172 (.357) & 1.000 & 1.000 & 0.998 & 1.000 \\
 \texttt{financial\_commitment} & 6653 (.095) & 1.000 & 1.000 & 1.000 & 1.000 \\
+\texttt{external\_communication} & 287 (.523) & 1.000 & 1.000 & 1.000 & 1.000 \\
+\midrule
+Macro, 11 dims & & 0.960 & 0.790 & 0.784 & 0.614 \\
+Non-saturated macro, 7 dims & & 0.939 & 0.672 & 0.662 & 0.404 \\
 \bottomrule
 \end{tabular}
-\caption{Numbers behind Figure~\ref{fig:identity-body}. Decoder 2B v4, \texttt{heldout\_family}, AUPRC per dimension with evaluable $n$ and positive rate: full input, identity removed at evaluation, identity removed at training, and the rule baseline. First three rows are functions of the removed fields. $^{\dagger}$v4 text carries the injection label leak (\S\ref{sec:external}); its evidence is in the call arguments, which stripping does not touch.}
+\caption{Numbers behind Figure~\ref{fig:identity-body}, all eleven dimensions. Decoder 2B v4, \texttt{heldout\_family}, AUPRC with evaluable $n$ and positive rate: full input, identity removed at evaluation, identity removed at training, and the rule baseline. First three rows are functions of the removed fields. The non-saturated macro averages the seven dimensions on which the rule baseline is below 0.9 (everything except \texttt{untrusted\_destination}, \texttt{financial\_commitment}, \texttt{external\_communication}, \texttt{destructive\_or\_irreversible\_action}). $^{\dagger}$v4 text carries the injection label leak (\S\ref{sec:external}).}
 \label{tab:identity-ablation}
 \end{table*}
 
@@ -254,6 +262,45 @@ have not been run.
 
 \section{Agent self-judgment: all dimensions}
 \label{sec:appendix-selfjudgment}
+
+A cheaper alternative to an external checker is to ask the acting agent,
+inside its own system prompt, whether to proceed. We give the untrained 8B
+instruct model an agent system prompt carrying the identical entitlements,
+delegated scope, and policy text, then the pending call, and read one
+\textsc{allow}/\textsc{stop} verdict off the first output token, scored
+against all eleven labels on 2,000 \texttt{heldout\_family} rows
+(Table~\ref{tab:selfjudgment}, Figure~\ref{fig:self-judgment}). On the
+generator's entitlement-based scope labels the agent is at chance (AUROC
+0.54--0.67 on the three identity dimensions); the checker beats it on all
+eleven. One verdict scored against eleven labels is structurally limited, so
+part of the gap is definitional, and the finding does not travel: on
+InjecAgent (\S\ref{sec:external}) the same prompt returns \textsc{stop} on
+the attacker-tool calls and \textsc{allow} on the user-task calls, which is
+exactly that benchmark's scope label (AUPRC 1.000). The agent recognises an
+action nobody asked for; it does not check a call against a delegated grant.
+The injection reversal (0.166 to 0.507 with the preamble removed) is on
+leaked v4 text and is reported as confounded.
+
+\begin{table*}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Dimension (pos.\ rate) & Agent & Stripped & Checker \\
+\midrule
+\texttt{unauthorized\_scope} (0.106) & 0.135 & 0.101 & 0.999 \\
+\texttt{policy\_conflict} (0.385) & 0.509 & 0.419 & 0.964 \\
+\texttt{insufficient\_context} (0.079) & 0.086 & 0.083 & 0.841 \\
+\texttt{privilege\_escalation} (0.075) & 0.103 & 0.101 & 1.000 \\
+\texttt{prompt\_injection\_infl.}$^{\dagger}$ (0.075) & 0.166 & 0.507 & 0.804 \\
+\midrule
+Macro (11 dims) & 0.242 & 0.281 & 0.960 \\
+\bottomrule
+\end{tabular}
+\caption{Agent self-judgment (8B, untrained, one \textsc{allow}/\textsc{stop} verdict), with and without identity context, vs.\ the trained 2B v4 checker, AUPRC on the same 2,000 \texttt{heldout\_family} rows. $^{\dagger}$Leaked v4 text.}
+\label{tab:selfjudgment}
+\end{table*}
 
 \begin{figure*}[t]
 \centering
@@ -530,3 +577,46 @@ text and has not been re-run on v6. An AUPRC split by label origin would
 show what the head reads and has not been computed.
 
 \FloatBarrier
+
+\section{Experimental details}
+\label{sec:appendix-details}
+
+\textbf{Data.} Each version is generated with seed 424242, 3,863 scenarios
+per tool family over twelve families plus 130 contrastive pairs per axis over
+fourteen axes, 49,996 rows in total. Rows are routed to splits by a salted
+hash of the scenario: 60/10/10/10/5\% to \texttt{train}, \texttt{calibration},
+\texttt{dev}, \texttt{test}, and \texttt{adversarial}; 12\% of tool families
+are withheld into \texttt{heldout\_family} before that routing, and scenarios
+whose policy clause uses a withheld predicate kind (2 of 15 in v4, 4 of 30 in
+v5) go to \texttt{heldout\_policy\_kind}. Contrastive pairs use an
+evaluation-heavy ratio table so that every axis reaches each evaluation
+split. The rendering contract is fixed per version (label schema 1.0).
+
+\textbf{Decoders.} \texttt{granite-3.3-2b-instruct} and
+\texttt{granite-3.3-8b-instruct}, bf16, LoRA \citep{hu2021lora} with
+$r{=}16$, $\alpha{=}32$, dropout 0.05. 2B adapts the attention projections
+only; lr $2{\times}10^{-4}$, three epochs, micro-batch 16, prompts up to 4,096
+tokens. 8B adapts attention and MLP projections; lr $5{\times}10^{-5}$, one
+epoch, micro-batch 8, prompts up to 8,192 tokens, chat template on. Both use
+cosine decay with 3\% warmup, weight decay 0.01, gradient clipping 1.0, seed 0
+unless a seed is stated, evaluation on \texttt{dev} every 200 steps with
+early stopping (patience 5). Each dimension is scored from the logit
+difference of the candidate tokens for \emph{yes} and \emph{no} at the
+dimension's answer slot, with a shared prefill across the eleven slots.
+Temperature scaling is fitted per dimension on \texttt{calibration}. All runs
+use one B200 GPU.
+
+\textbf{Encoders.} ModernBERT-large \citep{warner2024modernbert} and
+granite-embedding-r2 with mean pooling and an eleven-way sigmoid head;
+backbone lr $2{\times}10^{-5}$, head lr $10^{-3}$, three epochs, micro-batch
+32.
+
+\textbf{Zero-shot arms.} Granite Guardian 3.3 8B and gpt-oss-safeguard 20B
+receive the policy text as a custom criterion together with the same
+rendered context; Guardian is scored from the verdict-token logits, gpt-oss
+from its generated verdict. The agent self-judgment arm is the untrained 8B
+instruct model with an agent system prompt, scored from the
+\textsc{allow}/\textsc{stop} logits. The blind judge is gpt-5.6-sol at low
+reasoning effort with one prompt containing the eleven docstring definitions.
+\FloatBarrier
+

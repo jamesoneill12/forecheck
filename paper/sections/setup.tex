@@ -17,13 +17,14 @@ does not control the entitlement records or the policy store; the thesis
 depends on that assumption. The checker is itself an injection target, and
 adaptive attacks against it are not evaluated here.
 
-\textbf{Eleven risk dimensions.} Six are decidable from the rendered call
+\textbf{Eleven risk dimensions.} Five are decidable from the rendered call
 alone once the renderer includes the deciding field:
 \texttt{destructive\_or\_irreversible\_action}, \texttt{financial\_commitment},
-\texttt{external\_communication}, \texttt{untrusted\_destination},
-\texttt{sensitive\_data\_exposure}, and, from generator version v4,
-\texttt{privilege\_escalation}, whose authority-before/after fields are
-written into the call text. Two are trajectory dimensions
+\texttt{external\_communication}, \texttt{untrusted\_destination}, and, from
+generator version v4, \texttt{privilege\_escalation}, whose
+authority-before/after fields are written into the call text.
+\texttt{sensitive\_data\_exposure} depends on a destination fact the renderer
+omits (\S\ref{sec:labelvalidity}). Two are trajectory dimensions
 (\texttt{prompt\_injection\_influence}, \texttt{suspicious\_action\_sequence}).
 Three are functions of the identity and policy fields:
 \texttt{unauthorized\_scope} (is the required scope inside the principal's
@@ -86,5 +87,6 @@ to 0.52). Seven dimensions are above 0.99 for the trained checker and four are
 solved by the rule baseline, so we also report a \emph{non-saturated macro}
 over the seven dimensions on which the rule baseline is below 0.9. Synthetic estimates are single-seed unless stated;
 external cells with saved per-example scores carry 95\% bootstrap intervals.
+Hyperparameters and split construction are in Appendix~\ref{sec:appendix-details}.
 
 \FloatBarrier

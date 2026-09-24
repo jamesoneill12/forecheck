@@ -28,7 +28,7 @@ content carries about those labels (almost none on two), whether the other
 eight dimensions are disturbed (no, but most sit at a ceiling), and whether
 models that are \emph{given} the context use it. Two zero-shot safety models
 and the acting agent, prompted with the same entitlements and policy text,
-do not (\S\ref{sec:identity}, \S\ref{sec:selfjudgment}), with the caveat
+do not (\S\ref{sec:identity}), with the caveat
 that we cannot fully separate a capability gap from a prompting mismatch. A
 blind LLM judge shown only the rendered text loses the same two labels when
 identity is removed (\S\ref{sec:labelvalidity}).
@@ -47,3 +47,24 @@ one we rule out from saved scores and one we cannot. We also correct our own
 earlier reading of a multi-policy composition result
 (\S\ref{sec:composition}). Every number outside \S\ref{sec:external} is on
 synthetic data.
+
+\begin{table*}[t]
+\centering
+\small
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}lllll@{}}
+\toprule
+System & Reads & Authority input & Decides & Mechanism \\
+\midrule
+Llama Guard, Granite Guardian & turn, optional call & none & harm category & learned \\
+Agent Action Guard & tool name, arguments & none & risk score & learned \\
+AlignmentCheck, Task Shield & trace, user goal & user goal (text) & goal alignment & learned \\
+CaMeL & program trace, provenance & data-flow capabilities & allow/deny per call & symbolic \\
+Progent & call & privilege policy (DSL) & allow/deny per call & symbolic$^{\ast}$ \\
+Cedar, XACML, Zanzibar & typed request & compiled policy, relations & allow/deny & symbolic \\
+forecheck & call, trajectory & entitlements, delegated scope, clause text & 11 calibrated probabilities & learned \\
+\bottomrule
+\end{tabular}
+\caption{What each system reads, which authority input it takes, and what it decides. forecheck is the only learned checker that takes typed entitlements and delegated scope; the symbolic engines take them but not natural-language clauses. $^{\ast}$Progent's policies can be LLM-generated; enforcement is symbolic.}
+\label{tab:related}
+\end{table*}

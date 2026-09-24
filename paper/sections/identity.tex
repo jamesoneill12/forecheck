@@ -78,4 +78,13 @@ chat-template arguments only against test doubles, so we cannot separate
 reach it.'' The supportable claim is narrow: an off-the-shelf guardrail given
 the policy as a custom criterion does not answer these questions here.
 
+\textbf{Neither does the acting agent.} Asked inside its own system prompt,
+with the same entitlements and policy text, whether to proceed, the untrained
+8B model returns one \textsc{allow}/\textsc{stop} verdict that is at chance
+on the three identity dimensions (AUROC 0.54--0.67; macro 0.242 against the
+checker's 0.960 on the same 2,000 rows). On InjecAgent the same prompt scores
+1.000 on that benchmark's scope label, because there ``out of scope'' means
+``nobody asked for this'', which an agent can see; checking a call against a
+delegated grant is a different question (Appendix~\ref{sec:appendix-selfjudgment}).
+
 \FloatBarrier
