@@ -1,0 +1,6 @@
+# v6a: leak fix ON + v4-style short observations; isolates the leak-fix half of v4->v6.
+seed: 424242
+n_per_family: 3863
+pairs_per_axis: 130
+leak_fix_enabled: true
+observation_style: v4_short

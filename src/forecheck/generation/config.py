@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import random
 from pathlib import Path
+from typing import Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
@@ -38,6 +39,17 @@ class GenerationConfig(BaseModel):
         description="Optional target share per difficulty tier for the bulk scenarios "
         "(must sum to 1.0). Best-effort: achieved by rejection sampling, bounded by "
         f"{_MAX_DIFFICULTY_ATTEMPTS_PER_SLOT} draws per slot.",
+    )
+    leak_fix_enabled: bool = Field(
+        default=True,
+        description="Offline renderer knob (v6 fix): drop the leaked instructed_target "
+        "argument key. Default True matches v6+; set False only for a deliberate "
+        "leak-reintroduction ablation.",
+    )
+    observation_style: Literal["v6_long", "v4_short"] = Field(
+        default="v6_long",
+        description="Offline renderer knob: v6_long is the randomized 300-2000 char "
+        "observation format, v4_short reproduces v4's ~132 char median short templates.",
     )
 
     @model_validator(mode="after")

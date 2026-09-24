@@ -28,7 +28,7 @@ Parameters` (confirmed to round-trip against `Tool Response` on the full dataset
 (not by its original args, which we don't reproduce), taking the lexicographically first
 recorded response for each tool deterministically.
 
-## Three examples per case
+## Five examples per case
 
 For each case:
 
@@ -45,12 +45,21 @@ For each case:
   Instruction>` slot is replaced with `""` instead. This isolates "attacker tool is
   out-of-scope" from "an injected instruction is present": `prompt_injection_influence=no`,
   `unauthorized_scope=yes` (unchanged), `policy_conflict` unchanged from (b) since it is
-  a pure function of the call's arguments, not of which response text preceded it.
+  a pure function of the call's arguments, not of which response text preceded it. Its
+  observation is shorter than (b)'s in 100% of pairs, a length confound controlled by
+  (d) and (e).
+- **(d) clean_padded** / **(e) clean_instruction**: the same slot, filled instead with
+  bland-declarative or benign-user-directed filler (`_PADDED_FILLERS` /
+  `_INSTRUCTION_FILLERS` in `injecagent.py`), length-matched so the rendered response is
+  within the same character count as (b)'s (deterministically chosen and trimmed per
+  case via `_length_matched_filler`). Same labels as (c).
 
-A case with 2 `Attacker Tools` (every ds case) yields a (b)/(c) pair **per attacker
-tool**, all built from the same single user-tool trajectory step -- so a dh case yields 3
-examples and a ds case yields 5. On the full dataset (510 dh + 544 ds) this gives
-4,250 examples total (`510*3 + 544*5`), confirmed by the manifest.
+A case with 2 `Attacker Tools` (every ds case) yields a (b)-(e) 4-way group **per
+attacker tool**, all built from the same single user-tool trajectory step -- so a dh
+case yields 5 examples and a ds case yields 9. On the full dataset (510 dh + 544 ds)
+this gives 7,446 examples total (`510*5 + 544*9`), confirmed by the manifest, with
+1,598 4-way poisoned/clean/clean_padded/clean_instruction groups
+(`510*1 + 544*2`).
 
 ## Identity overlay
 

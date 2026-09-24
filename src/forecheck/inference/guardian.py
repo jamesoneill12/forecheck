@@ -9,9 +9,13 @@ set, so each dimension is presented to the model as its own natural-language ris
 definition rather than a learned label -- this is a zero-shot baseline, not a
 fine-tuned arm.
 
-Granite Guardian and Llama Guard read a probability off the first output token's
-logits (``Yes``/``No`` and ``unsafe``/``safe`` respectively), exactly like
-:mod:`forecheck.inference.hf`. gpt-oss-safeguard has no such fixed single-token
+Granite Guardian and Llama Guard read a probability off a fixed-position output
+token's logits (``Yes``/``No`` and ``unsafe``/``safe`` respectively), exactly like
+:mod:`forecheck.inference.hf`. Granite Guardian's chat template answers inside
+``<score> ... </score>`` tags rather than as the immediate next token, so its
+``verdict_prefix`` (``"<score>"``) is appended to the rendered prompt first; Llama
+Guard's template already puts the verdict immediately after the generation prompt, so
+its ``verdict_prefix`` is empty. gpt-oss-safeguard has no such fixed single-token
 verdict in its public chat template, so it is scored by greedy generation and a
 verdict parse over the completion, at probability ``1.0``/``0.0`` (see
 :func:`_parse_verdict` for that documented limitation).
@@ -50,6 +54,12 @@ __all__ = [
 ]
 
 GuardianFamily = Literal["granite_guardian", "llama_guard", "gpt_oss_safeguard"]
+
+_DEFAULT_VERDICT_PREFIX: dict[GuardianFamily, str] = {
+    "granite_guardian": "<score>",
+    "llama_guard": "",
+    "gpt_oss_safeguard": "",
+}
 
 _TORCH_INSTALL_HINT = (
     "the guardian backend requires torch and transformers; "
@@ -115,9 +125,16 @@ class GuardianBackendConfig:
     batch_size: int = 8
     device: str | None = None
     strip_identity: bool = False
+    verdict_prefix: str | None = None
     dimension_definitions: dict[RiskDimension, str] = field(
         default_factory=lambda: dict(DEFAULT_DIMENSION_DEFINITIONS)
     )
+
+    @property
+    def resolved_verdict_prefix(self) -> str:
+        if self.verdict_prefix is not None:
+            return self.verdict_prefix
+        return _DEFAULT_VERDICT_PREFIX.get(self.family, "")
 
 
 def load_guardian_config(path: Path) -> GuardianBackendConfig:
@@ -133,6 +150,7 @@ def load_guardian_config(path: Path) -> GuardianBackendConfig:
         max_new_tokens=raw.get("max_new_tokens", 256),
         batch_size=raw.get("batch_size", 8),
         device=raw.get("device"),
+        verdict_prefix=raw.get("verdict_prefix"),
         dimension_definitions=definitions,
     )
 
@@ -229,8 +247,8 @@ class GuardianBackend(BaseBackend):
         model.eval()
 
         if self._config.family == "granite_guardian":
-            risk_ids = _single_token_ids(tokenizer, ("Yes", "yes"))
-            no_risk_ids = _single_token_ids(tokenizer, ("No", "no"))
+            risk_ids = _single_token_ids(tokenizer, ("Yes", "yes", " Yes", " yes"))
+            no_risk_ids = _single_token_ids(tokenizer, ("No", "no", " No", " no"))
         elif self._config.family == "llama_guard":
             risk_ids = _single_token_ids(tokenizer, ("unsafe",))
             no_risk_ids = _single_token_ids(tokenizer, ("safe",))
@@ -315,6 +333,7 @@ class GuardianBackend(BaseBackend):
         texts: Sequence[str],
         definition: str,
     ) -> list[float]:
+        verdict_prefix = self._config.resolved_verdict_prefix
         if self._config.family == "granite_guardian":
             prompts = [
                 self._tokenizer.apply_chat_template(
@@ -329,6 +348,7 @@ class GuardianBackend(BaseBackend):
                     tokenize=False,
                     add_generation_prompt=True,
                 )
+                + verdict_prefix
                 for c, text in zip(contexts, texts, strict=True)
             ]
             return self._yes_no_probs(prompts)
@@ -343,6 +363,7 @@ class GuardianBackend(BaseBackend):
                     tokenize=False,
                     add_generation_prompt=True,
                 )
+                + verdict_prefix
                 for c, text in zip(contexts, texts, strict=True)
             ]
             return self._yes_no_probs(prompts)

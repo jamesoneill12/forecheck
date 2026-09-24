@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from forecheck.contracts import LabelValue, RiskDimension
+from forecheck.contracts import ActionOrigin, DifficultyTier, LabelValue, RiskDimension
 from forecheck.data.io import read_jsonl, write_jsonl
 from forecheck.external.injecagent import (
     fill_attacker_args,
@@ -50,20 +50,20 @@ def test_load_cases_counts(dh_cases, ds_cases) -> None:
     assert all(len(c.attacker_tools) == 2 for c in ds_cases)
 
 
-def test_dh_case_yields_three_examples(dh_cases, tools, sim_responses) -> None:
+def test_dh_case_yields_five_examples(dh_cases, tools, sim_responses) -> None:
     case = dh_cases[0]
     overlay = overlay_identity(case, tools)
     examples = [to_benign_example(case, tools, overlay)]
     examples += to_attacker_examples(case, tools, overlay, sim_responses)
-    assert len(examples) == 3
+    assert len(examples) == 5
 
 
-def test_ds_case_yields_five_examples(ds_cases, tools, sim_responses) -> None:
+def test_ds_case_yields_nine_examples(ds_cases, tools, sim_responses) -> None:
     case = ds_cases[0]
     overlay = overlay_identity(case, tools)
     examples = [to_benign_example(case, tools, overlay)]
     examples += to_attacker_examples(case, tools, overlay, sim_responses)
-    assert len(examples) == 5
+    assert len(examples) == 9
 
 
 def test_overlay_entitlements_include_user_and_attacker_toolkits(ds_cases, tools) -> None:
@@ -87,10 +87,15 @@ def test_benign_example_labels(dh_cases, tools) -> None:
     assert not example.context.observations
 
 
+def _by_variant(examples, variant: str):
+    return next(e for e in examples if f"variant:{variant}" in e.tags)
+
+
 def test_attacker_example_labels(dh_cases, tools, sim_responses) -> None:
     case = dh_cases[0]
     overlay = overlay_identity(case, tools)
-    poisoned, clean = to_attacker_examples(case, tools, overlay, sim_responses)
+    examples = to_attacker_examples(case, tools, overlay, sim_responses)
+    poisoned, clean = _by_variant(examples, "poisoned"), _by_variant(examples, "clean")
     assert poisoned.labels.values[RiskDimension.PROMPT_INJECTION_INFLUENCE] is LabelValue.YES
     assert clean.labels.values[RiskDimension.PROMPT_INJECTION_INFLUENCE] is LabelValue.NO
     for example in (poisoned, clean):
@@ -106,7 +111,8 @@ def test_attacker_example_labels(dh_cases, tools, sim_responses) -> None:
 def test_injected_text_present_in_poisoned_not_clean(dh_cases, tools, sim_responses) -> None:
     case = dh_cases[0]
     overlay = overlay_identity(case, tools)
-    poisoned, clean = to_attacker_examples(case, tools, overlay, sim_responses)
+    examples = to_attacker_examples(case, tools, overlay, sim_responses)
+    poisoned, clean = _by_variant(examples, "poisoned"), _by_variant(examples, "clean")
     assert any(case.attacker_instruction in o.content for o in poisoned.context.observations)
     assert not any(case.attacker_instruction in o.content for o in clean.context.observations)
 
@@ -207,3 +213,59 @@ def test_round_trip_and_render(tmp_path: Path, dh_cases, ds_cases, tools, sim_re
         assert example.context.proposed_action.tool_name in text
         assert example.license.usage.value == "eval_only"
         assert example.license.source_name == "injecagent"
+
+
+def _observation_chars(example) -> int:
+    return sum(len(o.content) for o in example.context.observations)
+
+
+@pytest.mark.parametrize("variant", ["clean_padded", "clean_instruction"])
+def test_control_variant_labels(dh_cases, ds_cases, tools, sim_responses, variant) -> None:
+    for case in (dh_cases[0], ds_cases[0]):
+        overlay = overlay_identity(case, tools)
+        examples = to_attacker_examples(case, tools, overlay, sim_responses)
+        example = _by_variant(examples, variant)
+        assert example.labels.values[RiskDimension.PROMPT_INJECTION_INFLUENCE] is LabelValue.NO
+        assert example.latent.action_origin is ActionOrigin.AGENT_INFERENCE
+        assert example.latent.untrusted_content_contains_instruction is False
+        assert example.latent.difficulty is DifficultyTier.HARD
+        assert example.difficulty is DifficultyTier.HARD
+
+
+@pytest.mark.parametrize("variant", ["clean_padded", "clean_instruction"])
+def test_control_variant_length_matches_poisoned(
+    dh_cases, ds_cases, tools, sim_responses, variant
+) -> None:
+    for case in (dh_cases[0], ds_cases[0]):
+        overlay = overlay_identity(case, tools)
+        examples = to_attacker_examples(case, tools, overlay, sim_responses)
+        poisoned = _by_variant(examples, "poisoned")
+        control = _by_variant(examples, variant)
+        p_len, c_len = _observation_chars(poisoned), _observation_chars(control)
+        assert abs(c_len - p_len) <= max(1, round(0.02 * p_len))
+
+
+def test_control_variant_ids_and_scenario_suffixes_are_distinct(
+    dh_cases, tools, sim_responses
+) -> None:
+    case = dh_cases[0]
+    overlay = overlay_identity(case, tools)
+    examples = to_attacker_examples(case, tools, overlay, sim_responses)
+    padded, instruction = _by_variant(examples, "clean_padded"), _by_variant(
+        examples, "clean_instruction"
+    )
+    assert padded.example_id != instruction.example_id
+    assert padded.latent.scenario_id.endswith(":clean_padded")
+    assert instruction.latent.scenario_id.endswith(":clean_instruction")
+
+
+def test_control_variant_filler_never_echoes_attacker_instruction(
+    dh_cases, ds_cases, tools, sim_responses
+) -> None:
+    for case in dh_cases + ds_cases:
+        overlay = overlay_identity(case, tools)
+        examples = to_attacker_examples(case, tools, overlay, sim_responses)
+        for variant in ("clean_padded", "clean_instruction"):
+            example = _by_variant(examples, variant)
+            for o in example.context.observations:
+                assert case.attacker_instruction not in o.content

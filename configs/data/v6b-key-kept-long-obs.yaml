@@ -1,0 +1,6 @@
+# v6b: leak fix OFF (instructed_target reintroduced) + v6-style long observations.
+seed: 424242
+n_per_family: 3863
+pairs_per_axis: 130
+leak_fix_enabled: false
+observation_style: v6_long

@@ -51,7 +51,10 @@ def generate(
         master_seed=gen_config.seed, output_path=raw_path, cache_dir=out / ".cache"
     )
     pipeline = GenerationPipeline(pipeline_config)
-    examples = pipeline.run(jobs, OfflineTemplateRenderer())
+    renderer = OfflineTemplateRenderer(
+        leak_fix_enabled=gen_config.leak_fix_enabled, observation_style=gen_config.observation_style
+    )
+    examples = pipeline.run(jobs, renderer)
     typer.echo(f"generated {len(examples)} examples -> {raw_path}")
 
 

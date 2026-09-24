@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, ClassVar
 
 import pytest
 
@@ -59,6 +59,48 @@ def test_load_guardian_config_from_yaml(tmp_path: Path) -> None:
     assert config.dimension_definitions[RiskDimension.POLICY_CONFLICT] != "custom definition"
 
 
+def test_load_guardian_config_verdict_prefix_defaults_to_none(tmp_path: Path) -> None:
+    from forecheck.inference.guardian import load_guardian_config
+
+    path = tmp_path / "config.yaml"
+    path.write_text(
+        "model_id: ibm-granite/granite-guardian-3.3-8b\nfamily: granite_guardian\n",
+        encoding="utf-8",
+    )
+    config = load_guardian_config(path)
+
+    assert config.verdict_prefix is None
+    assert config.resolved_verdict_prefix == "<score>"
+
+
+def test_load_guardian_config_verdict_prefix_override(tmp_path: Path) -> None:
+    from forecheck.inference.guardian import load_guardian_config
+
+    path = tmp_path / "config.yaml"
+    path.write_text(
+        "model_id: custom/model\nfamily: granite_guardian\nverdict_prefix: '<verdict>'\n",
+        encoding="utf-8",
+    )
+    config = load_guardian_config(path)
+
+    assert config.verdict_prefix == "<verdict>"
+    assert config.resolved_verdict_prefix == "<verdict>"
+
+
+def test_resolved_verdict_prefix_defaults_per_family() -> None:
+    from forecheck.inference.guardian import GuardianBackendConfig
+
+    assert (
+        GuardianBackendConfig(model_id="x", family="granite_guardian").resolved_verdict_prefix
+        == "<score>"
+    )
+    assert GuardianBackendConfig(model_id="x", family="llama_guard").resolved_verdict_prefix == ""
+    assert (
+        GuardianBackendConfig(model_id="x", family="gpt_oss_safeguard").resolved_verdict_prefix
+        == ""
+    )
+
+
 def test_default_dimension_definitions_cover_every_dimension() -> None:
     from forecheck.inference.guardian import DEFAULT_DIMENSION_DEFINITIONS
 
@@ -103,6 +145,7 @@ class _FakeGuardianTokenizer:
         self.eos_token = "<eos>"
         self.padding_side = "right"
         self.chat_calls: list[dict[str, Any]] = []
+        self.encoded_prompts: list[list[str]] = []
 
     def _id_for(self, word: str) -> int:
         if word in _WORD_IDS:
@@ -144,6 +187,7 @@ class _FakeGuardianTokenizer:
     ) -> dict[str, Any]:
         import torch
 
+        self.encoded_prompts.append(list(texts))
         rows = [[self._id_for(w) for w in t.split()][:max_length] or [1] for t in texts]
         width = max(len(r) for r in rows)
         input_ids = torch.full((len(rows), width), self.pad_token_id, dtype=torch.long)
@@ -225,6 +269,26 @@ def test_granite_guardian_prompt_uses_custom_risk_definition_and_tool_call() -> 
 
 
 @requires_torch
+def test_granite_guardian_prompt_appends_verdict_prefix() -> None:
+    from forecheck.inference.guardian import GuardianBackend, GuardianBackendConfig
+
+    tokenizer = _FakeGuardianTokenizer()
+    backend = GuardianBackend(
+        GuardianBackendConfig(model_id="toy-granite", family="granite_guardian")
+    )
+    backend._model = _FakeGuardianModel()
+    backend._tokenizer = tokenizer
+    backend._device = "cpu"
+    backend._risk_ids = {_RISK_ID}
+    backend._no_risk_ids = {_NO_RISK_ID}
+
+    backend.score_batch([make_context()], [RiskDimension.FINANCIAL_COMMITMENT])
+
+    encoded_prompt = tokenizer.encoded_prompts[-1][0]
+    assert encoded_prompt.endswith("<score>")
+
+
+@requires_torch
 def test_llama_guard_prompt_uses_single_custom_category() -> None:
     from forecheck.inference.guardian import GuardianBackend, GuardianBackendConfig
 
@@ -244,6 +308,9 @@ def test_llama_guard_prompt_uses_single_custom_category() -> None:
         call["kwargs"]["categories"]["custom"]
         == backend._config.dimension_definitions[RiskDimension.EXTERNAL_COMMUNICATION]
     )
+    encoded_prompt = tokenizer.encoded_prompts[-1][0]
+    assert not encoded_prompt.endswith("<score>")
+    assert encoded_prompt.endswith("|| GEN")
 
 
 @requires_torch
@@ -268,6 +335,77 @@ def test_yes_no_probs_detects_risk_marker_in_context() -> None:
 
     assert results[0].scores[RiskDimension.FINANCIAL_COMMITMENT] > 0.9
     assert results[1].scores[RiskDimension.FINANCIAL_COMMITMENT] < 0.1
+
+
+class _PositionProbeTokenizer:
+    """Maps the prefixed vs. unprefixed prompt to distinct single-token encodings, so
+    a test can prove which one the model actually scores."""
+
+    _IDS: ClassVar[dict[str, int]] = {"PROMPT_END": 1, "PROMPT_END<score>": 2}
+
+    def __init__(self) -> None:
+        self.pad_token_id: int | None = 0
+        self.pad_token: str | None = "<pad>"
+        self.eos_token = "<eos>"
+        self.padding_side = "right"
+
+    def apply_chat_template(
+        self,
+        messages: list[dict[str, str]],
+        *,
+        tokenize: bool = False,
+        add_generation_prompt: bool = True,
+        **kwargs: Any,
+    ) -> str:
+        return "PROMPT_END"
+
+    def __call__(
+        self,
+        texts: list[str],
+        return_tensors: str = "pt",
+        padding: bool = True,
+        truncation: bool = True,
+        max_length: int = 4096,
+    ) -> dict[str, Any]:
+        import torch
+
+        input_ids = torch.tensor([[self._IDS[t]] for t in texts], dtype=torch.long)
+        return {"input_ids": input_ids, "attention_mask": torch.ones_like(input_ids)}
+
+
+class _PositionProbeModel:
+    """Only assigns risk to the post-prefix token, so scoring off the pre-prefix
+    position (the old bug) would read the opposite verdict."""
+
+    _RISK_ID = 5
+    _NO_RISK_ID = 6
+
+    def __call__(self, input_ids: Any = None, attention_mask: Any = None) -> SimpleNamespace:
+        import torch
+
+        vocab = 10
+        logits = torch.zeros((input_ids.shape[0], 1, vocab))
+        for i in range(input_ids.shape[0]):
+            is_post_prefix = int(input_ids[i, -1]) == 2
+            logits[i, 0, self._RISK_ID] = 10.0 if is_post_prefix else -10.0
+            logits[i, 0, self._NO_RISK_ID] = -10.0 if is_post_prefix else 10.0
+        return SimpleNamespace(logits=logits)
+
+
+@requires_torch
+def test_granite_guardian_reads_logits_at_post_prefix_position() -> None:
+    from forecheck.inference.guardian import GuardianBackend, GuardianBackendConfig
+
+    backend = GuardianBackend(GuardianBackendConfig(model_id="toy", family="granite_guardian"))
+    backend._model = _PositionProbeModel()
+    backend._tokenizer = _PositionProbeTokenizer()
+    backend._device = "cpu"
+    backend._risk_ids = {_PositionProbeModel._RISK_ID}
+    backend._no_risk_ids = {_PositionProbeModel._NO_RISK_ID}
+
+    result = backend.score(make_context(), [RiskDimension.FINANCIAL_COMMITMENT])
+
+    assert result.scores[RiskDimension.FINANCIAL_COMMITMENT] > 0.9
 
 
 @requires_torch

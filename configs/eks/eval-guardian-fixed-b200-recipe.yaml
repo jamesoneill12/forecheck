@@ -1,0 +1,32 @@
+# Re-runs Granite Guardian 3.3 8B after the verdict-position fix; subsample sizes match the earlier runs.
+trainer:
+  runtime_name: "torch-runtime"
+  project_name: "forecheck"
+  experiment_name: "eval-guardian-fixed"
+
+  ecr_image: "812836555640.dkr.ecr.us-east-2.amazonaws.com/ai/fin-base-training:latest"
+
+  command: >-
+    bash -c 'set -euo pipefail &&
+    cd /workspace/forecheck-job &&
+    pip install -q --no-cache-dir -e ".[train]" &&
+    F=/opt/ml/fsx/forecheck && C=configs/baselines/granite-guardian-3.3-8b.yaml && O=$F/runs/baselines/granite-guardian-3.3-8b-fixed &&
+    forecheck evaluate --backend guardian --backend-config $C --run $O --data $F/data/v4 --split heldout_family --class synthetic_heldout_adversarial --threshold-split none --max-examples 2000 --dump-scores --out $O/reports/v4-heldout_family &&
+    forecheck evaluate --backend guardian --backend-config $C --run $O --data $F/data/v4 --split heldout_family --class synthetic_heldout_adversarial --threshold-split none --max-examples 2000 --strip-identity --dump-scores --out $O/reports/v4-heldout_family-noid &&
+    forecheck evaluate --backend guardian --backend-config $C --run $O --data $F/data/v2 --split heldout_family --class synthetic_heldout_adversarial --threshold-split none --max-examples 2000 --dump-scores --out $O/reports/v2-heldout_family &&
+    forecheck evaluate --backend guardian --backend-config $C --run $O --data $F/data/agentdojo --split agentdojo --class external_or_human --threshold-split none --max-examples 1000 --dump-scores --out $O/reports/agentdojo &&
+    forecheck evaluate --backend guardian --backend-config $C --run $O --data $F/data/injecagent --split injecagent --class external_or_human --threshold-split none --max-examples 1000 --dump-scores --out $O/reports/injecagent'
+
+  env_vars:
+    FORECHECK_TRACKING_BACKEND: "local"
+    HF_HOME: "/opt/ml/fsx/forecheck/hf_cache"
+    TOKENIZERS_PARALLELISM: "false"
+    PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+
+  nnodes: 1
+
+  resources:
+    worker:
+      instance_type: ml.p6-b200.48xlarge
+      gpus_per_pod: 1
+      cpus_per_pod: 2
