@@ -1,0 +1,31 @@
+# Re-scores the policy-generalisation splits with --dump-scores so per-withheld-kind AUPRC can be computed offline.
+trainer:
+  runtime_name: "torch-runtime"
+  project_name: "forecheck"
+  experiment_name: "eval-perkind-dumps"
+
+  ecr_image: "812836555640.dkr.ecr.us-east-2.amazonaws.com/ai/fin-base-training:latest"
+
+  command: >-
+    bash -c 'set -euo pipefail &&
+    cd /workspace/forecheck-job &&
+    pip install -q --no-cache-dir -e ".[train]" &&
+    R=/opt/ml/fsx/forecheck/runs &&
+    for run in 2b-synthetic-v4 2b-synthetic-v5 2b-synthetic-v6 8b-synthetic-v6; do
+    for split in heldout_policy_kind heldout_policy_phrasing; do
+    forecheck evaluate --run $R/$run --split $split --class synthetic_heldout_adversarial --dump-scores --out $R/$run/reports/$split-dump;
+    done; done'
+
+  env_vars:
+    FORECHECK_TRACKING_BACKEND: "local"
+    HF_HOME: "/opt/ml/fsx/forecheck/hf_cache"
+    TOKENIZERS_PARALLELISM: "false"
+    PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+
+  nnodes: 1
+
+  resources:
+    worker:
+      instance_type: ml.p6-b200.48xlarge
+      gpus_per_pod: 1
+      cpus_per_pod: 2
