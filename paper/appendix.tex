@@ -138,6 +138,43 @@ AUROC-high/AUPRC-low signature was a data defect, not a model limit:
 rendering the deciding fields lifts it from 0.505 to 1.000 AUPRC on
 \texttt{heldout\_family}.
 
+\begin{table*}[t]
+\centering
+\small
+\caption{Per-withheld-kind \texttt{policy\_conflict} AUPRC / AUROC on
+\texttt{heldout\_policy\_kind}, joining score dumps to the latent policy
+predicate, one seed each. ``pooled'' is all evaluable rows in the split and
+matches Table~\ref{tab:policy-generalisation}.}
+\label{tab:per-kind}
+\begin{tabular}{llccc}
+\toprule
+Checker (data) & Withheld kind & AUPRC / AUROC & $n$ & pos.\ rate \\
+\midrule
+2B v4 (v4 data, 2 kinds) & \texttt{data\_residency\_region} & 0.914 / 0.880 & 1169 & 0.61 \\
+ & \texttt{forbid\_recipient\_domain} & 0.836 / 0.922 & 1135 & 0.20 \\
+ & pooled & 0.752 / 0.767 & 2247 & 0.40 \\
+\midrule
+2B v5 (v5 data, 4 kinds) & \texttt{forbid\_cross\_tenant\_reference} & 0.792 / 0.900 & 574 & 0.29 \\
+ & \texttt{forbid\_weekend\_ops} & 0.873 / 0.900 & 614 & 0.35 \\
+ & \texttt{max\_records\_per\_day\_quota} & 0.823 / 0.744 & 596 & 0.55 \\
+ & \texttt{require\_data\_classification\_below} & 0.707 / 0.897 & 615 & 0.16 \\
+ & pooled & 0.704 / 0.773 & 2316 & 0.33 \\
+\midrule
+2B v6 (v6 data, 4 kinds) & \texttt{forbid\_cross\_tenant\_reference} & 0.711 / 0.817 & 574 & 0.29 \\
+ & \texttt{forbid\_weekend\_ops} & 0.867 / 0.887 & 614 & 0.35 \\
+ & \texttt{max\_records\_per\_day\_quota} & 0.819 / 0.737 & 596 & 0.55 \\
+ & \texttt{require\_data\_classification\_below} & 0.630 / 0.890 & 615 & 0.16 \\
+ & pooled & 0.692 / 0.767 & 2316 & 0.33 \\
+\midrule
+8B v6 (v6 data, 4 kinds) & \texttt{forbid\_cross\_tenant\_reference} & 0.901 / 0.953 & 574 & 0.29 \\
+ & \texttt{forbid\_weekend\_ops} & 0.959 / 0.972 & 614 & 0.35 \\
+ & \texttt{max\_records\_per\_day\_quota} & 0.756 / 0.675 & 596 & 0.55 \\
+ & \texttt{require\_data\_classification\_below} & 0.632 / 0.913 & 615 & 0.16 \\
+ & pooled & 0.767 / 0.869 & 2316 & 0.33 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
 \section{Multi-policy stacking: full table and curves}
 \label{sec:appendix-stacking}
 
@@ -426,6 +463,11 @@ Decoder 2B v6 (leak-free) & 0.693 & 0.214 & 0.670 & 0.935 & 1.000 & 0.702 \\
 2B v6, eval-stripped & 0.669 & 0.306 & 0.521 & 0.941 & 1.000 & 0.687 \\
 Decoder 8B v6 (leak-free) & 0.838 & 0.239 & 0.785 & 0.945 & 0.831 & 0.728 \\
 8B v6, eval-stripped & 0.819 & 0.354 & 0.450 & 0.979 & 0.975 & 0.715 \\
+\midrule
+2B v6a (key removed, v4-length obs) & 0.659 & 0.296 & 0.630 & 1.000 & 0.804 & 0.678 \\
+2B v6a, eval-stripped & 0.664 & 0.364 & 0.393 & 1.000 & 0.741 & 0.632 \\
+2B v6b (key kept, v6-length obs) & 0.139 & 0.328 & 0.597 & 1.000 & 1.000 & 0.613 \\
+2B v6b, eval-stripped & 0.135 & 0.221 & 0.271 & 1.000 & 1.000 & 0.525 \\
 \midrule
 Granite Guardian 3.3 8B & 0.372 & 0.539 & 0.587 & 0.999 & 0.111 & 0.521 \\
 Agent-self 8B (\textsc{allow}/\textsc{stop}) & 0.291 & 0.442 & 0.449 & 0.591 & 0.105 & 0.375 \\

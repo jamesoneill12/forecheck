@@ -32,19 +32,29 @@ seen in training leaves \texttt{policy\_conflict} at 0.98--0.99, matching the
 test split: the model reads the clause's meaning, not a template id. On
 withheld kinds 2B lands at 0.717 (v4) and 0.725 (v5), well above the
 positive-rate floor but far from the phrasing ceiling. 8B reaches 0.838 on
-two seeds. The compiled-predicate baseline sits at 0.90--0.96 wherever the
-phrasing inventory is known and falls to 0.600 on withheld kinds, so on this
-generator the learned checker matches a symbolic compiler on seen kinds and
-beats it by 0.1--0.2 on unseen ones; neither reads a new kind reliably. The
+two seeds. The compiled-predicate baseline matches this pattern (0.90--0.96
+known, 0.600 unseen): the learned checker ties it on seen kinds and beats it
+by 0.1--0.2 on unseen ones; neither reads a new kind reliably. The
 supportable claim is ``one model, policies of a kind seen in training, any
 phrasing,'' not ``arbitrary new policy kinds.''
 
 \textbf{What the kind split can and cannot say.} The v4 and v5 kind cells are
 means over training seeds on \emph{different} withheld kinds (2 vs.\ 4), so
-their near-equality is not evidence that a larger inventory fails to help:
-the dominant variance component, which kinds were withheld, is not estimated,
+their near-equality is not evidence an inventory effect is absent: the
+dominant variance component, which kinds were withheld, is not estimated,
 and with three seeds at sd 0.03 the minimum detectable difference is about
-0.08. We report ``no evidence of an inventory effect at this size,'' not
-its absence.
+0.08.
+
+\textbf{The pooled score hides a calibration gap, not just a ranking
+failure.} Per-kind AUPRC (Table~\ref{tab:per-kind},
+Appendix~\ref{sec:appendix-generalisation}) sits well above the pooled cell:
+v4's two withheld kinds score
+0.914 and 0.836 against a pooled 0.752, and at 8B two of v6's four withheld
+kinds reach 0.901 and 0.959. Part of the pooled gap is a score offset
+between kinds, not poor within-kind ranking. The residual failure
+concentrates on two kinds: a daily quota checked against a running total the
+call does not show (AUROC 0.68--0.74, worse at 8B than 2B) and a
+classification threshold at a 0.16 base rate (AUPRC 0.63 despite AUROC
+0.89--0.91). Four kinds, one seed each.
 
 \FloatBarrier

@@ -20,9 +20,9 @@ Every synthetic injection number before v6, the judge's $\kappa{=}0.905$ on
 that dimension, and the agent-self injection reversal in
 \S\ref{sec:identity} were measured on text carrying the leaked argument.
 We mark them and report leak-excluded macros, but the judge and the
-agent-self arm have not been re-run on v6 text. The v6 fix changes
-observation length and format as well as removing the key; the two are not
-separated.
+agent-self arm have not been re-run on v6 text. The v6 fix bundles key
+removal with longer observations; single-factor arms (\S\ref{sec:external})
+attribute the AgentDojo gain to the key alone, on one seed each.
 
 \textbf{The InjecAgent pair test's confounds are controlled, not eliminated
 in general.} The clean twin is shorter than the poisoned one in every pair,
@@ -40,7 +40,9 @@ scores were saved (InjecAgent). The 8B v4 AgentDojo injection cell moved by
 0.1 between runs we could not reconcile. Differences smaller than these
 bands are interpreted nowhere in the paper by intent; where we have failed,
 the reader should discount them. Kind-split variance over \emph{which} kinds
-were withheld is not estimated.
+were withheld is not estimated; the per-kind cells in
+Appendix~\ref{sec:appendix-generalisation} are one seed per kind and do not
+change that.
 
 \textbf{Baselines.} The rule baseline is an uninformative floor on
 \texttt{policy\_conflict} and \texttt{unauthorized\_scope}. The symbolic

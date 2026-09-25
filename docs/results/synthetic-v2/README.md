@@ -797,6 +797,43 @@ Per-dimension AUPRC/AUROC, v4 vs v6, both sizes:
    generalizes off-distribution -- is reported in `docs/results/agentdojo/README.md`, not
    here.
 
+## v6a / v6b: single-factor attribution of the v4->v6 injection gain (decoder-2b-v6a/, decoder-2b-v6b/)
+
+v6 changed two things relative to v4 at once: it removed the leaked `instructed_target`
+argument key, and it lengthened and varied tool observations. Two 2B LoRA arms, same
+recipe, seed and train row count as v6 (25,750 train rows), isolate which change did the
+work. **v6a** removes the key but keeps v4-style short observations; **v6b** keeps the key
+but uses v6-style long observations. Reports: `decoder-2b-v6a/`, `decoder-2b-v6b/`
+(synthetic splits); `../agentdojo/decoder-2b-v6a-report.md`,
+`decoder-2b-v6a-strip-report.md`, `decoder-2b-v6b-report.md`,
+`decoder-2b-v6b-strip-report.md` (AgentDojo, full-context and identity-stripped).
+
+`prompt_injection_influence` AUPRC/AUROC:
+
+| split | v6a | v6b | v6 (for reference) |
+|---|---|---|---|
+| test | 0.794/0.898 | 0.791/0.887 | 0.788/0.893 |
+| heldout_family | 0.793/0.901 | 0.794/0.896 | 0.787/0.899 |
+| heldout_policy_kind | 0.775/0.882 | 0.783/0.891 | -- |
+| heldout_policy_phrasing | 0.786/0.884 | 0.788/0.887 | -- |
+| AgentDojo banking | **0.659/0.926** | **0.139/0.311** | 0.693/0.928 |
+| AgentDojo banking, identity-stripped | 0.664/0.931 | 0.135/0.294 | 0.669/0.921 |
+
+1. **The whole AgentDojo injection gain is the key removal.** v6a alone (key removed,
+   short observations) reaches 0.659 AUPRC, most of v6's 0.693; v6b alone (key kept, long
+   observations) reaches 0.139, reproducing v4's 0.128 failure to within 0.01. Identity
+   stripping barely moves either arm (0.664, 0.135), confirming both read content rather
+   than identity fields. Observation length and variety contribute nothing measurable to
+   the AgentDojo transfer.
+2. **On synthetic data neither factor moves the injection score.** All four v6a/v6b cells
+   above sit within 0.01 of v6 and of each other, which is why the synthetic metric alone
+   could not have caught this: only the held-out AgentDojo benchmark separates the two
+   changes.
+3. **Other dimensions track the observation-length arm, not the key.** On
+   `heldout_family`, v6a scores `unauthorized_scope` 0.9997, `policy_conflict` 0.944,
+   `insufficient_context` 0.810 AUPRC; v6b scores 1.000, 0.931, 0.798. The gap is inside
+   single-run noise and does not change any conclusion in the v6 section above.
+
 ## What is still to land
 
 - Decoder 2B v4, identity-stripped eval (`eval-v4-idself`): done, see the Macro

@@ -75,9 +75,8 @@ sit near raw logit $-4$ on poisoned and clean alike and return an identical
 score on 24\% (2B) and 39\% (8B) of pairs (Figure~\ref{fig:injecagent-margins}). Counting ties as half, they rank
 the poisoned variant higher on 0.624 and 0.546 of pairs, significantly above
 0.5 (sign test on decided pairs, $p<10^{-5}$) but small. Whether the 8B
-AgentDojo transfer was call-level reading or a head that only fires on long
-observations is undetermined; a payload-deletion counterfactual with the call
-held fixed would decide it and has not been run.
+AgentDojo transfer is call-level reading is undetermined absent a
+payload-deletion counterfactual with the call held fixed.
 
 \textbf{The cause was a label leak in our generator.} Contrasting rendered
 calls between injected and non-injected synthetic examples showed that the
@@ -98,10 +97,13 @@ observations. Retrained on v6 with identical size and recipe, 2B reaches
 heads fire (2B v6 median positive logit $+4.5$ vs.\ $-3.0$). On
 InjecAgent both rank the poisoned variant strictly above its clean twin on
 0.977 of pairs with under 2\% ties; the synthetic injection score did not
-change (0.804 to 0.787 on \texttt{heldout\_family}). Observation length
-alone could explain the AgentDojo gain (2,000-character records against
-v4's 132-character templates); the changes were not separated and we claim
-only that the bundle is sufficient.
+change (0.804 to 0.787 on \texttt{heldout\_family}). Two single-factor arms,
+matched to v6 on recipe, seed, and row count, isolate which change did the
+work: v6a (key removed, v4-length observations) reaches 0.659 AUPRC on
+AgentDojo injection, against v6b (key kept, v6-length observations) at
+0.139, indistinguishable from v4's 0.128. Observation length and variety
+contribute nothing measurable; the key removal is the entire gain
+(Table~\ref{tab:agentdojo}, Appendix~\ref{sec:appendix-external}).
 
 \textbf{The length confound is tested and closed.} The clean twin is shorter
 than the poisoned observation in all 1,598 groups; two more controls,
@@ -119,8 +121,7 @@ rate on AgentDojo for every checker (0.21--0.36 vs.\ 0.253); the label counts
 harmless auxiliary reads as out of scope. On InjecAgent, 8B v6 is below base
 rate (0.677 vs.\ 0.752) until the port's placeholder principal and scope
 fields are removed (0.917). Removing identity \emph{helps} on several
-external cells, which fits the thesis only in its narrow form: the right
-fields help, generic ones hurt. Calibration does not transfer (macro ECE
+external cells: the right fields help, generic ones hurt. Calibration does not transfer (macro ECE
 0.20--0.27 on AgentDojo vs.\ under 0.03 synthetic); isotonic refitting on
 250--500 labelled calls restores ECE 0.01 with AUPRC unchanged. Over all
 four AgentDojo suites (30,143 calls), 8B v4 injection holds on three and is

@@ -55,6 +55,10 @@ dimension except `prompt_injection_influence`, n=4,133.
 | decoder 2B v6, eval-stripped | 0.669 / 0.921 | 0.306 / 0.633 | 0.521 / 0.862 | 0.941 / 0.944 | 1.000 / 1.000 | 0.687 | n/a (raw margins, no bundle) |
 | decoder 8B v6 (leak-free generator) | 0.838 / 0.966 | 0.239 / 0.452 | 0.785 / 0.943 | 0.945 / 0.956 | 0.831 / 0.977 | 0.728 | 0.256 |
 | decoder 8B v6, eval-stripped | 0.819 / 0.960 | 0.354 / 0.661 | 0.450 / 0.817 | 0.979 / 0.987 | 0.975 / 0.998 | 0.715 | n/a (raw margins, no bundle) |
+| decoder 2B v6a (key removed, v4-length obs) | 0.659 / 0.926 | 0.296 / 0.572 | 0.630 / 0.866 | 1.000 / 1.000 | 0.804 / 0.984 | 0.678 | 0.202 |
+| decoder 2B v6a, eval-stripped | 0.664 / 0.931 | 0.364 / 0.629 | 0.393 / 0.779 | 1.000 / 1.000 | 0.741 / 0.975 | 0.632 | n/a (raw margins, no bundle) |
+| decoder 2B v6b (key kept, v6-length obs) | 0.139 / 0.311 | 0.328 / 0.611 | 0.597 / 0.877 | 1.000 / 1.000 | 1.000 / 1.000 | 0.613 | 0.198 |
+| decoder 2B v6b, eval-stripped | 0.135 / 0.294 | 0.221 / 0.411 | 0.271 / 0.550 | 1.000 / 1.000 | 1.000 / 1.000 | 0.525 | n/a (raw margins, no bundle) |
 | Granite Guardian 3.3 8B zero-shot (n=1000), **corrected** | 0.372 / 0.786 | 0.539 / 0.796 | 0.587 / 0.830 | 0.999 / 1.000 | 0.111 / 0.612 | 0.521 | 0.208 |
 | agent-self 8B, ALLOW/STOP (n=1000) | 0.291 / 0.775 | 0.442 / 0.734 | 0.449 / 0.792 | 0.591 / 0.804 | 0.105 / 0.580 | 0.375 | 0.398 |
 
@@ -108,7 +112,13 @@ dimension except `prompt_injection_influence`, n=4,133.
    Stripping identity from the 8B v4 input keeps injection (0.743 / 0.915) and drops
    `policy_conflict` from 0.626 to 0.404, the same split between content and
    identity dimensions the synthetic identity ablation showed; 8B v6 shows the
-   same split (0.785 to 0.450).
+   same split (0.785 to 0.450). The v4-to-v6 fix changes two things at once (the leaked
+   key and observation length); single-factor arms trained on the same recipe attribute
+   the whole gain to the key: v6a (key removed, v4-length observations) reaches 0.659 /
+   0.926 here, and v6b (key kept, v6-length observations) reaches 0.139 / 0.311,
+   reproducing v4's failure. Full breakdown, including identity-stripped cells and the
+   synthetic-side comparison, in `../synthetic-v2/README.md`, "v6a / v6b: single-factor
+   attribution".
 
 3. **`unauthorized_scope` does not transfer.** 0.257 (2B v4), 0.355 (8B v4),
    0.214 (2B v6) and 0.239 (8B v6) AUPRC

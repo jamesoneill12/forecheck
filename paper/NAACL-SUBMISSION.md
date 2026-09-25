@@ -52,8 +52,11 @@ table, self-judgment demoted, composition compressed, symbolic baseline row, Gua
 numbers withdrawn (verdict-position bug, commit 1a3cd4e), `eval-guardian-fixed` (corrected
 verdict-position read, all Guardian numbers replaced), `eval-injecagent-controls` (done:
 length-matched padded/instruction controls close the InjecAgent pair-test length
-confound, Table~\ref{tab:external} and Table~\ref{tab:injecagent-controls}). Pending GPU
-(recipes ready): `train-2b-b200-v6a`, `train-2b-b200-v6b`.
+confound, Table~\ref{tab:external} and Table~\ref{tab:injecagent-controls}),
+single-factor v6a/v6b arms (done: key removal is the whole AgentDojo injection gain,
+`docs/results/synthetic-v2/README.md` "v6a / v6b" and Table~\ref{tab:agentdojo}), per-kind
+`policy_conflict` attribution (done: `docs/results/synthetic-v2/per-kind/per_kind_auprc.md`
+and Table~\ref{tab:per-kind}).
 
 ## Open experiments the reviewers asked for (all cheap)
 
@@ -62,13 +65,18 @@ confound, Table~\ref{tab:external} and Table~\ref{tab:injecagent-controls}). Pen
    v6 wins 0.98--0.99 tie-adjusted against both, v4's 0.62 falls to 0.51 (chance)
    against padded. See `docs/results/injecagent/README.md` and
    Table~\ref{tab:injecagent-controls}.
-2. Single-factor v6 arms: key removed with short observations; key kept with long observations
-   (two 2B LoRA runs).
+2. **Done.** Single-factor v6 arms: key removed with short observations (v6a); key kept
+   with long observations (v6b). v6a reproduces most of v6's AgentDojo injection gain
+   (0.659 vs.\ 0.693), v6b reproduces v4's failure (0.139 vs.\ 0.128 base); the gain is the
+   key removal, not observation length. See `docs/results/synthetic-v2/README.md`.
 3. AgentDojo payload-deletion counterfactual with the call held fixed (inference only).
 4. Blind judge and agent-self re-run on v6 text (one API job, one inference pass).
 5. Within-arm temperature perturbation of the decoder for the composition attribution (CPU).
 6. Compiled-predicate symbolic baseline for `unauthorized_scope`, `privilege_escalation`, and
    seen-kind `policy_conflict` (CPU).
 7. Guardian positive control on its native risk categories, plus one dumped rendered prompt.
-8. Per-withheld-kind AUPRC on the kind split; AUPRC split by `action_origin` on synthetic
-   injection; bootstrap CIs on synthetic tables (needs per-example dumps from FSx).
+8. **Done.** Per-withheld-kind AUPRC on the kind split: pooled score understates
+   within-kind ranking; residual failure concentrates in the daily-quota and
+   classification-threshold kinds. See `docs/results/synthetic-v2/per-kind/per_kind_auprc.md`
+   and Table~\ref{tab:per-kind}. AUPRC split by `action_origin` on synthetic injection and
+   bootstrap CIs on synthetic tables (needs per-example dumps from FSx) remain open.
