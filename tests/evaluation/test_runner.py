@@ -230,3 +230,15 @@ def test_evaluate_respects_explicit_dimensions_subset() -> None:
         n_boot=5,
     )
     assert set(report.dimensions.keys()) == {RiskDimension.FINANCIAL_COMMITMENT}
+
+
+def test_probability_matrix_sigmoids_margins_for_uncalibrated_dimension() -> None:
+    from forecheck.evaluation.runner import _apply_calibration
+
+    values = [-10.0, 0.0, 10.0, None]
+    passthrough = _apply_calibration(values, None)
+    assert passthrough == values
+    squashed = _apply_calibration(values, None, sigmoid_fallback=True)
+    assert squashed[3] is None
+    assert all(0.0 <= v <= 1.0 for v in squashed[:3] if v is not None)
+    assert squashed[1] == 0.5

@@ -132,14 +132,21 @@ def _raw_values(raw: Sequence[RawScores], dimension: RiskDimension) -> list[floa
 def _apply_calibration(
     values: list[float | None],
     calibrator: Calibrator | None,
+    *,
+    sigmoid_fallback: bool = False,
 ) -> list[float | None]:
-    if calibrator is None:
+    if calibrator is None and not sigmoid_fallback:
         return values
     indices = [i for i, v in enumerate(values) if v is not None]
     if not indices:
         return values
     arr = np.array([values[i] for i in indices], dtype=np.float64)
-    transformed = calibrator.transform(arr)
+    # A bundle that abstained on this dimension (degenerate calibration split) still
+    # implies the backend emits margins, so squash them rather than pass them through.
+    if calibrator is not None:
+        transformed = calibrator.transform(arr)
+    else:
+        transformed = 1.0 / (1.0 + np.exp(-arr))
     result = list(values)
     for idx, value in zip(indices, transformed, strict=True):
         result[idx] = float(value)
@@ -155,7 +162,9 @@ def _probability_matrix(
     for dimension in dimensions:
         values = _raw_values(raw, dimension)
         calibrator = calibrators.get(dimension) if calibrators is not None else None
-        matrix[dimension] = _apply_calibration(values, calibrator)
+        matrix[dimension] = _apply_calibration(
+            values, calibrator, sigmoid_fallback=calibrators is not None
+        )
     return matrix
 
 
