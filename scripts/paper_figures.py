@@ -144,6 +144,13 @@ def parse_dimension_table(path: Path) -> dict[str, dict[str, float | None]]:
     return out
 
 
+def macro_auprc(path: Path) -> float:
+    """Mean of the per-dimension auprc column, skipping n/a dimensions."""
+    table = parse_dimension_table(path)
+    vals = [row["auprc"] for row in table.values() if row["auprc"] is not None]
+    return sum(vals) / len(vals)
+
+
 def parse_stacking_table(path: Path) -> list[dict[str, str | float | None]]:
     text = path.read_text()
     lines = text.splitlines()
@@ -600,6 +607,61 @@ def fig_judge_agreement() -> None:
         savefig(fig, "fig_judge_agreement.pdf")
 
 
+SCALING_ROWS = 5000, 25000, 100000, 250000
+SCALING_ARMS = {5000: "decoder-2b-v6-5k", 25000: "decoder-2b-v6", 100000: "decoder-2b-v6-100k", 250000: "decoder-2b-v6-250k"}
+SCALING_FULLFT_ARM = "decoder-2b-v6-fullft"
+
+
+def fig_scaling() -> None:
+    def series(dirpath: Path, kind: str) -> tuple[list[float], float]:
+        if kind == "macro":
+            vals = [macro_auprc(dirpath / SCALING_ARMS[n] / "heldout_family-report.md") for n in SCALING_ROWS]
+            fullft = macro_auprc(dirpath / SCALING_FULLFT_ARM / "heldout_family-report.md")
+        else:
+            vals = [parse_dimension_table(dirpath / f"{SCALING_ARMS[n]}-report.md")["prompt_injection_influence"]["auprc"] for n in SCALING_ROWS]
+            fullft = parse_dimension_table(dirpath / f"{SCALING_FULLFT_ARM}-report.md")["prompt_injection_influence"]["auprc"]
+        return vals, fullft
+
+    heldout_vals, heldout_fullft = series(RESULTS_DIR, "macro")
+    agentdojo_vals, agentdojo_fullft = series(AGENTDOJO_DIR, "auprc")
+    injecagent_controls_dir = REPO_ROOT / "docs" / "results" / "injecagent" / "controls"
+    injecagent_vals, injecagent_fullft = series(injecagent_controls_dir, "auprc")
+
+    log("=== fig_scaling ===")
+    for n, h, a, i in zip(SCALING_ROWS, heldout_vals, agentdojo_vals, injecagent_vals, strict=True):
+        log(f"  n={n}: heldout_family={h:.4f} agentdojo={a:.4f} injecagent={i:.4f}")
+    log(f"  fullft(25k): heldout_family={heldout_fullft:.4f} agentdojo={agentdojo_fullft:.4f} injecagent={injecagent_fullft:.4f}")
+
+    series_spec = [
+        ("heldout_family macro", heldout_vals, heldout_fullft, COLORS["blue"]),
+        ("AgentDojo injection", agentdojo_vals, agentdojo_fullft, COLORS["vermillion"]),
+        ("InjecAgent-controls injection", injecagent_vals, injecagent_fullft, COLORS["bluish_green"]),
+    ]
+
+    with plt.rc_context(BODY_RC):
+        fig, ax = plt.subplots(figsize=(3.2, 2.3))
+        for label, vals, fullft_val, color in series_spec:
+            ax.plot(SCALING_ROWS, vals, marker="o", markersize=3, linewidth=1.1, color=color, label=label)
+            ax.plot(
+                25000,
+                fullft_val,
+                marker="o",
+                markersize=4.5,
+                markerfacecolor="none",
+                markeredgecolor=color,
+                markeredgewidth=1.1,
+                linestyle="none",
+            )
+        ax.set_xscale("log")
+        ax.set_xticks(list(SCALING_ROWS))
+        ax.set_xticklabels(["5k", "25k", "100k", "250k"])
+        ax.set_xlabel("synthetic training rows")
+        ax.set_ylabel("AUPRC")
+        ax.set_ylim(0.3, 1.0)
+        ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.3), ncol=3, frameon=False, fontsize=5.5, handlelength=1.3, columnspacing=0.8)
+        savefig(fig, "fig_scaling.pdf")
+
+
 def fig_agentdojo() -> None:
     dims = ["prompt_injection_influence", "unauthorized_scope", "policy_conflict"]
     arms = [
@@ -874,6 +936,7 @@ def main() -> None:
     fig_self_judgment()
     fig_judge_agreement()
     fig_agentdojo()
+    fig_scaling()
 
 
 if __name__ == "__main__":

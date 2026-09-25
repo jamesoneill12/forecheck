@@ -834,6 +834,50 @@ but uses v6-style long observations. Reports: `decoder-2b-v6a/`, `decoder-2b-v6b
    `insufficient_context` 0.810 AUPRC; v6b scores 1.000, 0.931, 0.798. The gap is inside
    single-run noise and does not change any conclusion in the v6 section above.
 
+## Data-scaling curve and full fine-tuning (2B, v6 generator)
+
+Four 2B LoRA arms trained on the same recipe (granite-3.3-2b, 3 epochs, batch 16, seed 0,
+same withheld tools/kinds) on v6-generator data at increasing size, plus one 2B
+full-parameter fine-tune at 25k rows. Training length co-varies with rows: 5k is 813
+optimizer steps, 25k ~4,800, 100k 15,000, 250k 19,000 (early stop at fixed patience; best
+dev step 700 / ~4k / 12,500 / 14,000). Full FT at 25k is 4,212 steps, all parameters,
+lr 1e-5, gradient checkpointing. Reports: `decoder-2b-v6-{5k,100k,250k,fullft}/`
+(synthetic splits), `../agentdojo/decoder-2b-v6-{5k,100k,250k,fullft}-report.md`
+(AgentDojo), `../injecagent/controls/decoder-2b-v6-{5k,100k,250k,fullft}-report.md` and
+`../injecagent/controls/pair_audit_scaling.md` (InjecAgent). The 5k arm's eval splits are
+small (test n=900) and two of its calibrators are degenerate
+(`external_communication` n=19, `privilege_escalation` 10 positives); the larger arms'
+eval splits were subsampled to the 25k arm's sizes with `--max-examples`.
+
+| arm | heldout_family macro | AgentDojo injection | AgentDojo policy | InjecAgent-controls injection | InjecAgent pair win vs padded (tie-adj) |
+|---|---|---|---|---|---|
+| 2B LoRA 5k | 0.938 | 0.695 | 0.412 | 0.898 | 0.978 |
+| 2B LoRA 25k | 0.951 | 0.693 | 0.670 | 0.742 | 0.986 |
+| 2B LoRA 100k | 0.954 | 0.423 | 0.850 | 0.606 | 0.955 |
+| 2B LoRA 250k | 0.950 | 0.354 | 0.298 | 0.353 | 0.805 |
+| 2B full FT 25k | 0.949 | 0.797 | 0.636 | 0.825 | 0.992 |
+| 8B LoRA 25k (reference, in paper) | 0.952 | 0.838 | 0.785 | 0.899 | 0.981 |
+
+`heldout_policy_kind` `policy_conflict` is flat within noise across arms: 5k 0.603, 25k
+0.692, 100k 0.694, 250k 0.639, full FT 0.662. The 250k arm's InjecAgent pair win vs.\
+plain clean is 0.788 (302 losses); 5k/100k/fullFT are all at or above 0.95.
+
+1. **In-distribution and held-out-family synthetic scores are flat from 5k to 250k rows**
+   (0.938-0.954), while transfer of the injection head to both external benchmarks falls
+   monotonically with more synthetic rows (AgentDojo 0.695 to 0.354, InjecAgent-controls
+   0.898 to 0.353). The generator's variety is exhausted early; extra rows teach the
+   generator's regularities, not the task.
+2. Rows and optimizer steps co-vary in this design, so "more data" and "more training" are
+   not separated; a fixed-step control is future work.
+3. AgentDojo `policy_conflict` is non-monotonic (0.412, 0.670, 0.850, 0.298), single seed,
+   so we do not interpret it.
+4. **Full fine-tuning at 25k matches LoRA on synthetic splits and beats it on both
+   external benchmarks** (0.797 vs.\ 0.693 AgentDojo, 0.825 vs.\ 0.742 InjecAgent),
+   closing most of the gap to 8B LoRA; one seed.
+5. On this generator, the lever for transfer is not more synthetic data but fewer
+   generator regularities and more trainable capacity; this strengthens the limitation
+   that synthetic scores measure the label function, not real-world risk.
+
 ## What is still to land
 
 - Decoder 2B v4, identity-stripped eval (`eval-v4-idself`): done, see the Macro

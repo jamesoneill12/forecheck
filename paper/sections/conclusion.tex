@@ -3,11 +3,12 @@
 
 Delegated-authority labels are functions of fields a content classifier
 never sees; the ablation confirms the content carries almost nothing about
-two of the three, as expected. What was not guaranteed: models
+two of the three. What was not guaranteed: models
 given the context do not use it under a straightforward prompt, a blind
 reader loses the same labels without the fields, policy checking
-generalises to unseen wording but not unseen kinds, and a composition
-collapse was one fail-closed bundle. The strongest result is
+generalises to unseen wording but not unseen kinds, scaling synthetic rows
+did not improve external transfer while full fine-tuning did, and a
+composition collapse was one fail-closed bundle. The strongest result is
 methodological: a benchmark we did not generate exposed a label leak every
 synthetic split had scored at its ceiling, and auditing that construction
 surfaced two more.

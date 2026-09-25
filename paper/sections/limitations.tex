@@ -69,6 +69,10 @@ InjecAgent port fills principal and scope with placeholders. The v6 checkers
 have not been run on the four-suite AgentDojo export. Calibration does not
 transfer without a few hundred in-domain labels.
 
+\textbf{The data-scaling curve is one seed per point.} Rows co-vary with
+optimizer steps by design, so more synthetic rows and more training are not
+separated; a fixed-step control is future work.
+
 \textbf{Composition and approval.} \S\ref{sec:composition} is on v2 data and
 the v2 decoder; the approval-elimination curve's non-zero values exist only
 after reweighting a 58\%-incident split to an asserted 5\% deployment rate,

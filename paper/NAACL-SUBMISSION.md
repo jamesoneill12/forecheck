@@ -80,3 +80,8 @@ and Table~\ref{tab:per-kind}).
    classification-threshold kinds. See `docs/results/synthetic-v2/per-kind/per_kind_auprc.md`
    and Table~\ref{tab:per-kind}. AUPRC split by `action_origin` on synthetic injection and
    bootstrap CIs on synthetic tables (needs per-example dumps from FSx) remain open.
+9. **Done.** Scaling curve + full FT: 2B LoRA at 5k/25k/100k/250k v6-generator rows and
+   one 2B full-parameter fine-tune at 25k. Synthetic scores are flat; external transfer
+   falls monotonically with more rows and full fine-tuning recovers most of it. See
+   `docs/results/synthetic-v2/README.md`, Figure~\ref{fig:scaling}, and
+   Table~\ref{tab:scaling}.

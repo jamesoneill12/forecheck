@@ -176,3 +176,27 @@ poisoned/clean result above.
 Per-checker reports: `controls/decoder-2b-v6-report.md`,
 `controls/decoder-8b-v6-report.md`, `controls/decoder-8b-v6-strip-report.md`,
 `controls/decoder-2b-v4-report.md`.
+
+### Data-scaling arms (2B v6 generator, 5k/100k/250k rows, full FT at 25k)
+
+Same length-matched control audit, run on the 2B LoRA data-scaling checkpoints and the
+2B full-parameter fine-tune (`controls/pair_audit_scaling.md`; per-checker reports
+`controls/decoder-2b-v6-{5k,100k,250k,fullft}-report.md`). 25k is the main v6 arm above.
+
+| checker | vs clean | vs clean_padded | vs clean_instruction |
+|---|---|---|---|
+| 2B v6, 5k rows | 0.961 / 0.970 | 0.970 / 0.978 | 0.982 / 0.988 |
+| 2B v6, 25k rows | 0.977 / 0.980 | 0.984 / 0.986 | 0.988 / 0.989 |
+| 2B v6, 100k rows | 0.944 / 0.951 | 0.947 / 0.955 | 0.920 / 0.931 |
+| 2B v6, 250k rows | 0.764 / 0.788 | 0.781 / 0.805 | 0.770 / 0.788 |
+| 2B v6, full FT, 25k rows | 0.981 / 0.987 | 0.986 / 0.992 | 0.986 / 0.992 |
+
+AUPRC on the 4-way set (n=6,392 for injection, positive rate 0.25): 0.898 (5k), 0.742
+(25k), 0.606 (100k), 0.353 (250k), 0.825 (full FT, 25k).
+
+**Reading.** Both the tie-adjusted win and the AUPRC fall monotonically as synthetic
+training rows increase from 5k to 250k; the 100k and 250k arms have more training rows
+than the 25k main arm but transfer worse. Full fine-tuning at 25k rows outperforms every
+LoRA row count, including 25k LoRA itself, on both metrics. See
+`../synthetic-v2/README.md`, "Data-scaling curve and full fine-tuning", for the
+matched AgentDojo numbers and the training-step confound.

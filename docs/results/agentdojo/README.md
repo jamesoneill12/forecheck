@@ -59,6 +59,10 @@ dimension except `prompt_injection_influence`, n=4,133.
 | decoder 2B v6a, eval-stripped | 0.664 / 0.931 | 0.364 / 0.629 | 0.393 / 0.779 | 1.000 / 1.000 | 0.741 / 0.975 | 0.632 | n/a (raw margins, no bundle) |
 | decoder 2B v6b (key kept, v6-length obs) | 0.139 / 0.311 | 0.328 / 0.611 | 0.597 / 0.877 | 1.000 / 1.000 | 1.000 / 1.000 | 0.613 | 0.198 |
 | decoder 2B v6b, eval-stripped | 0.135 / 0.294 | 0.221 / 0.411 | 0.271 / 0.550 | 1.000 / 1.000 | 1.000 / 1.000 | 0.525 | n/a (raw margins, no bundle) |
+| decoder 2B v6, 5k rows | 0.695 / 0.954 | 0.226 / 0.431 | 0.412 / 0.779 | 0.998 / 0.999 | 1.000 / 1.000 | 0.666 | 0.250 |
+| decoder 2B v6, 100k rows | 0.423 / 0.859 | 0.270 / 0.497 | 0.850 / 0.912 | 1.000 / 1.000 | 1.000 / 1.000 | 0.709 | 0.255 |
+| decoder 2B v6, 250k rows | 0.354 / 0.803 | 0.220 / 0.352 | 0.298 / 0.644 | 1.000 / 1.000 | 0.994 / 1.000 | 0.573 | 0.234 |
+| decoder 2B v6, full FT, 25k rows | 0.797 / 0.963 | 0.229 / 0.463 | 0.636 / 0.844 | 0.981 / 0.991 | 0.990 / 0.999 | 0.727 | 0.268 |
 | Granite Guardian 3.3 8B zero-shot (n=1000), **corrected** | 0.372 / 0.786 | 0.539 / 0.796 | 0.587 / 0.830 | 0.999 / 1.000 | 0.111 / 0.612 | 0.521 | 0.208 |
 | agent-self 8B, ALLOW/STOP (n=1000) | 0.291 / 0.775 | 0.442 / 0.734 | 0.449 / 0.792 | 0.591 / 0.804 | 0.105 / 0.580 | 0.375 | 0.398 |
 
@@ -152,6 +156,15 @@ dimension except `prompt_injection_influence`, n=4,133.
    domain, with labels partly written by us (the four policy predicates) and
    partly by AgentDojo (`prompt_injection_influence`, `unauthorized_scope`).
    The other three suites are in the next section.
+
+7. **More synthetic training rows do not buy AgentDojo transfer.** 2B v6 LoRA
+   at 5k/100k/250k rows scores 0.695/0.423/0.354 on injection, falling
+   monotonically as rows increase (25k, the main v6 arm above, is 0.693); a
+   2B full-parameter fine-tune at 25k reaches 0.797, the best 2B result on
+   this benchmark. `policy_conflict` on the same arms is non-monotonic
+   (0.412, 0.850, 0.298), single seed, not interpreted. Full detail,
+   including the training-step confound, in
+   `../synthetic-v2/README.md`, "Data-scaling curve and full fine-tuning".
 
 ## Four suites (banking, slack, travel, workspace)
 

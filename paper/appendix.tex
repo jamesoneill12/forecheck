@@ -624,6 +624,41 @@ learning to output the base rate. Most of the gain is reached with 250--500
 labelled calls; the sweep is 8B only, isotonic only, on two of the five
 dimensions, and Platt refits are much worse (macro ECE 0.030 / 0.048).
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/fig_scaling.pdf}
+\caption{2B LoRA at four v6-generator training sizes (5k--250k rows,
+single seed each; optimizer steps co-vary with rows) and one 2B
+full-parameter fine-tune at 25k rows (hollow markers). Held-out-family
+macro AUPRC is flat while AgentDojo and InjecAgent-controls injection
+AUPRC fall with more synthetic rows; full fine-tuning recovers most of the
+loss.}
+\label{fig:scaling}
+\end{figure}
+
+\begin{table*}[t]
+\centering
+\small
+\caption{Data-scaling curve, 2B LoRA on v6-generator data at increasing
+training rows, plus one 2B full-parameter fine-tune (fullFT) at 25k rows,
+single seed each. Rows co-vary with optimizer steps: 5k is 813 steps, 25k
+4,800, 100k 15,000, 250k 19,000, fullFT-25k 4,212. 8B LoRA 25k is the
+reference arm reported elsewhere in this paper.}
+\label{tab:scaling}
+\begin{tabular}{lccccc}
+\toprule
+Arm & heldout\_family macro & AgentDojo inj. & AgentDojo policy & InjecAgent-ctrl.\ inj. & InjecAgent tie-adj.\ win \\
+\midrule
+2B LoRA 5k & 0.938 & 0.695 & 0.412 & 0.898 & 0.978 \\
+2B LoRA 25k & 0.951 & 0.693 & 0.670 & 0.742 & 0.986 \\
+2B LoRA 100k & 0.954 & 0.423 & 0.850 & 0.606 & 0.955 \\
+2B LoRA 250k & 0.950 & 0.354 & 0.298 & 0.353 & 0.805 \\
+2B full FT 25k & 0.949 & 0.797 & 0.636 & 0.825 & 0.992 \\
+8B LoRA 25k (reference) & 0.952 & 0.838 & 0.785 & 0.899 & 0.981 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
 \textbf{Other suites.} \texttt{unauthorized\_scope} outside banking is carried
 by the rule baseline (0.749 on slack, 0.733 on workspace, where nearly half of
 all calls are labelled out of scope); 2B adds under 0.09 and both 8B arms are
