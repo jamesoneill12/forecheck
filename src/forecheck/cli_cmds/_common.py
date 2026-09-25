@@ -62,22 +62,36 @@ def load_resolved_train_config(run: Path) -> TrainConfig | None:
         return None
 
 
-def _latest_checkpoint_adapter(run: Path) -> Path | None:
+def _latest_checkpoint_dir(run: Path) -> Path | None:
     checkpoints_dir = run / "checkpoints"
     if not checkpoints_dir.is_dir():
         return None
     steps: list[tuple[int, Path]] = []
     for candidate in checkpoints_dir.glob("step-*"):
-        adapter = candidate / "adapter"
-        if adapter.is_dir():
-            try:
-                step = int(candidate.name.removeprefix("step-"))
-            except ValueError:
-                continue
-            steps.append((step, adapter))
+        if not (candidate / "adapter").is_dir() and not (candidate / "model").is_dir():
+            continue
+        try:
+            step = int(candidate.name.removeprefix("step-"))
+        except ValueError:
+            continue
+        steps.append((step, candidate))
     if not steps:
         return None
     return max(steps, key=lambda item: item[0])[1]
+
+
+def _checkpoint_weights_kind(checkpoint_dir: Path) -> str:
+    """``"full"`` or ``"adapter"``, from the checkpoint manifest if present, else from
+    which weights directory the checkpoint actually wrote."""
+    manifest_path = checkpoint_dir / "checkpoint_manifest.json"
+    if manifest_path.exists():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        weights = manifest.get("weights")
+        if weights == "full":
+            return "full"
+        if weights == "adapter":
+            return "adapter"
+    return "full" if (checkpoint_dir / "model").is_dir() else "adapter"
 
 
 def resolve_backend(
@@ -104,11 +118,19 @@ def resolve_backend(
                 f"--backend hf requires {run / 'config.resolved.yaml'} (a trained run); "
                 "pass --backend mock or --backend rule_baseline otherwise"
             )
-        adapter_dir = _latest_checkpoint_adapter(run)
+        checkpoint_dir = _latest_checkpoint_dir(run)
+        adapter_id: str | None = None
+        weights_dir: str | None = None
+        if checkpoint_dir is not None:
+            if _checkpoint_weights_kind(checkpoint_dir) == "full":
+                weights_dir = str(checkpoint_dir / "model")
+            else:
+                adapter_id = str(checkpoint_dir / "adapter")
         hf_config = HFBackendConfig(
             model_id=train_config.model.base_id,
             revision=train_config.model.revision,
-            adapter_id=str(adapter_dir) if adapter_dir is not None else None,
+            adapter_id=adapter_id,
+            weights_dir=weights_dir,
             strip_identity=strip_identity or train_config.data.strip_identity,
         )
         return HFBackend(hf_config)

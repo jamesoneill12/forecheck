@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import itertools
+from pathlib import Path
 
 import pytest
 
-from forecheck.training.loop import SeededEpochSampler
+from forecheck.training.loop import SeededEpochSampler, _prune_checkpoints, subsample_examples
 
 
 def test_loop_module_imports_without_torch() -> None:
@@ -79,3 +80,85 @@ def test_batches_never_exceed_batch_size() -> None:
     assert all(0 < len(b) <= 3 for b in batches)
     flat = list(itertools.chain.from_iterable(batches))
     assert sorted(flat[:7]) == list(range(7))
+
+
+def test_subsample_examples_returns_all_when_max_is_none() -> None:
+    examples = list(range(10))
+
+    assert subsample_examples(examples, None, seed=0) == examples
+
+
+def test_subsample_examples_returns_all_when_under_the_cap() -> None:
+    examples = list(range(5))
+
+    assert subsample_examples(examples, 10, seed=0) == examples
+
+
+def test_subsample_examples_caps_the_result_size() -> None:
+    examples = list(range(100))
+
+    subsample = subsample_examples(examples, 10, seed=0)
+
+    assert len(subsample) == 10
+    assert set(subsample) <= set(examples)
+
+
+def test_subsample_examples_is_deterministic_for_the_same_seed() -> None:
+    examples = list(range(100))
+
+    a = subsample_examples(examples, 10, seed=7)
+    b = subsample_examples(examples, 10, seed=7)
+
+    assert a == b
+
+
+def test_subsample_examples_differs_across_seeds() -> None:
+    examples = list(range(100))
+
+    a = subsample_examples(examples, 10, seed=1)
+    b = subsample_examples(examples, 10, seed=2)
+
+    assert a != b
+
+
+def _make_checkpoint_dirs(run_dir: Path, steps: list[int]) -> None:
+    for step in steps:
+        (run_dir / "checkpoints" / f"step-{step}").mkdir(parents=True)
+
+
+def _remaining_steps(run_dir: Path) -> set[int]:
+    return {
+        int(p.name.removeprefix("step-")) for p in (run_dir / "checkpoints").iterdir() if p.is_dir()
+    }
+
+
+def test_prune_checkpoints_keeps_only_n_most_recent(tmp_path: Path) -> None:
+    _make_checkpoint_dirs(tmp_path, [10, 20, 30, 40, 50])
+
+    _prune_checkpoints(tmp_path, keep=2, best_step=None)
+
+    assert _remaining_steps(tmp_path) == {40, 50}
+
+
+def test_prune_checkpoints_never_deletes_the_best_step(tmp_path: Path) -> None:
+    _make_checkpoint_dirs(tmp_path, [10, 20, 30, 40, 50])
+
+    _prune_checkpoints(tmp_path, keep=2, best_step=10)
+
+    assert _remaining_steps(tmp_path) == {10, 40, 50}
+
+
+def test_prune_checkpoints_is_a_noop_when_best_step_already_in_the_kept_window(
+    tmp_path: Path,
+) -> None:
+    _make_checkpoint_dirs(tmp_path, [10, 20, 30])
+
+    _prune_checkpoints(tmp_path, keep=2, best_step=30)
+
+    assert _remaining_steps(tmp_path) == {20, 30}
+
+
+def test_prune_checkpoints_handles_missing_checkpoints_dir(tmp_path: Path) -> None:
+    _prune_checkpoints(tmp_path, keep=2, best_step=None)
+
+    assert not (tmp_path / "checkpoints").exists()

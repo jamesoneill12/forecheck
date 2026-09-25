@@ -115,6 +115,68 @@ def test_dimension_weights_key_by_risk_dimension(tmp_path: Path) -> None:
     assert config.data.dimension_weights == {RiskDimension.FINANCIAL_COMMITMENT: 2.0}
 
 
+def test_lora_enabled_defaults_to_true(tmp_path: Path) -> None:
+    path = tmp_path / "config.yaml"
+    path.write_text(MINIMAL_YAML, encoding="utf-8")
+
+    config = load_config(path)
+
+    assert config.lora.enabled is True
+
+
+def test_lora_disabled_with_qlora_is_rejected(tmp_path: Path) -> None:
+    path = tmp_path / "config.yaml"
+    path.write_text(MINIMAL_YAML, encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="incompatible"):
+        load_config(path, overrides=["lora.enabled=false", "lora.qlora=true"])
+
+
+def test_train_gradient_checkpointing_defaults_to_false(tmp_path: Path) -> None:
+    path = tmp_path / "config.yaml"
+    path.write_text(MINIMAL_YAML, encoding="utf-8")
+
+    config = load_config(path)
+
+    assert config.train.gradient_checkpointing is False
+
+
+def test_train_keep_checkpoints_defaults_to_none(tmp_path: Path) -> None:
+    path = tmp_path / "config.yaml"
+    path.write_text(MINIMAL_YAML, encoding="utf-8")
+
+    config = load_config(path)
+
+    assert config.train.keep_checkpoints is None
+
+
+def test_train_keep_checkpoints_overridable_by_dotted_override(tmp_path: Path) -> None:
+    path = tmp_path / "config.yaml"
+    path.write_text(MINIMAL_YAML, encoding="utf-8")
+
+    config = load_config(path, overrides=["train.keep_checkpoints=2"])
+
+    assert config.train.keep_checkpoints == 2
+
+
+def test_data_dev_max_examples_defaults_to_none(tmp_path: Path) -> None:
+    path = tmp_path / "config.yaml"
+    path.write_text(MINIMAL_YAML, encoding="utf-8")
+
+    config = load_config(path)
+
+    assert config.data.dev_max_examples is None
+
+
+def test_data_dev_max_examples_overridable_by_dotted_override(tmp_path: Path) -> None:
+    path = tmp_path / "config.yaml"
+    path.write_text(MINIMAL_YAML, encoding="utf-8")
+
+    config = load_config(path, overrides=["data.dev_max_examples=500"])
+
+    assert config.data.dev_max_examples == 500
+
+
 def test_resolved_config_round_trips_through_yaml(tmp_path: Path) -> None:
     path = tmp_path / "config.yaml"
     path.write_text(MINIMAL_YAML, encoding="utf-8")

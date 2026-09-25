@@ -59,11 +59,21 @@ class ModelConfig(_Strict):
 
 
 class LoraConfig(_Strict):
+    enabled: bool = True
     r: int = Field(default=16, gt=0)
     alpha: int = Field(default=32, gt=0)
     dropout: float = Field(default=0.05, ge=0.0, lt=1.0)
     target_modules: tuple[str, ...] = ("q_proj", "k_proj", "v_proj", "o_proj")
     qlora: bool = False
+
+    @model_validator(mode="after")
+    def _validate_qlora_requires_lora(self) -> LoraConfig:
+        if not self.enabled and self.qlora:
+            raise ValueError(
+                "lora.enabled=false is incompatible with lora.qlora=true: "
+                "a k-bit-quantized base cannot be fully fine-tuned"
+            )
+        return self
 
 
 class DataConfig(_Strict):
@@ -73,6 +83,7 @@ class DataConfig(_Strict):
     max_prompt_tokens: int = Field(default=Limits.MAX_PROMPT_TOKENS, gt=0)
     dimension_weights: dict[RiskDimension, float] = Field(default_factory=dict)
     strip_identity: bool = False
+    dev_max_examples: int | None = Field(default=None, gt=0)
 
     @model_validator(mode="after")
     def _validate_splits(self) -> DataConfig:
@@ -105,6 +116,8 @@ class TrainLoopConfig(_Strict):
     resume_from: Path | None = None
     shared_prefill: bool = True
     use_chat_template: bool = USE_CHAT_TEMPLATE_DEFAULT
+    gradient_checkpointing: bool = False
+    keep_checkpoints: int | None = Field(default=None, gt=0)
 
 
 class TrackingConfig(_Strict):

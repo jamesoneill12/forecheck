@@ -3,21 +3,22 @@
 Every ``torch``/``transformers``/``peft`` symbol is imported lazily inside functions
 (never at module scope, never under ``TYPE_CHECKING``) so this module — and therefore
 the whole ``forecheck.training`` package — imports cleanly when the ``train`` extra is
-not installed. Only :class:`SeededEpochSampler` has no torch dependency at all, so its
-resume-determinism guarantee is unit-tested directly.
+not installed. :class:`SeededEpochSampler` and :func:`subsample_examples` have no torch
+dependency at all, so their determinism guarantees are unit-tested directly.
 """
 
 from __future__ import annotations
 
 import json
 import random
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-from forecheck.contracts import LabelValue, RiskDimension
+from forecheck.contracts import Example, LabelValue, RiskDimension
 from forecheck.evaluation.metrics import (
     DimensionMetrics,
     compute_dimension_metrics,
@@ -40,10 +41,11 @@ from forecheck.training.tracking import ExperimentTracker, LocalJsonTracker
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-__all__ = ["SeededEpochSampler", "TrainResult", "run_training"]
+__all__ = ["SeededEpochSampler", "TrainResult", "run_training", "subsample_examples"]
 
 _TRAINER_STATE_FILE = "trainer_state.json"
 _ADAPTER_DIR = "adapter"
+_MODEL_DIR = "model"
 _OPTIMIZER_FILE = "optimizer.pt"
 _SCHEDULER_FILE = "scheduler.pt"
 _RNG_FILE = "rng.pt"
@@ -98,6 +100,18 @@ class SeededEpochSampler:
                 yield batch
 
 
+def subsample_examples(
+    examples: list[Example], max_examples: int | None, *, seed: int
+) -> list[Example]:
+    """Seeded subsample chosen once at startup, so every periodic eval during a run
+    sees the same rows regardless of how many times it is called."""
+    if max_examples is None or len(examples) <= max_examples:
+        return examples
+    rng = np.random.default_rng(seed)
+    chosen = sorted(rng.choice(len(examples), size=max_examples, replace=False).tolist())
+    return [examples[i] for i in chosen]
+
+
 @dataclass(frozen=True, slots=True)
 class TrainResult:
     run_dir: Path
@@ -125,14 +139,22 @@ def _resolve_dtype(torch: Any, dtype_name: str, device: str) -> Any:
     return getattr(torch, _DTYPE_ATTRS[dtype_name])
 
 
-def build_base_model_and_tokenizer(config: TrainConfig) -> tuple[Any, Any, str]:
+def build_base_model_and_tokenizer(
+    config: TrainConfig, resume_from: Path | None = None
+) -> tuple[Any, Any, str]:
     torch = _require_torch()
     from forecheck.inference.hf_loading import load_model, load_tokenizer
 
     device = _auto_device(torch)
     dtype = _resolve_dtype(torch, config.model.dtype, device)
-    tokenizer = load_tokenizer(config.model.base_id, revision=config.model.revision)
-    model_kwargs: dict[str, Any] = {"revision": config.model.revision, "torch_dtype": dtype}
+    resume_model_dir = resume_from / _MODEL_DIR if resume_from is not None else None
+    full_ft_resume = (
+        not config.lora.enabled and resume_model_dir is not None and resume_model_dir.is_dir()
+    )
+    base_id = str(resume_model_dir) if full_ft_resume else config.model.base_id
+    revision = None if full_ft_resume else config.model.revision
+    tokenizer = load_tokenizer(base_id, revision=revision)
+    model_kwargs: dict[str, Any] = {"revision": revision, "torch_dtype": dtype}
     if config.model.attn_implementation is not None:
         model_kwargs["attn_implementation"] = config.model.attn_implementation
     if config.lora.qlora:
@@ -147,13 +169,15 @@ def build_base_model_and_tokenizer(config: TrainConfig) -> tuple[Any, Any, str]:
             bnb_4bit_quant_type="nf4",
         )
         model_kwargs["device_map"] = {"": 0}
-    model = load_model(config.model.base_id, load_class=config.model.load_class, **model_kwargs)
+    model = load_model(base_id, load_class=config.model.load_class, **model_kwargs)
     if not config.lora.qlora:
         model.to(device)
     return model, tokenizer, device
 
 
 def attach_lora(base_model: Any, config: TrainConfig, resume_from: Path | None) -> Any:
+    if not config.lora.enabled:
+        return base_model
     from peft import LoraConfig as PeftLoraConfig
     from peft import PeftModel, get_peft_model
 
@@ -174,6 +198,14 @@ def attach_lora(base_model: Any, config: TrainConfig, resume_from: Path | None) 
         task_type="CAUSAL_LM",
     )
     return get_peft_model(base_model, peft_config)
+
+
+def _enable_gradient_checkpointing(model: Any, config: TrainConfig) -> None:
+    if not config.train.gradient_checkpointing:
+        return
+    model.gradient_checkpointing_enable()
+    if config.lora.enabled:
+        model.enable_input_require_grads()
 
 
 def _additive_mask(torch: Any, keep_mask: np.ndarray, device: Any, dtype: Any) -> Any:
@@ -204,15 +236,19 @@ def _resolve_batch_sequences(
     return sequences
 
 
+def _build_optimizer(torch: Any, model: Any, config: TrainConfig) -> Any:
+    """Single entry point for optimizer construction, so it can be swapped (e.g. for an
+    8-bit optimizer on larger full-FT runs) without touching the training loop."""
+    trainable = [p for p in model.parameters() if p.requires_grad]
+    return torch.optim.AdamW(trainable, lr=config.optim.lr, weight_decay=config.optim.weight_decay)
+
+
 def _build_optimizer_and_scheduler(
     torch: Any, model: Any, config: TrainConfig, total_steps: int
 ) -> tuple[Any, Any]:
     from transformers import get_scheduler
 
-    trainable = [p for p in model.parameters() if p.requires_grad]
-    optimizer = torch.optim.AdamW(
-        trainable, lr=config.optim.lr, weight_decay=config.optim.weight_decay
-    )
+    optimizer = _build_optimizer(torch, model, config)
     warmup_steps = int(config.optim.warmup_ratio * total_steps)
     scheduler = get_scheduler(
         config.optim.scheduler,
@@ -237,13 +273,22 @@ def _save_checkpoint(
     run_dir: Path,
     step: int,
     model: Any,
+    tokenizer: Any,
     optimizer: Any,
     scheduler: Any,
+    *,
+    full_ft: bool,
 ) -> Path:
     checkpoint_dir = run_dir / "checkpoints" / f"step-{step}"
-    adapter_dir = checkpoint_dir / _ADAPTER_DIR
-    adapter_dir.mkdir(parents=True, exist_ok=True)
-    model.save_pretrained(str(adapter_dir))
+    if full_ft:
+        weights_dir = checkpoint_dir / _MODEL_DIR
+        weights_dir.mkdir(parents=True, exist_ok=True)
+        model.save_pretrained(str(weights_dir))
+        tokenizer.save_pretrained(str(weights_dir))
+    else:
+        adapter_dir = checkpoint_dir / _ADAPTER_DIR
+        adapter_dir.mkdir(parents=True, exist_ok=True)
+        model.save_pretrained(str(adapter_dir))
     torch.save(optimizer.state_dict(), checkpoint_dir / _OPTIMIZER_FILE)
     torch.save(scheduler.state_dict(), checkpoint_dir / _SCHEDULER_FILE)
     torch.save(_rng_state(), checkpoint_dir / _RNG_FILE)
@@ -256,8 +301,34 @@ def _save_checkpoint(
         name: sha256_file(checkpoint_dir / name)
         for name in (_OPTIMIZER_FILE, _SCHEDULER_FILE, _RNG_FILE)
     }
-    write_checkpoint_manifest(checkpoint_dir, step=step, files=files)
+    write_checkpoint_manifest(
+        checkpoint_dir, step=step, files=files, extra={"weights": "full" if full_ft else "adapter"}
+    )
     return checkpoint_dir
+
+
+def _prune_checkpoints(run_dir: Path, *, keep: int, best_step: int | None) -> None:
+    """Delete older checkpoint dirs beyond the ``keep`` most recent, but never delete
+    the checkpoint at ``best_step`` even when it falls outside that window."""
+    checkpoints_dir = run_dir / "checkpoints"
+    if not checkpoints_dir.is_dir():
+        return
+    steps: list[tuple[int, Path]] = []
+    for candidate in checkpoints_dir.iterdir():
+        if not candidate.is_dir():
+            continue
+        try:
+            step = int(candidate.name.removeprefix("step-"))
+        except ValueError:
+            continue
+        steps.append((step, candidate))
+    steps.sort(key=lambda item: item[0])
+    keep_steps = {step for step, _ in steps[-keep:]}
+    if best_step is not None:
+        keep_steps.add(best_step)
+    for step, path in steps:
+        if step not in keep_steps:
+            shutil.rmtree(path)
 
 
 def _load_checkpoint_state(torch: Any, checkpoint_dir: Path, optimizer: Any, scheduler: Any) -> int:
@@ -329,9 +400,10 @@ def run_training(
     active_tracker = tracker or LocalJsonTracker(run_dir)
     active_tracker.log_params(json.loads(config.model_dump_json()))
 
-    base_model, tokenizer, device = build_base_model_and_tokenizer(config)
     resume_from = config.train.resume_from
+    base_model, tokenizer, device = build_base_model_and_tokenizer(config, resume_from)
     model = attach_lora(base_model, config, resume_from)
+    _enable_gradient_checkpointing(model, config)
     dtype = _resolve_dtype(torch, config.model.dtype, device)
     pad_token_id = tokenizer.pad_token_id
     if pad_token_id is None:
@@ -343,6 +415,9 @@ def run_training(
 
     train_examples = load_examples(config.data.dir, config.data.train_split)
     dev_examples = load_examples(config.data.dir, config.data.dev_split)
+    dev_examples = subsample_examples(
+        dev_examples, config.data.dev_max_examples, seed=config.train.seed
+    )
     train_dataset = TrainableExampleDataset(
         train_examples,
         tokenizer,
@@ -442,7 +517,20 @@ def run_training(
             model.train()
 
         if optim_step % config.train.save_every == 0:
-            _save_checkpoint(torch, run_dir, optim_step, model, optimizer, scheduler)
+            _save_checkpoint(
+                torch,
+                run_dir,
+                optim_step,
+                model,
+                tokenizer,
+                optimizer,
+                scheduler,
+                full_ft=not config.lora.enabled,
+            )
+            if config.train.keep_checkpoints is not None:
+                _prune_checkpoints(
+                    run_dir, keep=config.train.keep_checkpoints, best_step=best_step
+                )
 
         if stopped_early or optim_step >= total_optim_steps:
             break

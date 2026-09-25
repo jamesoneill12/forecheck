@@ -1,0 +1,45 @@
+model:
+  base_id: ibm-granite/granite-3.3-2b-instruct
+  dtype: bf16
+  attn_implementation: sdpa
+
+lora:
+  enabled: false
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: [q_proj, k_proj, v_proj, o_proj]
+  qlora: false
+
+data:
+  dir: /opt/ml/fsx/forecheck/data/v2
+  train_split: train
+  dev_split: dev
+  max_prompt_tokens: 4096
+  dimension_weights: {}
+
+optim:
+  lr: 0.00001
+  weight_decay: 0.01
+  warmup_ratio: 0.03
+  epochs: 3
+  micro_batch_size: 16
+  grad_accum: 1
+  grad_clip: 1.0
+  scheduler: cosine
+
+train:
+  seed: 0
+  eval_every: 200
+  save_every: 200
+  early_stop_patience: 5
+  shared_prefill: true
+  gradient_checkpointing: true
+  keep_checkpoints: 2
+
+tracking:
+  backend: local
+  run_name: train-2b-fullft
+
+output:
+  dir: /opt/ml/fsx/forecheck/runs/2b-fullft-synthetic-v2

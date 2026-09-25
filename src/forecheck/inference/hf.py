@@ -58,6 +58,7 @@ class HFBackendConfig:
     model_id: str
     revision: str | None = None
     adapter_id: str | None = None
+    weights_dir: str | None = None
     device: str | None = None
     dtype: str | None = None
     shared_prefill: bool = True
@@ -167,14 +168,17 @@ class HFBackend(BaseBackend):
     def _load_model_and_tokenizer(self, torch: Any) -> tuple[Any, Any, str]:
         device = self._config.device or _auto_device(torch)
         dtype = _resolve_dtype(torch, self._config.dtype, device)
-        tokenizer = load_tokenizer(self._config.model_id, revision=self._config.revision)
+        weights_dir = self._config.weights_dir
+        load_source = weights_dir if weights_dir is not None else self._config.model_id
+        revision = None if weights_dir is not None else self._config.revision
+        tokenizer = load_tokenizer(load_source, revision=revision)
         model = load_model(
-            self._config.model_id,
+            load_source,
             load_class=self._config.load_class,
-            revision=self._config.revision,
+            revision=revision,
             torch_dtype=dtype,
         )
-        if self._config.adapter_id is not None:
+        if weights_dir is None and self._config.adapter_id is not None:
             from peft import PeftModel
 
             model = PeftModel.from_pretrained(model, self._config.adapter_id)

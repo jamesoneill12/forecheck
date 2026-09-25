@@ -481,7 +481,72 @@ def test_resolve_backend_hf_strips_when_run_trained_stripped(tmp_path: Path, mon
             captured["config"] = config
 
     monkeypatch.setattr(common, "load_resolved_train_config", lambda run: FakeTrain)
-    monkeypatch.setattr(common, "_latest_checkpoint_adapter", lambda run: None)
+    monkeypatch.setattr(common, "_latest_checkpoint_dir", lambda run: None)
     monkeypatch.setattr(common, "HFBackend", FakeHF)
     resolve_backend("hf", tmp_path / "run")
     assert captured["config"].strip_identity is True
+
+
+def test_resolve_backend_hf_full_ft_checkpoint_sets_weights_dir(
+    tmp_path: Path, monkeypatch
+) -> None:
+    import forecheck.cli_cmds._common as common
+
+    class FakeTrain:
+        class model:
+            base_id = "toy/model"
+            revision = None
+
+        class data:
+            strip_identity = False
+
+    run_dir = tmp_path / "run"
+    checkpoint_dir = run_dir / "checkpoints" / "step-10"
+    (checkpoint_dir / "model").mkdir(parents=True)
+    (checkpoint_dir / "checkpoint_manifest.json").write_text(
+        json.dumps({"step": 10, "files": {}, "weights": "full"}), encoding="utf-8"
+    )
+
+    captured = {}
+
+    class FakeHF:
+        def __init__(self, config):
+            captured["config"] = config
+
+    monkeypatch.setattr(common, "load_resolved_train_config", lambda run: FakeTrain)
+    monkeypatch.setattr(common, "HFBackend", FakeHF)
+    resolve_backend("hf", run_dir)
+
+    assert captured["config"].weights_dir == str(checkpoint_dir / "model")
+    assert captured["config"].adapter_id is None
+
+
+def test_resolve_backend_hf_adapter_checkpoint_sets_adapter_id_unchanged(
+    tmp_path: Path, monkeypatch
+) -> None:
+    import forecheck.cli_cmds._common as common
+
+    class FakeTrain:
+        class model:
+            base_id = "toy/model"
+            revision = None
+
+        class data:
+            strip_identity = False
+
+    run_dir = tmp_path / "run"
+    checkpoint_dir = run_dir / "checkpoints" / "step-10"
+    (checkpoint_dir / "adapter").mkdir(parents=True)
+
+    captured = {}
+
+    class FakeHF:
+        def __init__(self, config):
+            captured["config"] = config
+
+    monkeypatch.setattr(common, "load_resolved_train_config", lambda run: FakeTrain)
+    monkeypatch.setattr(common, "HFBackend", FakeHF)
+    resolve_backend("hf", run_dir)
+
+    assert captured["config"].adapter_id == str(checkpoint_dir / "adapter")
+    assert captured["config"].weights_dir is None

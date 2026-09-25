@@ -93,6 +93,51 @@ def test_detect_cache_reuse_support_true_for_forwarding_kwargs_signature() -> No
 
 
 @requires_torch
+def test_weights_dir_loads_from_directory_and_skips_adapter(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    import torch
+
+    from forecheck.inference import hf as hf_module
+    from forecheck.inference.hf import HFBackend, HFBackendConfig
+
+    weights_dir = str(tmp_path / "model")
+    captured: dict[str, Any] = {}
+
+    class FakeModel:
+        def to(self, device: object) -> FakeModel:
+            return self
+
+        def eval(self) -> FakeModel:
+            return self
+
+    class FakeTokenizer:
+        pass
+
+    def fake_load_model(model_id: str, **kwargs: object) -> FakeModel:
+        captured["model_id"] = model_id
+        return FakeModel()
+
+    def fake_load_tokenizer(model_id: str, **kwargs: object) -> FakeTokenizer:
+        captured["tokenizer_id"] = model_id
+        return FakeTokenizer()
+
+    def fake_peft_from_pretrained(*args: object, **kwargs: object) -> None:
+        raise AssertionError("PeftModel.from_pretrained must not be called when weights_dir is set")
+
+    monkeypatch.setattr(hf_module, "load_model", fake_load_model)
+    monkeypatch.setattr(hf_module, "load_tokenizer", fake_load_tokenizer)
+    monkeypatch.setattr("peft.PeftModel.from_pretrained", fake_peft_from_pretrained)
+
+    config = HFBackendConfig(model_id="base/model", weights_dir=weights_dir, adapter_id="unused")
+    backend = HFBackend(config)
+    backend._load_model_and_tokenizer(torch)
+
+    assert captured["model_id"] == weights_dir
+    assert captured["tokenizer_id"] == weights_dir
+
+
+@requires_torch
 def test_log_odds_prefers_yes_when_yes_logits_dominate() -> None:
     import torch
 
