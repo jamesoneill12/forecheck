@@ -1,0 +1,35 @@
+# Eval-only rerun of the 5k scaling point after the uncalibrated-dimension fix; training and calibration already on FSx.
+trainer:
+  runtime_name: "torch-runtime"
+  project_name: "forecheck"
+  experiment_name: "eval-2b-v6-5k"
+
+  ecr_image: "812836555640.dkr.ecr.us-east-2.amazonaws.com/ai/fin-base-training:latest"
+
+  command: >-
+    bash -c 'set -euo pipefail &&
+    cd /workspace/forecheck-job &&
+    pip install -q --no-cache-dir -e ".[train]" &&
+    test -f /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-5k/calibration/bundle.json &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-5k --split test --class synthetic_in_distribution --approval-curve balanced &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-5k --split heldout_family --class synthetic_heldout_adversarial --approval-curve balanced &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-5k --split heldout_policy_kind --class synthetic_heldout_adversarial --dump-scores &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-5k --split heldout_policy_phrasing --class synthetic_heldout_adversarial --dump-scores &&
+    A=/opt/ml/fsx/forecheck/data/agentdojo &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-5k --data $A --split agentdojo --class external_or_human --threshold-split none --dump-scores --out /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-5k/reports/agentdojo &&
+    I=/opt/ml/fsx/forecheck/data/injecagent-v2 &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-5k --data $I --split injecagent --class external_or_human --threshold-split none --dump-scores --out /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-5k/reports/injecagent-controls'
+
+  env_vars:
+    FORECHECK_TRACKING_BACKEND: "local"
+    HF_HOME: "/opt/ml/fsx/forecheck/hf_cache"
+    TOKENIZERS_PARALLELISM: "false"
+    PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+
+  nnodes: 1
+
+  resources:
+    worker:
+      instance_type: ml.p6-b200.48xlarge
+      gpus_per_pod: 1
+      cpus_per_pod: 2
