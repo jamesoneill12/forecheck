@@ -1,0 +1,38 @@
+# Fixed-step control for the scaling curve: 250k rows but the 25k arm's ~4,800 optimizer steps, to separate rows from training length.
+trainer:
+  runtime_name: "torch-runtime"
+  project_name: "forecheck"
+  experiment_name: "train-2b-synthetic-v6-250k-4800steps"
+
+  ecr_image: "812836555640.dkr.ecr.us-east-2.amazonaws.com/ai/fin-base-training:latest"
+
+  command: >-
+    bash -c 'set -euo pipefail &&
+    cd /workspace/forecheck-job &&
+    pip install -q --no-cache-dir -e ".[train]" &&
+    if [ ! -f /opt/ml/fsx/forecheck/data/v6-250k/train.jsonl ]; then forecheck data generate --offline --config configs/data/v6-250k.yaml --out /opt/ml/fsx/forecheck/data/v6-250k && forecheck data split /opt/ml/fsx/forecheck/data/v6-250k && python scripts/check_no_leakage.py /opt/ml/fsx/forecheck/data/v6-250k; fi &&
+    forecheck train --config configs/training/2b.yaml data.dir=/opt/ml/fsx/forecheck/data/v6-250k output.dir=/opt/ml/fsx/forecheck/runs/2b-synthetic-v6-250k-4800steps tracking.backend=local optim.max_steps=4800 train.eval_every=200 train.save_every=200 data.dev_max_examples=5000 &&
+    forecheck calibrate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-250k-4800steps --split calibration &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-250k-4800steps --split test --class synthetic_in_distribution --approval-curve balanced --max-examples 5000 &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-250k-4800steps --split heldout_family --class synthetic_heldout_adversarial --approval-curve balanced --max-examples 6640 &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-250k-4800steps --split heldout_policy_kind --class synthetic_heldout_adversarial --dump-scores --max-examples 2500 &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-250k-4800steps --split heldout_policy_phrasing --class synthetic_heldout_adversarial --dump-scores --max-examples 2500 &&
+    forecheck evaluate --backend rule_baseline --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-250k-4800steps --split heldout_family --class synthetic_heldout_adversarial --out /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-250k-4800steps/reports/rule_baseline/heldout_family --max-examples 6640 &&
+    A=/opt/ml/fsx/forecheck/data/agentdojo && test -f $A/agentdojo.jsonl &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-250k-4800steps --data $A --split agentdojo --class external_or_human --threshold-split none --dump-scores --out /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-250k-4800steps/reports/agentdojo &&
+    I=/opt/ml/fsx/forecheck/data/injecagent-v2 && test -f $I/injecagent.jsonl &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-250k-4800steps --data $I --split injecagent --class external_or_human --threshold-split none --dump-scores --out /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-250k-4800steps/reports/injecagent-controls'
+
+  env_vars:
+    FORECHECK_TRACKING_BACKEND: "local"
+    HF_HOME: "/opt/ml/fsx/forecheck/hf_cache"
+    TOKENIZERS_PARALLELISM: "false"
+    PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+
+  nnodes: 1
+
+  resources:
+    worker:
+      instance_type: ml.p6-b200.48xlarge
+      gpus_per_pod: 1
+      cpus_per_pod: 2
