@@ -1,0 +1,38 @@
+# Data-scaling curve point: 2B LoRA on ~5k v6 train rows.
+trainer:
+  runtime_name: "torch-runtime"
+  project_name: "forecheck"
+  experiment_name: "train-2b-synthetic-v6-5k"
+
+  ecr_image: "812836555640.dkr.ecr.us-east-2.amazonaws.com/ai/fin-base-training:latest"
+
+  command: >-
+    bash -c 'set -euo pipefail &&
+    cd /workspace/forecheck-job &&
+    pip install -q --no-cache-dir -e ".[train]" &&
+    if [ ! -f /opt/ml/fsx/forecheck/data/v6-5k/train.jsonl ]; then forecheck data generate --offline --config configs/data/v6-5k.yaml --out /opt/ml/fsx/forecheck/data/v6-5k && forecheck data split /opt/ml/fsx/forecheck/data/v6-5k && python scripts/check_no_leakage.py /opt/ml/fsx/forecheck/data/v6-5k; fi &&
+    forecheck train --config configs/training/2b.yaml data.dir=/opt/ml/fsx/forecheck/data/v6-5k output.dir=/opt/ml/fsx/forecheck/runs/2b-synthetic-v6-5k tracking.backend=local train.eval_every=100 train.save_every=100 &&
+    forecheck calibrate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-5k --split calibration &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-5k --split test --class synthetic_in_distribution --approval-curve balanced &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-5k --split heldout_family --class synthetic_heldout_adversarial --approval-curve balanced &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-5k --split heldout_policy_kind --class synthetic_heldout_adversarial --dump-scores &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-5k --split heldout_policy_phrasing --class synthetic_heldout_adversarial --dump-scores &&
+    forecheck evaluate --backend rule_baseline --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-5k --split heldout_family --class synthetic_heldout_adversarial --out /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-5k/reports/rule_baseline/heldout_family &&
+    A=/opt/ml/fsx/forecheck/data/agentdojo && test -f $A/agentdojo.jsonl &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-5k --data $A --split agentdojo --class external_or_human --threshold-split none --dump-scores --out /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-5k/reports/agentdojo &&
+    I=/opt/ml/fsx/forecheck/data/injecagent-v2 && test -f $I/injecagent.jsonl &&
+    forecheck evaluate --run /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-5k --data $I --split injecagent --class external_or_human --threshold-split none --dump-scores --out /opt/ml/fsx/forecheck/runs/2b-synthetic-v6-5k/reports/injecagent-controls'
+
+  env_vars:
+    FORECHECK_TRACKING_BACKEND: "local"
+    HF_HOME: "/opt/ml/fsx/forecheck/hf_cache"
+    TOKENIZERS_PARALLELISM: "false"
+    PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+
+  nnodes: 1
+
+  resources:
+    worker:
+      instance_type: ml.p6-b200.48xlarge
+      gpus_per_pod: 1
+      cpus_per_pod: 2

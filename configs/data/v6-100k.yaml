@@ -1,0 +1,4 @@
+# v6 generator (renderer 2.0.0) scaled to ~100k train rows; same seed and withheld kinds as train_medium.yaml.
+seed: 424242
+n_per_family: 15000
+pairs_per_axis: 505
